@@ -39,6 +39,8 @@ Clone inside the Linux filesystem (for example `~/code`), not under `/mnt/c`, so
 
 Operator tasks such as disputes, reviewer assignment and resolution go through `npm run admin -- disputes | assign <orderId> <reviewerAlias> | resolve <orderId> release|refund`. The browser journeys run with `npm run e2e --prefix web` while `npm run dev` is up. For the three-party walkthrough, see [docs/DEMO.md](docs/DEMO.md). For live Zcash testnet preparation, see [docs/TESTNET_RUNBOOK.md](docs/TESTNET_RUNBOOK.md).
 
+**Live testnet adapter (unverified):** `WALLET_DRIVER=zallet` runs the Zallet adapter (snapshot scanning, reorg handling, non-resubmitting payouts) with worker-fetched market prices. It is testnet-only and requires explicit acknowledgement until the gate in [docs/ZALLET_GAP.md](docs/ZALLET_GAP.md) passes. **Fees:** the platform fee (`npm run admin -- set-fee <bps>`, 0–15%) applies to completed sales only. It is snapshotted per order and published with its history at `GET /api/terms`.
+
 ## Web app
 
 `web/` is a Vite + React + Tailwind v4 frontend that runs the client-crypto SDK in the browser: capsules are created and decrypted locally, negotiation is end-to-end encrypted, and it covers invitations, passports, asset control and dispute evidence (see [docs/BROWSER_CLIENT.md](docs/BROWSER_CLIENT.md)). It uses shadcn/Base UI primitives with a warm paper, dot-matrix and isometric line-art design. With the API and worker running:

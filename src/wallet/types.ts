@@ -8,4 +8,8 @@ export interface WalletAdapter{
   send(to:string,zat:bigint,memo?:string,idempotencyKey?:string):Promise<string>;
   lookupSend(idempotencyKey:string):Promise<SendLookup>;
   balance():Promise<bigint>;
+  /** When true, unshielded or unattributable funds at an invoice address send the invoice to operator review. */
+  readonly flagsUnattributed?:boolean;
 }
+/** Thrown only when the wallet definitely did not receive the payout, so it may be queued again. */
+export class PayoutNotSubmittedError extends Error{constructor(readonly code:string){super(`Payout not submitted: ${code}`);}}

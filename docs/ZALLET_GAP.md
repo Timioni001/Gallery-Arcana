@@ -58,3 +58,18 @@ Mainnet and production custody require separate explicit authorization and secur
 The official `zcash/zallet` tag list was re-read and the investigation pin `v0.1.0-beta.3` still resolves to `987382f67e622915228686e9f956c6a9c9a7514c`. Tagged official setup/RPC source remains the contract reference; no unsupported legacy methods were introduced. Current `npm run zallet:probe` returns exit 1 / redacted `UNAVAILABLE`. No `zallet`, `zallet-zebra` or `zebrad` executable, running supported RPC, persistent funded account or verified synchronized cohort is available. Machine-readable bounded evidence is [evidence/zcash-testnet-v05.json](evidence/zcash-testnet-v05.json).
 
 The new capsule/conversation/invitation/passport/evidence journeys use deterministic mock payment verification only. They cannot satisfy this release-critical live acceptance gate. Real-wallet mode remains unconditionally disabled; no real receive, payout, refund, blockchain reorganization or spending-credential isolation deployment has been verified. Source/RPC fixture success is not binary interoperability or chain evidence. Genuine funded testnet infrastructure and independent recovery/security acceptance are still required before enabling real testnet, followed by separate explicit approval for any mainnet/production custody.
+
+## v0.6 live adapter — implemented, still unverified
+
+`src/wallet/zalletWallet.ts` implements the worker `WalletAdapter` against the pinned RPC contract. It is selectable only with `WALLET_DRIVER=zallet`, `ZALLET_TESTNET_ACK=unverified-testnet-only` and `PRICE_SOURCE=market`. The network stays testnet-only, and mainnet remains impossible to configure.
+
+| Gate item | Adapter behaviour | Evidence so far |
+| --- | --- | --- |
+| 2. Receiving addresses | `z_getaddressforaccount(account,["orchard"])` per invoice. Responses other than single-receiver Orchard `utest1` addresses are rejected. No account creation. | Fake-RPC integration test |
+| 3. Complete history, reorgs | Pages `z_listtransactions` fully and re-views every unmined or shallow (< reorg depth) transaction. The snapshot commits only if the tip did not move. Transactions that disappear become non-canonical, and confirmed payments that vanish go to review. Undecodable memos are stored as null and never halt scanning. | Fake-RPC integration test |
+| 4. Privacy / attribution | Only fully Orchard transactions are credited. Non-shielded, memo-less or mis-memoed funds at an invoice address go to operator review. | Fake-RPC integration test |
+| 5. Payout reconciliation | A submission row is committed before `z_sendmany` (raw decimal amount, `FullPrivacy`, configured minconf). Only an RPC rejection or a pre-check (locked, unsynced, bad destination) requeues. Lost responses, failed or cancelled operations, `broadcast:false` and output mismatches wait for operator review (`npm run admin -- submissions`). Success requires a broadcast result plus a verified outgoing output of the exact value. | Fake-RPC integration test |
+| 6. Fresh FX | Worker stores a median of Kraken, Coinbase, Gemini and CoinGecko. It needs at least 2 sources within 2%, and checkout refuses quotes older than `PRICE_MAX_AGE_SECONDS`. | Unit and DB tests, live endpoints reachable |
+| 1, 7. Real binaries, live journey | **Not done.** This needs the operator-run Zebra and Zallet cohort in [TESTNET_RUNBOOK.md](TESTNET_RUNBOOK.md) and genuine testnet transactions. | Pending |
+
+Fake-RPC tests prove the adapter's logic against the contract as read from the pinned source. They do not prove interoperability with the real binaries.

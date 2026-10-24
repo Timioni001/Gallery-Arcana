@@ -36,13 +36,17 @@ export async function scanOnce(wallet:WalletAdapter){
     let failures=0;
     for(const invoice of rows){
       try{
-        const notes=attributed(await wallet.received(invoice.address),invoice.address,invoice.memo_code);
+        const observed=await wallet.received(invoice.address);
+        const notes=attributed(observed,invoice.address,invoice.memo_code);
+        // Invoice addresses are single-use, so any other funds there need a human decision.
+        const anomalous=!!wallet.flagsUnattributed&&observed.some(n=>n.address===invoice.address&&n.canonical&&(!n.shielded||n.memo!==invoice.memo_code));
         await tx(async c=>{
           const ref=(await c.query('SELECT listing_id FROM orders WHERE id=$1',[invoice.ref_id])).rows[0];if(!ref)return;
           await c.query('SELECT id FROM listings WHERE id=$1 FOR UPDATE',[ref.listing_id]);
           const order=(await c.query('SELECT *,expires_at<=clock_timestamp() AS deadline_passed FROM orders WHERE id=$1 FOR UPDATE',[invoice.ref_id])).rows[0];
           const p=(await c.query('SELECT *,expires_at<=clock_timestamp() AS deadline_passed FROM payments WHERE id=$1 FOR UPDATE',[invoice.id])).rows[0];
           if(!p||p.scrubbed_at||p.status==='review')return;
+          if(anomalous){await review(c,p.id,order.id);return;}
           const prior=(await c.query('SELECT * FROM payment_notes WHERE payment_id=$1',[p.id])).rows;
           await c.query('UPDATE payment_notes SET canonical=false WHERE payment_id=$1',[p.id]);
           for(const n of notes){

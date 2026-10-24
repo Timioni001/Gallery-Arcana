@@ -54,7 +54,7 @@ export async function checkout(buyerId:string,listingId:string,offerId?:string,i
     const fee=await setting<number>('platform_cut_bps',c);
     if(!Number.isSafeInteger(fee)||fee<0||fee>10000)throw new Error('Invalid platform fee');
     const sellerPayout=BigInt(payment.amountZat)*BigInt(10000-fee)/10000n;
-    await c.query('UPDATE orders SET payment_id=$2,seller_payout_zat=$3 WHERE id=$1',[created.id,payment.paymentId,sellerPayout.toString()]);
+    await c.query('UPDATE orders SET payment_id=$2,seller_payout_zat=$3,platform_fee_bps=$4 WHERE id=$1',[created.id,payment.paymentId,sellerPayout.toString(),fee]);
     return {orderId:created.id as string,payment};
   });
   return {...order,receiptCode};
@@ -77,7 +77,9 @@ export async function myOrders(accountId:string){
   return (await pool.query('SELECT id,listing_id,title,status,price_usd_cents,created_at,refund_status FROM orders WHERE buyer_id=$1 ORDER BY created_at DESC,id DESC LIMIT 100',[accountId])).rows;
 }
 export async function sales(accountId:string){
-  return (await pool.query(`SELECT o.id,o.listing_id,o.title,o.status,o.price_usd_cents,o.created_at,o.funded_at,o.file_first_accessed_at,o.delivery_confirmed_at,o.disputed_at FROM orders o JOIN listings l ON l.id=o.listing_id
+  return (await pool.query(`SELECT o.id,o.listing_id,o.title,o.status,o.price_usd_cents,o.created_at,o.funded_at,o.file_first_accessed_at,o.delivery_confirmed_at,o.disputed_at,
+    o.platform_fee_bps,p.expected_zat::text AS price_zat,o.seller_payout_zat::text AS seller_payout_zat,(p.expected_zat-o.seller_payout_zat)::text AS platform_fee_zat
+    FROM orders o JOIN listings l ON l.id=o.listing_id LEFT JOIN payments p ON p.id=o.payment_id
     WHERE l.seller_id=$1 ORDER BY o.created_at DESC,o.id DESC LIMIT 100`,[accountId])).rows;
 }
 export async function renewReceipt(accountId:string,orderId:string){

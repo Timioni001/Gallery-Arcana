@@ -10,6 +10,7 @@ Errors use `{error: string}` with 400 for input errors, 401 for missing authenti
 | --- | --- |
 | `GET /` | API name, version and documentation metadata. |
 | `GET /api/health` | Process liveness, `mode: mock`, `network: test`, and `origin` (the exact `PUBLIC_ORIGIN` that client encryption identities must bind to). No chain-readiness claim. |
+| `GET /api/terms` | Public trading terms: current `platformFeeBps` (completed sales only; refunds pay nothing), append-only `feeHistory`, settlement mode/network, `minConfirmations`, and the price source with its maximum age (latest market quote, or the fixed demo rate). |
 | `GET /api/ready` | 200 only when migrations, encryption/signing keys, worker heartbeat and free destination pool are ready; otherwise 503. |
 | `GET /api/listings` | Live public listings. Optional `category=digital\|collectible\|onchain\|other`, literal title `q` (70 chars), `limit` 1–80 (default 40), `offset` 0–10000. Returns an array ordered by creation time and ID. |
 | `GET /api/listings/{id}` | Listing metadata by UUID; unlisted links are readable by anyone possessing the URL. Paused listings are visible only to their seller. |
@@ -62,7 +63,7 @@ Seller acceptance applies only to the original open offer. A seller cannot accep
 | `GET /api/orders` | Current buyer's order summaries, never a public history. |
 | `GET /api/orders/{id}` | Buyer-only status, immutable title/price/digest, funded/download/acceptance timestamps, payment progress/confirmations and refund state. |
 | `GET /api/orders/{id}/payment` | Buyer-only original address, memo, quote and ZIP-321 URI. Never returns the receipt secret. |
-| `GET /api/sales` | Seller's order summaries. Omits buyer identity, memos, payment destinations and receipt secrets. |
+| `GET /api/sales` | Seller's order summaries with the fee breakdown each order was checked out under: `platform_fee_bps`, `price_zat`, `platform_fee_zat`, `seller_payout_zat`. Omits buyer identity, memos, payment destinations and receipt secrets. |
 | `POST /api/orders/{id}/receipt` | Funded/disputed/paid order's authenticated buyer replaces the receipt code. Returns private receipt metadata plus a new `receiptCode`; previous code is revoked. |
 | `POST /api/files/{listingId}` | `{receiptCode}` plus the buyer session for linked v0.4 acquisitions. Funded/paid/disputed only; verifies the snapshotted SHA-256 and returns `X-Arcana-Asset-SHA256`. Legacy and retention-anonymized paid receipts retain bearer redemption. Unfunded/reviewed/refunded/revoked codes do not deliver. |
 | `POST /api/refunds/late` | `{receiptCode,address}` claims confirmed late/expired partial funds or initial overpayment excess after release. The receipt is bearer authorization to choose the refund destination. Returns `{refundId,status:"queued"}`; repeat claims fail. |
