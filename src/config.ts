@@ -1,28 +1,39 @@
-const env = process.env;
-const need = (name: string, fallback: string) => env[name] || fallback;
+import { z } from 'zod';
 
-export const config = {
-  databaseUrl: need('DATABASE_URL', 'postgres://arcana:arcana@localhost:5432/arcana'),
-  port: Number(need('PORT', '8080')),
-  network: need('ZCASH_NETWORK', 'test') as 'test' | 'main',
-  walletDriver: need('WALLET_DRIVER', 'mock') as 'mock' | 'zallet',
-  zalletUrl: need('ZALLET_RPC_URL', 'http://127.0.0.1:28232'),
-  zalletUser: env.ZALLET_RPC_USER ?? '',
-  zalletPass: env.ZALLET_RPC_PASS ?? '',
-  adminToken: need('ADMIN_TOKEN', 'change-me'),
-  minConfirmations: Number(need('MIN_CONFIRMATIONS','1')),
-  zecUsdFixed: Number(need('ZEC_USD_FIXED', '40')),
-  publicOrigin: env.PUBLIC_ORIGIN ?? '',
-  storageDir: need('STORAGE_DIR', './storage'),
-  sessionDays: 30,
-  addressPoolTarget: 30,
-};
-
-// The real wallet RPC mapping, live exchange-rate source, custody process, and
-// payout reconciliation must be verified before mainnet is enabled.
-if (config.network === 'main') throw new Error('Mainnet disabled: real wallet integration and oracle have not been production-verified');
-if (config.walletDriver !== 'mock') throw new Error('Real Zallet wallet adapter disabled: unsupported payment receiver scanning; use mock locally and read docs/ZALLET_GAP.md');
-if (process.env.NODE_ENV === 'production') throw new Error('This reference backend must not run in production: mock checkout can be simulated and real Zcash has not been verified');
-if (!Number.isFinite(config.zecUsdFixed) || config.zecUsdFixed <= 0) throw new Error('Invalid ZEC_USD_FIXED');
-if (process.env.NODE_ENV==='production' && !/^[a-f0-9]{64}$/i.test(process.env.ASSET_ENCRYPTION_KEY??''))
-  throw new Error('Production requires a generated ASSET_ENCRYPTION_KEY');
+const positiveInt=(fallback:number,max=2_147_483_647)=>z.coerce.number().int().min(1).max(max).default(fallback);
+const schema=z.object({
+  DATABASE_URL:z.string().url().default('postgres://arcana:arcana@localhost:5432/arcana'),
+  API_HOST:z.enum(['127.0.0.1','0.0.0.0']).default('127.0.0.1'),
+  WORKER_POLL_MS:positiveInt(5000,60000),
+  MOCK_SIMULATOR_TOKEN:z.string().min(32).optional(),
+  PORT:positiveInt(8080,65535),
+  WORKER_PORT:positiveInt(8081,65535),
+  PUBLIC_ORIGIN:z.string().url().default('http://localhost:8080'),
+  ZCASH_NETWORK:z.literal('test').default('test'),
+  WALLET_DRIVER:z.literal('mock').default('mock'),
+  MIN_CONFIRMATIONS:positiveInt(2,1000),
+  ZEC_USD_FIXED:z.string().regex(/^(?:0|[1-9][0-9]{0,6})(?:\.[0-9]{1,6})?$/).default('40'),
+  STORAGE_DIR:z.string().min(1).default('./storage'),
+  SESSION_DAYS:positiveInt(30,90),
+  SESSION_ABSOLUTE_DAYS:positiveInt(90,365),
+  ADMIN_TOKEN:z.string().optional(),
+  NODE_ENV:z.enum(['development','test']).default('development'),
+});
+export function parseConfig(env:NodeJS.ProcessEnv){
+  const parsed=schema.safeParse(env);
+  if(!parsed.success)throw new Error(`Invalid configuration: ${[...new Set(parsed.error.issues.map(i=>i.path.join('.')))].join(', ')}. Mainnet, production and real wallets remain disabled.`);
+  const v=parsed.data;
+  const origin=new URL(v.PUBLIC_ORIGIN);
+  if(!['http:','https:'].includes(origin.protocol)||origin.origin!==v.PUBLIC_ORIGIN)throw new Error('PUBLIC_ORIGIN must be an exact HTTP(S) origin');
+  if(origin.protocol==='http:'&&!['localhost','127.0.0.1','[::1]'].includes(origin.hostname))throw new Error('Non-local HTTP is disabled; configure HTTPS');
+  if(!['postgres:','postgresql:'].includes(new URL(v.DATABASE_URL).protocol))throw new Error('DATABASE_URL must be PostgreSQL');
+  const [whole,fraction='']=v.ZEC_USD_FIXED.split('.');
+  const rate=BigInt(whole!)*1_000_000n+BigInt(fraction.padEnd(6,'0'));
+  if(rate<=0n)throw new Error('ZEC_USD_FIXED must be positive');
+  if(v.SESSION_DAYS>v.SESSION_ABSOLUTE_DAYS)throw new Error('Session idle lifetime exceeds absolute lifetime');
+  return {host:v.API_HOST,workerPollMs:v.WORKER_POLL_MS,simulatorToken:v.MOCK_SIMULATOR_TOKEN,databaseUrl:v.DATABASE_URL,port:v.PORT,workerPort:v.WORKER_PORT,network:v.ZCASH_NETWORK,walletDriver:v.WALLET_DRIVER,
+    minConfirmations:v.MIN_CONFIRMATIONS,rateMicroUsd:rate,publicOrigin:v.PUBLIC_ORIGIN,storageDir:v.STORAGE_DIR,
+    sessionDays:v.SESSION_DAYS,sessionAbsoluteDays:v.SESSION_ABSOLUTE_DAYS,addressPoolTarget:30,
+    adminToken:v.ADMIN_TOKEN&&v.ADMIN_TOKEN.length>=32&&!/replace|change-me/i.test(v.ADMIN_TOKEN)?v.ADMIN_TOKEN:null};
+}
+export const config=parseConfig(process.env);

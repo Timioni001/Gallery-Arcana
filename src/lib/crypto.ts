@@ -41,9 +41,10 @@ export async function hashPassphrase(passphrase: string): Promise<string> {
 }
 
 export async function verifyPassphrase(passphrase: string, stored: string): Promise<boolean> {
-  const [alg, , , , salt, key] = stored.split('$');
-  if (alg !== 'scrypt') return false;
+  const [alg, n, r, p, salt, key] = stored.split('$');
+  if (alg !== 'scrypt' || Number(n)!==N || Number(r)!==R || Number(p)!==P || !salt || !key) return false;
   const expected = Buffer.from(key, 'base64');
+  if(expected.length!==32 || Buffer.from(salt,'base64').length!==16)return false;
   const actual = await scryptAsync(passphrase.normalize('NFKC'), Buffer.from(salt, 'base64'), expected.length);
   return timingSafeEqual(actual, expected);
 }

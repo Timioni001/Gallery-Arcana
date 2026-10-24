@@ -1,15 +1,11 @@
-export type ReceivedNote = { txid: string; zat: bigint; memo: string | null; confirmations: number };
-
-/**
- * The only surface the rest of the system sees. Swap drivers without touching business logic.
- * Only the worker process instantiates a wallet. The API never does.
- */
-export interface WalletAdapter {
-  /** A fresh single-use receiving address (unified address with a shielded receiver). */
-  newAddress(): Promise<string>;
-  /** All notes received at this address. */
-  received(address: string): Promise<ReceivedNote[]>;
-  /** Send from the payout wallet. Returns txid. */
-  send(to: string, zat: bigint, memo?: string): Promise<string>;
-  balance(): Promise<bigint>;
+export type ReceivedNote={outputId:string;txid:string;address:string;zat:bigint;memo:string|null;confirmations:number;shielded:boolean;canonical:boolean};
+export type SendLookup={state:'found';txid:string;to:string;zat:bigint}|{state:'unknown'|'not_found'};
+/** Worker-only boundary. received() MUST return a complete historical snapshot, including spent notes. */
+export interface WalletAdapter{
+  syncStatus():Promise<{ready:boolean}>;
+  newAddress():Promise<string>;
+  received(address:string):Promise<ReceivedNote[]>;
+  send(to:string,zat:bigint,memo?:string,idempotencyKey?:string):Promise<string>;
+  lookupSend(idempotencyKey:string):Promise<SendLookup>;
+  balance():Promise<bigint>;
 }

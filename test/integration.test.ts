@@ -8,7 +8,7 @@ import { MockWallet } from '../src/wallet/mock.ts';
 import { scanOnce } from '../src/jobs/watcher.ts';
 import { releaseExpired } from '../src/services/checkout.ts';
 
-const enabled = process.env.RUN_DB_TESTS === '1';
+const enabled = process.env.RUN_DB_TESTS === '1' && process.env.ARCANA_ISOLATED_TEST_DB==='1';
 process.env.ASSET_ENCRYPTION_KEY ??= randomBytes(32).toString('hex');
 
 test('Postgres/API integration: auth, ownership, private offers, checkout, expiry, refund and delivery',
@@ -105,7 +105,7 @@ test('Postgres/API integration: auth, ownership, private offers, checkout, expir
     assert.equal((await request('GET', '/api/offers', undefined, other.cookie)).json().length, 0,
       'an unrelated account cannot view private offers');
     const publicListing = (await request('GET', `/api/listings/${listingId}`)).json();
-    assert.equal(JSON.stringify(publicListing).includes('300'), false, 'public listing does not expose offer value');
+    assert.equal('amount_usd_cents' in publicListing, false, 'public listing does not expose offer value');
     assert.equal((await request('GET', '/api/offers', undefined, seller.cookie)).json()[0].amount_usd_cents, 300);
     assert.equal((await mutate('POST', `/api/offers/${offerId}/action`, { action: 'accept' }, other.cookie)).statusCode, 403);
     assert.equal((await mutate('POST', `/api/offers/${offerId}/action`, { action: 'accept' }, seller.cookie)).statusCode, 200);

@@ -1,0 +1,21 @@
+{
+  "status": "source-inspected-only-live-adapter-disabled",
+  "zallet": {
+    "repository": "https://github.com/zcash/zallet",
+    "tag": "v0.1.0-beta.3",
+    "commit": "987382f67e622915228686e9f956c6a9c9a7514c",
+    "rust_version": "1.95",
+    "backend": "zebra"
+  },
+  "zebra": {
+    "repository": "https://github.com/ZcashFoundation/zebra",
+    "tag": "v6.2.3",
+    "commit": "7121c82ba6795a151523d5b308a19743f4a1ade7",
+    "features": ["indexer"],
+    "zebra_rpc": "15.0.0",
+    "zebra_state": "12.0.1"
+  },
+  "compatibility": "Zallet backend lockfile and Zebra tagged manifests agree on zebra-rpc and zebra-state. Binary interoperability, chain synchronization and live payments are NOT verified.",
+  "network": "testnet-only-investigation",
+  "mainnet_enabled": false
+}

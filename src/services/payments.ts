@@ -12,7 +12,7 @@ export async function createPayment(c: Db, p: { usdCents: number; refId: string;
   if (!claimed.rows[0]) throw new HttpError(503,'Payment service is warming up. Try again shortly.');
   const rate = await getOracle().rateMicroUsd();
   const zat = usdCentsToZat(p.usdCents,rate);
-  const memo = newCode('GA',6);
+  const memo = newCode('GA',16);
   const { rows } = await c.query(`INSERT INTO payments(address,memo_code,usd_cents,rate_micro_usd,expected_zat,ref_id,expires_at)
     VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
     [claimed.rows[0].address,memo,p.usdCents,rate.toString(),zat.toString(),p.refId,p.expiresAt]);

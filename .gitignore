@@ -4,3 +4,7 @@ storage/
 secrets/
 dist/
 .DS_Store
+
+.env.*
+!.env.example
+!.env.worker.example

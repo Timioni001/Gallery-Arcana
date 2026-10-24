@@ -1,84 +1,50 @@
-# Gallery Arcana — backend-only technical build (v0.3.0)
+# Gallery Arcana backend
 
-This project intentionally contains **NO UI**. It is the source-code backend for a simple privacy-oriented marketplace based on the original Gallery Arcana archive and the retuned marketplace design.
+A Node.js 22+, TypeScript, Fastify and PostgreSQL marketplace backend. API and wallet workers run separately. Development payments use an explicitly labelled durable mock wallet. **Real Zcash, mainnet and production custody remain disabled.**
 
-## Implemented modules
+The local workflow supports alias accounts, hashed passphrases, rotating/revocable sessions, seller-owned uploads and listing edits, public/unlisted discovery, private offers and counteroffers, atomic checkout, confirmation checks, encrypted delivery, private receipts, refunds and payout reconciliation. No frontend is included.
 
-1. Accounts: alias/passphrase signup, scrypt hashes, server-side sessions, HttpOnly cookies.
-2. Listings: public or unlisted; digital goods, collectibles, onchain references; owner-only upload association.
-3. Negotiation: private (participant-only API) offer/counter/accept/decline/withdraw workflows. NOT end-to-end encrypted.
-4. Checkout: atomic listing reservation, order record, new payment destination per order, ZIP-321 payment URI, buyer-only order status and payment instruction retrieval.
-5. Delivery: AES-256-GCM encrypted private uploads, real image signatures for previews, high-entropy bearer receipts, authenticated order status, receipt-gated digital file downloads.
-6. Payment worker: isolated wallet process, confirmations, late-payment tracking, queued payouts, and refund claims.
-7. Privacy: no public buyer feed, no transaction history on listing endpoint, data-retention job, logs disabled in API, rolling sessions and in-process IP/account limits.
-8. Tests: Node unit tests for amounts, receipts, scrypt, encryption and preview validation; local Postgres/API integration coverage for account sessions, upload ownership, offer privacy, checkout races, payment memo matching, expiry/refund, and file delivery.
+## Start locally
 
-Important: `web/` is deliberately absent. The API root returns metadata JSON.
-
-## What is deliberately NOT live
-
-- Mainnet and production execution are **disabled** by code guards. Mock wallet mode demonstrates the protocol without real funds.
-- The included Zallet driver in `src/wallet/zallet.ts` is an **unverified reference** only and is not registered. Current Zallet docs do not list the prior code's `z_listreceivedbyaddress` call. Read `docs/ZALLET_GAP.md` before implementing a supported, independently verified scanner.
-- Not trustless escrow; payout worker is custodial; FX uses a fixed demo rate.
-- No E2EE chat or confidential seller matching. Offer prices are private from other marketplace users, but visible to the server/database operator.
-- External tokens/NFTs are **listing/negotiation only**; no atomic settlement or asset proof, no support for unlawful trade.
-- No dispute mediation, malicious file scanning, content moderation, multi-instance rate limiting, audited backups, or custody security review.
-- `unlisted` means anyone with the link can see the listing metadata. It is not an encryption boundary.
-
-## Run locally (Ubuntu / WSL)
-
-Requirements: Node.js >=22, npm, PostgreSQL 16 (Docker optional). Running Postgres is needed for API integration; `npm test` does not need a database.
+Use PostgreSQL 16, Node.js 22+ and npm. Native PostgreSQL on Ubuntu/WSL is supported; Docker is optional. Full native setup, key handling and separate service instructions are in [docs/OPERATIONS.md](docs/OPERATIONS.md).
 
 ```bash
-cp .env.example .env
-# Choose a strong secret key, put the output in .env as ASSET_ENCRYPTION_KEY=...
-openssl rand -hex 32
 npm ci
-# If Docker is installed:
-docker compose up -d db
-npm run migrate
-npm run worker       # terminal A (demo address pool and payment simulator)
-npm run api          # terminal B (http://127.0.0.1:8080)
+cp .env.example .env             # only if .env does not already exist
+# Set DATABASE_URL and a persistent ASSET_ENCRYPTION_KEY in .env.
+# Generate the key locally: openssl rand -hex 32
+# Optional database alternative: docker compose up -d db
+npm run migrate                 # checksummed, transactional and repeatable
+npm run worker                  # terminal A
+npm run api                     # terminal B
 ```
 
-If Docker is unavailable, run a local Postgres 16 service and set `DATABASE_URL` correctly. The migration initializes a **new** schema and will not migrate prior art-gallery data. Do not apply it to an existing production database.
+The API binds to loopback by default. `GET /api/health` reports process liveness; `GET /api/ready` checks schema, encryption-key presence, worker heartbeat and payment-destination availability. All mutations require `X-Arcana-Action: 1`; browser mutations also enforce the configured origin and fetch-site checks. Session cookies are HttpOnly and SameSite=Strict, and Secure when `PUBLIC_ORIGIN` uses HTTPS.
 
-### Terminal/API basics
+Copy `.env.worker.example` to `.env.worker` for worker-only options. The localhost payment simulator is disabled unless a strong `MOCK_SIMULATOR_TOKEN` is configured. It requires Bearer authentication and never submits blockchain transactions. Wallet spending credentials must not be placed in the API environment.
 
-Every POST/PUT/PATCH/DELETE request requires `X-Arcana-Action: 1`. Use `-b cookies.txt -c cookies.txt` for session cookies or submit an Authorization Bearer token if one exists. A cookie signup example:
+## Validate
 
 ```bash
-curl -sS -c cookies.txt -H 'X-Arcana-Action: 1' -H 'Content-Type: application/json' \
-  -d '{"alias":"seller01","passphrase":"a-long-unique-passphrase"}' http://localhost:8080/api/signup
-curl -sS -b cookies.txt http://localhost:8080/api/me
+npm test                        # unit/security/RPC-contract tests; DB suites explicitly skipped here
+npm run test:integration         # creates, migrates and drops a separate PostgreSQL DB per test file
+npm run typecheck
+# Or: npm run test:all
 ```
 
-Run the API and worker in distinct processes. The worker listens on `127.0.0.1:8081/dev/pay` in mock/test mode only; this is a **simulator**, not an actual Zcash RPC.
+The integration runner requires a local role with CREATEDB, or `TEST_DATABASE_ADMIN_URL` for a dedicated test role. It never truncates the application database. Tests cover the signup → private offer → acceptance → checkout → verified mock payment → receipt → file journey; authorization, concurrent checkout, expiry, partial/excess/late payments, output replay, reorganizations, worker crash/restart and payout reconciliation. See [docs/VALIDATION.md](docs/VALIDATION.md) for executed results and limits.
 
-For a full walkthrough of the endpoint contract, see `docs/API.md`. Source references and priorities for real Zallet integration are in `docs/ZALLET_GAP.md`.
+`npm run zallet:probe` diagnoses supported read-only wallet RPC contracts using optional `.env.worker` bindings. It cannot spend or enable real payments. Its bounded sample does not satisfy live testnet acceptance; see [docs/ZALLET_GAP.md](docs/ZALLET_GAP.md).
 
-## Project map
+## Contracts and limitations
 
-```text
-src/http/server.ts          Fastify API, input validation, auth enforcement
-src/services/             listings, offers, checkout, auth, storage, settlement
-src/jobs/                 address pool, watcher, payout queue, retention
-src/wallet/               mock wallet + unverified Zallet prototype
-src/lib/                  crypto, money conversion, image signatures
-src/main.ts               API process
-src/worker.ts             separate wallet/settlement worker
-db/schema.sql             Postgres schema
-scripts/migrate.ts        initial DB creation
-test/core.test.ts         dependency-free Node tests
-docs/                     API contract and technical limitations
-```
-
-## Validation
-
-```bash
-npm test
-npm run typecheck          # after npm install
-npm run test:integration   # after Postgres is running and npm run migrate has initialized a local database
-```
-
-The integration suite uses a local Postgres database and mock wallet only. It does not validate live Zcash testnet payments or payouts. Never advertise this repository as production-ready without independently verified wallet behavior and operational review.
+- [API routes](docs/API.md), [domain invariants and audit repairs](docs/INVARIANTS.md), [threat model](docs/THREAT_MODEL.md), [operations](docs/OPERATIONS.md).
+- Offers are private through server access controls. The database/operator can read them; negotiation has no client encryption or E2EE claim.
+- Private originals use AES-256-GCM at rest with authenticated file identifiers. The API operator holds the decryption key. Public previews are decoded and re-encoded with metadata removed; they remain public.
+- Receipt codes are high-entropy bearer capabilities for downloads and refunds. Anyone possessing one can redeem it. The authenticated buyer can replace a paid order's receipt and invalidate the previous code.
+- Unlisted URLs hide listings from search, but anyone with the URL can view their metadata.
+- Rate limits are shared atomically through PostgreSQL. Limits do not make pseudonymous signup resistant to a distributed Sybil attack.
+- Demo exchange rates are fixed and parsed entirely with integer arithmetic. They are unsuitable for accepting real funds.
+- Reorganized settled payments and deposits arriving after settlement are frozen for manual review. Uncertain payouts are reconciled by durable submission ID and never blindly retried.
+- Real wallet status is **blocked**: source/RPC-contract inspection is not live-chain validation. [docs/ZALLET_GAP.md](docs/ZALLET_GAP.md) records pinned investigation versions, exact blockers and the separate live-testnet acceptance gate.
+- This backend provides no external NFT custody, atomic cross-chain settlement, dispute mediation, malware scanning, production key vault or audited backup system.
