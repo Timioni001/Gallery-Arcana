@@ -13,37 +13,37 @@ const links = [
   { to: '/#selling', label: 'Selling' },
 ]
 
-export function SiteNav({ overlay = false }: { overlay?: boolean }) {
+export function SiteNav() {
   const { account, setAccount } = useSession()
   const [open, setOpen] = useState(false)
   const nav = useNavigate()
   const signOut = async () => { await api.logout().catch(() => {}); setAccount(null); nav('/') }
   return (
-    <header className={cn('z-40 w-full', overlay ? 'absolute inset-x-0 top-0' : 'sticky top-0 border-b bg-background/80 backdrop-blur-xl')}>
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-        <Link to="/" aria-label="Gallery Arcana home"><Logo /></Link>
-        <nav className="hidden items-center gap-7 text-[13px] text-frost/80 md:flex">
+    <header className="sticky top-0 z-40 w-full border-b bg-paper/85 backdrop-blur-xl">
+      <div className="mx-auto grid h-16 max-w-6xl grid-cols-[1fr_auto_1fr] items-center px-4 sm:px-6">
+        <nav className="hidden items-center gap-6 text-[13px] text-fg/75 md:flex">
           {links.map((l) => (
-            <NavLink key={l.to} to={l.to} className={({ isActive }) => cn('transition-colors hover:text-frost', isActive && l.to === '/market' && 'text-frost')}>{l.label}</NavLink>
+            <NavLink key={l.to} to={l.to} className={({ isActive }) => cn('transition-colors hover:text-fg', isActive && l.to === '/market' && 'text-fg')}>{l.label}</NavLink>
           ))}
         </nav>
-        <div className="hidden items-center gap-3 md:flex">
+        <button className="justify-self-start text-fg md:hidden" onClick={() => setOpen((o) => !o)} aria-label="Menu" aria-expanded={open}>
+          {open ? <X className="size-5" /> : <Menu className="size-5" />}
+        </button>
+        <Link to="/" aria-label="Gallery Arcana home" className="justify-self-center"><Logo /></Link>
+        <div className="flex items-center justify-end gap-4 text-[13px]">
           {account ? (
             <>
-              <Link to="/studio" className="text-[13px] text-frost/80 hover:text-frost">@{account.alias}</Link>
-              <button onClick={signOut} className="text-[13px] text-frost/60 hover:text-frost">Sign out</button>
-              <Link to="/studio/new" className="rounded-full bg-frost px-4 py-1.5 text-[13px] font-medium text-ink transition hover:bg-white">List a work</Link>
+              <Link to="/studio" className="hidden text-fg/75 hover:text-fg sm:inline">@{account.alias}</Link>
+              <button onClick={signOut} className="hidden text-fg/55 hover:text-fg md:inline">Sign out</button>
+              <Link to="/studio/new" className="rounded-lg bg-secondary px-3.5 py-2 font-medium text-fg transition hover:bg-[oklch(0.9_0.01_80)]">List a work</Link>
             </>
           ) : (
             <>
-              <Link to="/auth" className="text-[13px] text-frost/80 hover:text-frost">Log in</Link>
-              <Link to="/auth?mode=signup" className="rounded-full bg-frost px-4 py-1.5 text-[13px] font-medium text-ink transition hover:bg-white">Get an alias</Link>
+              <Link to="/auth" className="hidden text-fg/75 hover:text-fg sm:inline">Sign in</Link>
+              <Link to="/auth?mode=signup" className="rounded-lg bg-secondary px-3.5 py-2 font-medium text-fg transition hover:bg-[oklch(0.9_0.01_80)]">Get started</Link>
             </>
           )}
         </div>
-        <button className="text-frost md:hidden" onClick={() => setOpen((o) => !o)} aria-label="Menu" aria-expanded={open}>
-          {open ? <X className="size-5" /> : <Menu className="size-5" />}
-        </button>
       </div>
       {open && (
         <div className="glass mx-4 mb-3 rounded-2xl p-4 md:hidden">
@@ -52,7 +52,7 @@ export function SiteNav({ overlay = false }: { overlay?: boolean }) {
             <div className="hairline my-1" />
             {account
               ? <><Link to="/studio" onClick={() => setOpen(false)}>Studio · @{account.alias}</Link><button className="text-left text-muted-foreground" onClick={signOut}>Sign out</button></>
-              : <Link to="/auth" onClick={() => setOpen(false)}>Log in / get an alias</Link>}
+              : <Link to="/auth" onClick={() => setOpen(false)}>Sign in</Link>}
           </div>
         </div>
       )}

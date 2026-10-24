@@ -38,7 +38,10 @@ arcana.example {
 
 ## Design notes
 
-- The app is dark only. Colours are tokens in `src/index.css`: ink background, frost text and one glacier accent, with warmth only from imagery.
-- Landscapes are generated SVG ridgelines (`src/components/landscape.tsx`), so they cost no image bytes.
-- The `arcana` wordmark (`src/components/brand.tsx`) is drawn as monoline SVG. The r's shoulder runs into the c as one glacier-coloured stroke.
+- The look is warm paper and ink, with one signal-orange accent. Tokens are defined in `src/index.css` (`paper`, `surface`, `fg`, `stone`, `signal`).
+- Type is Geist for the interface, Geist Mono for tags, hashes and amounts, and Doto (dot-matrix) for display headlines. Full stops in display text are drawn as orange square pixels (`DotText`).
+- Illustrations are generated in code, so they cost no image bytes:
+  - `halftone.tsx` turns shaded shapes (padlock, sphere, listing plates) into dot matrices whose edges dissolve.
+  - `iso-vault.tsx` is isometric line art of the capsule vault on a belt.
+  - `connector-hero.tsx` wires the vault tile to the parties of a trade.
 - Receipt codes are bearer secrets. They are kept only in `sessionStorage` for the current tab, and the order page can issue a new one.

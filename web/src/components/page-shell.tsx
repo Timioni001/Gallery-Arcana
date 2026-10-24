@@ -13,5 +13,5 @@ export function PageShell({ children }: { children: ReactNode }) {
 }
 
 export function Notice({ children }: { children: ReactNode }) {
-  return <div className="rounded-xl border border-glacier/20 bg-glacier/[0.06] px-4 py-3 text-[13px] text-frost/80">{children}</div>
+  return <div className="rounded-xl border border-signal/20 bg-signal/[0.06] px-4 py-3 text-[13px] text-fg/80">{children}</div>
 }

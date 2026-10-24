@@ -7,8 +7,8 @@ export const categoryLabel: Record<string, string> = { digital: 'Digital', colle
 
 export const statusTone: Record<string, string> = {
   live: 'text-glacier', paused: 'text-muted-foreground', reserved: 'text-steel', sold: 'text-muted-foreground',
-  awaiting_payment: 'text-steel', funded: 'text-glacier', paid: 'text-emerald-300', disputed: 'text-amber-300',
-  expired: 'text-muted-foreground', open: 'text-glacier', countered: 'text-steel', accepted: 'text-emerald-300',
+  awaiting_payment: 'text-steel', funded: 'text-glacier', paid: 'text-emerald-700', disputed: 'text-amber-700',
+  expired: 'text-muted-foreground', open: 'text-glacier', countered: 'text-steel', accepted: 'text-emerald-700',
 }
 
 export const sentence = (s: string) => s.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase())

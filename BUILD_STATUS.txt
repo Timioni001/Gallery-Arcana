@@ -52,7 +52,8 @@ fresh FX remain outstanding. No legal title, ZK/unlinkability,
 NFT/domain/repository transfer or cross-chain custody is implemented.
 
 WEB APP (web/)
-Vite + React 19 + Tailwind v4 frontend: landing page, market browse/search,
+Vite + React 19 + Tailwind v4 frontend (paper/ink/signal-orange design with
+dot-matrix type, halftone and isometric illustrations): landing page, market browse/search,
 listing detail with private offers/counters and checkout, order page with
 payment details, in-browser SHA-256 verification, acceptance and disputes,
 and a seller studio (listings, offers, purchases, sales, payout, new listing).
@@ -61,3 +62,6 @@ against the real API/worker (signup → payout → listing with preview and
 encrypted file → buyer checkout → simulated mock payment → download, verify,
 accept → paid). Capsule (client-encrypted) listing creation and buyer key
 envelopes still go through the SDK/journey script, not the browser UI.
+
+Local Ubuntu/WSL: npm run setup:wsl once, then npm run dev (worker + API +
+web). npm run mock:pay -- <memo> funds a pending order via the simulator.

@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
-import { Landscape } from '@/components/landscape'
-import { Logo } from '@/components/brand'
+import { Halftone, padlock } from '@/components/halftone'
+import { DotText, Logo } from '@/components/brand'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -33,20 +33,19 @@ export default function Auth() {
 
   return (
     <div className="grid min-h-svh lg:grid-cols-2">
-      <div className="relative hidden overflow-hidden lg:block">
-        <Landscape className="absolute inset-0" />
-        <div className="absolute inset-0 bg-gradient-to-t from-ink/80 to-transparent" />
-        <p className="absolute bottom-12 left-12 max-w-sm font-serif text-[40px] leading-[1.05] text-frost">An alias, a passphrase and nothing else.</p>
+      <div className="grid-paper relative hidden overflow-hidden border-r bg-surface lg:block">
+        <div className="absolute inset-x-12 bottom-36 top-16"><Halftone shape={padlock} step={7} seed={2} erode={0.45} /></div>
+        <p className="dot-display absolute bottom-12 left-12 max-w-sm text-[40px] leading-[1] text-fg"><DotText>Alias. Passphrase. Nothing else.</DotText></p>
       </div>
       <div className="flex flex-col px-6 py-8 sm:px-12">
         <Link to="/"><Logo /></Link>
         <div className="m-auto w-full max-w-sm py-12">
-          <div className="flex rounded-full bg-white/[0.04] p-1 text-[13px]">
+          <div className="flex rounded-full bg-fg/[0.04] p-1 text-[13px]">
             {(['login', 'signup'] as const).map((m) => (
-              <button key={m} onClick={() => setMode(m)} className={cn('flex-1 rounded-full py-1.5 transition', mode === m ? 'bg-frost text-ink' : 'text-frost/60')}>{m === 'login' ? 'Log in' : 'Create alias'}</button>
+              <button key={m} onClick={() => setMode(m)} className={cn('flex-1 rounded-full py-1.5 transition', mode === m ? 'bg-fg text-paper' : 'text-fg/60')}>{m === 'login' ? 'Log in' : 'Create alias'}</button>
             ))}
           </div>
-          <h1 className="mt-8 text-[28px] tracking-[-0.02em] text-frost">{mode === 'login' ? 'Welcome back' : 'Claim an alias'}</h1>
+          <h1 className="mt-8 text-[28px] tracking-[-0.02em] text-fg">{mode === 'login' ? 'Welcome back' : 'Claim an alias'}</h1>
           <p className="mt-1 text-sm text-muted-foreground">{mode === 'login' ? 'Use the alias and passphrase you chose.' : 'No email or phone. Write your passphrase down, because it cannot be recovered.'}</p>
           <form onSubmit={submit} className="mt-8 space-y-5">
             <div className="space-y-2">
@@ -62,7 +61,7 @@ export default function Auth() {
             <Button type="submit" className="h-11 w-full" disabled={busy}>{busy ? 'One moment…' : mode === 'login' ? 'Log in' : 'Create alias'}</Button>
           </form>
         </div>
-        <p className="text-center text-xs text-frost/40">Testnet preview · sessions are HttpOnly, rotating and revocable</p>
+        <p className="text-center text-xs text-fg/40">Testnet preview · sessions are HttpOnly, rotating and revocable</p>
       </div>
     </div>
   )

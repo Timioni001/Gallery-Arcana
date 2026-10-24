@@ -19,25 +19,25 @@ function Empty({ children }: { children: ReactNode }) {
   return <div className="rounded-2xl border border-dashed py-16 text-center text-sm text-muted-foreground">{children}</div>
 }
 function Rows({ children }: { children: ReactNode }) {
-  return <div className="divide-y divide-white/5 overflow-hidden rounded-2xl border bg-card">{children}</div>
+  return <div className="divide-y divide-fg/5 overflow-hidden rounded-2xl border bg-card">{children}</div>
 }
 
 function Listings() {
   const [rows, setRows] = useState<Listing[] | null>(null)
   useEffect(() => { api.mine().then(setRows).catch(() => setRows([])) }, [])
   if (!rows) return <Skeleton className="h-48 rounded-2xl" />
-  if (!rows.length) return <Empty>No listings yet. <Link className="text-glacier" to="/studio/new">List your first work</Link></Empty>
+  if (!rows.length) return <Empty>No listings yet. <Link className="text-signal" to="/studio/new">List your first work</Link></Empty>
   return (
     <Rows>
       {rows.map((l) => (
-        <Link key={l.id} to={`/listing/${l.id}`} className="flex items-center gap-4 px-4 py-3 transition hover:bg-white/[0.02]">
+        <Link key={l.id} to={`/listing/${l.id}`} className="flex items-center gap-4 px-4 py-3 transition hover:bg-fg/[0.02]">
           <div className="size-12 shrink-0 overflow-hidden rounded-lg"><ListingArt listing={l} /></div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[14px] text-frost">{l.title}</p>
+            <p className="truncate text-[14px] text-fg">{l.title}</p>
             <p className="text-[12px] text-muted-foreground">{l.visibility} · {l.delivery} · rev {l.revision}</p>
           </div>
           <span className={cn('text-[12px] capitalize', statusTone[l.status])}>{l.status}</span>
-          <span className="w-24 text-right font-mono text-[13px] text-frost">{usd(l.price_usd_cents)}</span>
+          <span className="w-24 text-right font-mono text-[13px] text-fg">{usd(l.price_usd_cents)}</span>
         </Link>
       ))}
     </Rows>
@@ -62,10 +62,10 @@ function Offers() {
       {rows.map((o) => (
         <div key={o.id} className="flex flex-wrap items-center gap-4 px-4 py-3.5">
           <div className="min-w-0 flex-1">
-            <Link to={`/listing/${o.listing_id}`} className="truncate text-[14px] text-frost hover:underline">{o.listing_title}</Link>
+            <Link to={`/listing/${o.listing_id}`} className="truncate text-[14px] text-fg hover:underline">{o.listing_title}</Link>
             <p className="text-[12px] text-muted-foreground">{o.am_seller ? 'Incoming' : 'Your offer'} · {shortDate(o.created_at)}</p>
           </div>
-          <p className="font-mono text-[13px] text-frost">{usd(o.amount_usd_cents)}{o.counter_usd_cents && <span className="text-steel"> / {usd(o.counter_usd_cents)}</span>}</p>
+          <p className="font-mono text-[13px] text-fg">{usd(o.amount_usd_cents)}{o.counter_usd_cents && <span className="text-stone"> / {usd(o.counter_usd_cents)}</span>}</p>
           <span className={cn('w-20 text-[12px]', statusTone[o.status])}>{sentence(o.status)}</span>
           {o.am_seller && o.status === 'open' && (
             <div className="flex items-center gap-2">
@@ -87,19 +87,19 @@ function Orders({ kind }: { kind: 'purchases' | 'sales' }) {
   const [rows, setRows] = useState<OrderSummary[] | null>(null)
   useEffect(() => { (kind === 'purchases' ? api.orders() : api.sales()).then(setRows).catch(() => setRows([])) }, [kind])
   if (!rows) return <Skeleton className="h-48 rounded-2xl" />
-  if (!rows.length) return <Empty>{kind === 'purchases' ? <>No purchases yet. <Link className="text-glacier" to="/market">Browse the market</Link></> : 'No sales yet.'}</Empty>
+  if (!rows.length) return <Empty>{kind === 'purchases' ? <>No purchases yet. <Link className="text-signal" to="/market">Browse the market</Link></> : 'No sales yet.'}</Empty>
   return (
     <Rows>
       {rows.map((o) => {
         const inner = (
           <>
-            <div className="min-w-0 flex-1"><p className="truncate text-[14px] text-frost">{o.title}</p><p className="text-[12px] text-muted-foreground">{shortDate(o.created_at)}</p></div>
+            <div className="min-w-0 flex-1"><p className="truncate text-[14px] text-fg">{o.title}</p><p className="text-[12px] text-muted-foreground">{shortDate(o.created_at)}</p></div>
             <span className={cn('text-[12px]', statusTone[o.status])}>{sentence(o.status)}</span>
-            <span className="w-24 text-right font-mono text-[13px] text-frost">{usd(o.price_usd_cents)}</span>
+            <span className="w-24 text-right font-mono text-[13px] text-fg">{usd(o.price_usd_cents)}</span>
           </>
         )
         return kind === 'purchases'
-          ? <Link key={o.id} to={`/orders/${o.id}`} className="flex items-center gap-4 px-4 py-3.5 hover:bg-white/[0.02]">{inner}</Link>
+          ? <Link key={o.id} to={`/orders/${o.id}`} className="flex items-center gap-4 px-4 py-3.5 hover:bg-fg/[0.02]">{inner}</Link>
           : <div key={o.id} className="flex items-center gap-4 px-4 py-3.5">{inner}</div>
       })}
     </Rows>
@@ -115,7 +115,7 @@ function Settings() {
   return (
     <div className="max-w-lg space-y-4 rounded-2xl border bg-card p-6">
       <div>
-        <p className="text-frost">Payout address</p>
+        <p className="text-fg">Payout address</p>
         <p className="mt-1 text-[13px] text-muted-foreground">{account?.hasPayout ? 'A payout address is set. Saving a new one replaces it.' : 'Required before you can list. Testnet addresses only.'}</p>
       </div>
       <Input className="h-11 font-mono" placeholder="utest1… / ztestsapling1… / tm…" value={address} onChange={(e) => setAddress(e.target.value)} />
@@ -134,14 +134,14 @@ export default function Studio() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <span className="eyebrow">Studio</span>
-          <h1 className="mt-4 text-[34px] tracking-[-0.025em] text-frost">@{account?.alias ?? '…'}</h1>
+          <h1 className="mt-4 text-[34px] tracking-[-0.025em] text-fg">@{account?.alias ?? '…'}</h1>
         </div>
         <Link to="/studio/new" className={cn(buttonVariants(), 'h-10 rounded-full px-4')}><Plus className="size-4" />New listing</Link>
       </div>
-      {account && !account.hasPayout && <div className="mt-6"><Notice>Add a testnet payout address in <button className="text-glacier" onClick={() => setParams({ tab: 'settings' })}>Settings</button> before listing.</Notice></div>}
+      {account && !account.hasPayout && <div className="mt-6"><Notice>Add a testnet payout address in <button className="text-signal" onClick={() => setParams({ tab: 'settings' })}>Settings</button> before listing.</Notice></div>}
       <div className="mt-8 flex gap-1 overflow-x-auto border-b [scrollbar-width:none]">
         {tabs.map((t) => (
-          <button key={t} onClick={() => setParams({ tab: t })} className={cn('-mb-px whitespace-nowrap border-b-2 px-4 py-2.5 text-[13px] capitalize transition', t === tab ? 'border-glacier text-frost' : 'border-transparent text-frost/55 hover:text-frost')}>{t}</button>
+          <button key={t} onClick={() => setParams({ tab: t })} className={cn('-mb-px whitespace-nowrap border-b-2 px-4 py-2.5 text-[13px] capitalize transition', t === tab ? 'border-signal text-fg' : 'border-transparent text-fg/55 hover:text-fg')}>{t}</button>
         ))}
       </div>
       <div className="mt-6">

@@ -1,237 +1,173 @@
-import { useState, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, Check, ChevronRight, EyeOff, FileLock2, KeyRound, Lock, MessageSquareLock, ShieldCheck, Stamp, Ticket, Vault } from 'lucide-react'
+import { ArrowUpRight, Check, Plus } from 'lucide-react'
 import { SiteNav } from '@/components/site-nav'
 import { SiteFooter } from '@/components/site-footer'
-import { Landscape } from '@/components/landscape'
-import { Mark } from '@/components/brand'
+import { ConnectorHero } from '@/components/connector-hero'
+import { Halftone, padlock, reach, sphere } from '@/components/halftone'
+import { IsoVault } from '@/components/iso-vault'
+import { DotText } from '@/components/brand'
 import { cn } from '@/lib/utils'
 
-function SectionHead({ tag, title, aside }: { tag: string; title: ReactNode; aside: string }) {
+/** Black pill with a signal-orange dot tile, the primary call to action. */
+function DotButton({ to, children, light = false }: { to: string; children: ReactNode; light?: boolean }) {
   return (
-    <div className="grid items-end gap-6 md:grid-cols-[1.2fr_1fr]">
-      <div>
-        <span className="eyebrow">{tag}</span>
-        <h2 className="mt-4 max-w-md text-[28px] leading-[1.15] tracking-[-0.02em] text-frost sm:text-[34px]">{title}</h2>
-      </div>
-      <p className="max-w-sm text-sm text-muted-foreground md:justify-self-end">{aside}</p>
-    </div>
+    <Link to={to} className={cn('group inline-flex items-center gap-2.5 rounded-xl p-1 pr-4 text-[13px] font-medium transition',
+      light ? 'border bg-surface text-fg hover:bg-secondary' : 'bg-fg text-surface hover:bg-fg/90')}>
+      <span className={cn('grid size-7 grid-cols-3 place-content-center gap-[2px] rounded-lg p-1.5', light ? 'bg-fg' : 'bg-signal')}>
+        {Array.from({ length: 9 }, (_, i) => <span key={i} className={cn('size-[3px] rounded-full', light ? 'bg-surface' : 'bg-surface/90', [1, 3, 5, 7].includes(i) && 'opacity-40')} />)}
+      </span>
+      {children}
+    </Link>
   )
 }
 
-const stack = ['Zcash testnet', 'RFC 9180 HPKE', 'AES-256-GCM', 'Ed25519', 'X25519', 'PostgreSQL 16', 'EIP-191', 'SHA-256']
+function TwoTone({ strong, soft, className }: { strong: string; soft: string; className?: string }) {
+  return <h2 className={cn('text-[30px] leading-[1.12] tracking-[-0.025em] sm:text-[40px]', className)}><span className="text-fg">{strong}</span> <span className="text-stone">{soft}</span></h2>
+}
 
 function Hero() {
   return (
-    <section className="px-2 pt-2 sm:px-3 sm:pt-3">
-      <div className="relative isolate overflow-hidden rounded-[28px]">
-        <div className="absolute inset-0 -z-10"><Landscape /></div>
-        <div className="absolute inset-0 -z-10 bg-gradient-to-b from-ink/30 via-transparent to-ink" />
-        <SiteNav overlay />
-        <div className="mx-auto flex min-h-[640px] max-w-3xl flex-col items-center px-4 pb-40 pt-36 text-center sm:min-h-[760px] sm:pt-44">
-          <span className="animate-rise glass inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.16em] text-frost/80">
-            Testnet preview <span className="rounded-full bg-frost px-1.5 py-px text-[10px] font-semibold tracking-normal text-ink">v0.5</span>
-          </span>
-          <h1 className="animate-rise mt-6 text-balance text-[44px] font-medium leading-[1.02] tracking-[-0.035em] text-frost [animation-delay:80ms] sm:text-[68px]">
-            Sell your work. <span className="font-serif text-[1.08em] font-normal italic tracking-[-0.01em]">Keep</span> the secret.
-          </h1>
-          <p className="animate-rise mt-5 max-w-lg text-pretty text-[15px] text-frost/75 [animation-delay:160ms]">
-            A private marketplace where files are encrypted on your device, buyers pay in shielded ZEC and the seller is paid only after the buyer accepts.
-          </p>
-          <div className="animate-rise mt-8 flex flex-wrap justify-center gap-3 [animation-delay:240ms]">
-            <Link to="/market" className="inline-flex items-center gap-1.5 rounded-full bg-frost px-5 py-2.5 text-sm font-medium text-ink transition hover:bg-white">
-              Explore the market <ArrowRight className="size-4" />
-            </Link>
-            <Link to="/auth?mode=signup" className="glass inline-flex items-center rounded-full px-5 py-2.5 text-sm text-frost transition hover:bg-white/10">
-              Get an alias
-            </Link>
-          </div>
-        </div>
-        <div className="absolute inset-x-0 bottom-0 overflow-hidden py-7 [mask-image:linear-gradient(90deg,transparent,black_15%,black_85%,transparent)]">
-          <div className="animate-drift flex w-max gap-14 pr-14">
-            {[...stack, ...stack].map((s, i) => (
-              <span key={i} className="whitespace-nowrap font-mono text-[13px] tracking-tight text-frost/45">{s}</span>
-            ))}
-          </div>
+    <section className="grid-paper relative overflow-hidden border-b pb-20 pt-10 sm:pt-16">
+      <h1 className="dot-display px-4 text-center text-[44px] leading-[0.95] text-fg sm:hidden"><DotText>Seal. Sell.</DotText><br /><DotText>Settle.</DotText></h1>
+      <ConnectorHero />
+      <div className="animate-rise mx-auto max-w-md px-4 text-center">
+        <p className="text-[15px] text-fg/70">Gallery Arcana is a private marketplace for digital work. Files are encrypted on your device, buyers pay in shielded ZEC, and the seller is paid only after the buyer accepts.</p>
+        <div className="mt-7 flex flex-wrap justify-center gap-3">
+          <DotButton to="/market">Explore the market</DotButton>
+          <Link to="/auth?mode=signup" className="inline-flex items-center rounded-xl border bg-surface px-4 text-[13px] font-medium text-fg hover:bg-secondary">Get an alias</Link>
         </div>
       </div>
     </section>
   )
 }
 
-const steps = [
-  { title: 'Seal a capsule', body: 'Your file is chunked and encrypted in the browser. The server stores ciphertext and never receives the content key.' },
-  { title: 'Negotiate privately', body: 'Offers, counters and encrypted conversations between participants only.' },
-  { title: 'Fund in shielded ZEC', body: 'Checkout reserves the listing and issues a single-use address. Funds are held until confirmation.' },
-  { title: 'Verify, then accept', body: 'The buyer decrypts locally, checks the SHA-256 and accepts. Only then is the payout released.' },
+const proofs = [
+  { n: '0', label: 'bytes of capsule plaintext or content keys sent to our servers' },
+  { n: '2/2', label: 'confirmations before a payment counts as funded' },
+  { n: '256', label: 'bit session tokens, stored only as hashes' },
 ]
 
-function OrderPanel() {
+function ProofStrip() {
   return (
-    <div className="glass w-full max-w-sm rounded-2xl p-5 shadow-2xl shadow-black/40">
-      <div className="flex items-center justify-between">
-        <p className="flex items-center gap-2 text-sm text-frost"><Vault className="size-4 text-glacier" />Order details</p>
-        <span className="font-mono text-[11px] text-frost/50">#A7F3-91C2</span>
-      </div>
-      <div className="mt-4 flex items-center gap-3">
-        <div className="size-12 rounded-xl bg-[radial-gradient(circle_at_30%_30%,oklch(0.7_0.09_215),oklch(0.25_0.04_250))]" />
-        <div>
-          <p className="text-[15px] text-frost">Glacier Study No. 4</p>
-          <div className="mt-1 flex gap-1.5">
-            <span className="rounded-full bg-frost px-2 text-[10px] font-medium text-ink">Capsule</span>
-            <span className="rounded-full bg-glacier/20 px-2 text-[10px] text-glacier">Funded</span>
-          </div>
-        </div>
-      </div>
-      <p className="mt-5 text-xs text-frost/50">Settlement</p>
-      <div className="mt-2 space-y-2">
-        {[
-          ['Payment received', '10.500 ZEC · 2/2 conf.', true],
-          ['Key envelope released', 'HPKE · buyer key pinned', true],
-          ['Buyer verified SHA-256', 'awaiting acceptance', false],
-        ].map(([a, b, done]) => (
-          <div key={a as string} className="flex items-center justify-between rounded-xl bg-white/[0.04] px-3 py-2.5">
-            <div>
-              <p className="text-[13px] text-frost">{a}</p>
-              <p className="font-mono text-[11px] text-frost/45">{b}</p>
-            </div>
-            <span className={cn('grid size-5 place-items-center rounded-full', done ? 'bg-glacier text-ink' : 'border border-frost/25')}>
-              {done && <Check className="size-3" strokeWidth={3} />}
-            </span>
+    <section className="mx-auto -mt-10 max-w-6xl px-4 sm:px-6">
+      <div className="glass grid gap-px overflow-hidden rounded-2xl bg-border sm:grid-cols-2 lg:grid-cols-4">
+        {proofs.map((p) => (
+          <div key={p.n} className="bg-surface p-6">
+            <p className="dot-display text-[40px] leading-none text-fg">{p.n}</p>
+            <p className="mt-3 max-w-[220px] text-[13px] text-fg/65">{p.label}</p>
           </div>
         ))}
+        <div className="flex flex-col justify-between gap-4 bg-surface p-6">
+          <p className="text-[13px] text-fg/75">Sign up with an alias and a passphrase. No email, no phone and no KYC on testnet.</p>
+          <DotButton to="/auth?mode=signup" light>Create alias</DotButton>
+        </div>
       </div>
-    </div>
+    </section>
   )
 }
 
-function HowItWorks() {
-  const [active, setActive] = useState(0)
+function Capsules() {
   return (
-    <section id="how" className="mx-auto max-w-6xl scroll-mt-20 px-4 pt-24 sm:px-6">
-      <SectionHead tag="How it works" title="From sealed file to settled sale in four steps" aside="No account email, no plaintext file on our disks and no payout until the buyer has verified what they bought." />
-      <div className="mt-12 grid items-center gap-10 md:grid-cols-[1fr_1.15fr]">
-        <ol>
-          {steps.map((s, i) => (
-            <li key={s.title} className="dotted-rule">
-              <button onClick={() => setActive(i)} className="flex w-full items-start gap-3 py-5 text-left">
-                <span className={cn('mt-0.5 size-4 shrink-0 rounded-[4px] border transition', i === active ? 'border-frost bg-frost' : 'border-frost/40')} />
-                <span>
-                  <span className={cn('block text-[15px] transition', i === active ? 'text-frost' : 'text-frost/70')}>{s.title}</span>
-                  <span className={cn('grid text-[13px] text-muted-foreground transition-all duration-300', i === active ? 'mt-1.5 grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0')}>
-                    <span className="overflow-hidden">{s.body}</span>
-                  </span>
-                </span>
-              </button>
-            </li>
-          ))}
-          <Link to="/market" className="mt-8 inline-flex items-center gap-1 rounded-full bg-frost px-4 py-1.5 text-[13px] font-medium text-ink">Try it now <ChevronRight className="size-4" /></Link>
-        </ol>
-        <div className="relative isolate flex min-h-[420px] items-center justify-end overflow-hidden rounded-2xl p-5 sm:p-8">
-          <div className="absolute inset-0 -z-10 scale-125"><Landscape /></div>
-          <OrderPanel />
+    <section className="mx-auto grid max-w-6xl items-center gap-10 px-4 pt-28 sm:px-6 md:grid-cols-[1fr_1.1fr]">
+      <div>
+        <span className="eyebrow">v0.5 · capsule-v1</span>
+        <TwoTone className="mt-5 max-w-md" strong="Introducing Arcana Capsules." soft="Products the marketplace itself cannot open." />
+        <p className="mt-6 max-w-sm text-[15px] text-fg/70">Files are chunked and encrypted in your browser. Each buyer receives an HPKE key envelope, prepared before checkout and released only after the payment is funded.</p>
+        <div className="mt-7"><DotButton to="/market" light>Browse capsules</DotButton></div>
+      </div>
+      <div className="aspect-[5/4] w-full"><Halftone shape={padlock} step={7} seed={4} erode={0.45} /></div>
+    </section>
+  )
+}
+
+const steps = [
+  ['01', 'Seal', 'Encrypt the file locally and publish a re-encoded public preview.'],
+  ['02', 'Negotiate', 'Make private offers and counters, with optional end-to-end encrypted threads.'],
+  ['03', 'Fund', 'Checkout reserves the item and issues a single-use shielded address.'],
+  ['04', 'Verify', 'The buyer checks the SHA-256 locally and accepts. Only then is the payout released.'],
+]
+
+function HowItWorks() {
+  return (
+    <section id="how" className="mx-auto max-w-6xl scroll-mt-20 px-4 pt-28 sm:px-6">
+      <div className="grid items-center gap-8 lg:grid-cols-[1fr_1.4fr]">
+        <div>
+          <span className="eyebrow">How it works</span>
+          <h2 className="mt-5 text-[40px] leading-[1.02] tracking-[-0.035em] text-fg sm:text-[52px]">Escrow that keeps work secured.</h2>
+          <p className="mt-4 max-w-sm text-[15px] text-fg/65">Encryption, escrow and release happen in one flow, and no step depends on trusting the operator with your file.</p>
+          <ol className="mt-8 border-t">
+            {steps.map(([n, t, b]) => (
+              <li key={n} className="dotted-rule grid grid-cols-[40px_1fr] gap-2 py-4">
+                <span className="font-mono text-[12px] text-signal">{n}</span>
+                <span><span className="text-[15px] text-fg">{t}</span><span className="mt-1 block text-[13px] text-fg/60">{b}</span></span>
+              </li>
+            ))}
+          </ol>
         </div>
+        <IsoVault className="-mx-4 sm:mx-0" />
       </div>
     </section>
   )
 }
 
 const features = [
-  {
-    tab: 'Arcana Capsules', icon: FileLock2,
-    lead: 'Client-side encrypted products with authenticated chunks and encrypted metadata.',
-    rows: [['Content key', 'never leaves the seller device'], ['Envelope', 'HPKE to the buyer, prepared before checkout'], ['Release', 'gated on confirmed funding'], ['Integrity', 'per-chunk AES-GCM + file SHA-256']],
-  },
-  {
-    tab: 'Encrypted negotiation', icon: MessageSquareLock,
-    lead: 'Conversations visible only to the two participants, with sender authentication and replay protection.',
-    rows: [['Participants', 'buyer + seller only'], ['Attachments', 'encrypted, size-bounded'], ['Lifetime', 'expiring and deletable'], ['Visible to us', 'price and state, never the text']],
-  },
-  {
-    tab: 'Private sales', icon: Ticket,
-    lead: 'One-time invitations: a hashed capability for a designated buyer, a fixed or negotiable price and an expiry.',
-    rows: [['Capability', 'body-only, stored hashed'], ['Redemption', 'atomic and single-use'], ['Buyer', 'optionally designated'], ['Revocation', 'any time before redemption']],
-  },
-  {
-    tab: 'Trade Passport', icon: Stamp,
-    lead: 'Minimal Ed25519 attestations you choose to share, such as "completed 10+ trades", without exposing which trades.',
-    rows: [['Disclosure', 'consent-based, threshold counts'], ['Binding', 'audience + holder possession'], ['Expiry', 'and revocation'], ['Keys', 'signing-key history published']],
-  },
+  ['Encrypted negotiation', 'Messages and attachments are readable only by the two participants, with sender authentication and replay protection.', 'conversations'],
+  ['Private invitations', 'A single-use hashed link for one designated buyer, with a fixed or negotiable price, expiry and revocation.', 'invitations'],
+  ['Trade Passport', 'Signed attestations such as "10+ completed trades" that you choose to share, bound to an audience.', 'passports'],
+  ['Asset control checks', 'DNS, GitHub and EVM signed-message challenges that show technical control, though not legal title.', 'asset-control'],
 ]
 
 function Features() {
-  const [i, setI] = useState(0)
-  const f = features[i]
   return (
     <section className="mx-auto max-w-6xl px-4 pt-28 sm:px-6">
-      <SectionHead tag="Features" title="A marketplace built so the operator can't snoop" aside="Every privacy feature is enforced cryptographically on the client, not only by access control on our servers." />
-      <div className="mt-10 flex gap-1 overflow-x-auto rounded-xl bg-white/[0.03] p-1 [scrollbar-width:none]">
-        {features.map((x, k) => (
-          <button key={x.tab} onClick={() => setI(k)} className={cn('flex-1 whitespace-nowrap rounded-lg px-4 py-2.5 text-[13px] transition', k === i ? 'bg-secondary text-frost' : 'text-frost/55 hover:text-frost')}>
-            <span className="mr-1.5 font-mono text-frost/40">0{k + 1}</span>{x.tab}
-          </button>
-        ))}
+      <div className="grid items-end gap-6 md:grid-cols-[1.4fr_1fr]">
+        <TwoTone strong="Every privacy feature runs on the client," soft="not only behind access control on our servers." />
+        <p className="max-w-xs text-[13px] text-fg/60 md:justify-self-end">Here is what v0.5 enforces cryptographically, beyond the capsule itself.</p>
       </div>
-      <div className="relative isolate mt-6 overflow-hidden rounded-2xl p-4 sm:p-10">
-        <div className="absolute inset-0 -z-10"><Landscape variant="night" /></div>
-        <div className="glass mx-auto grid max-w-4xl overflow-hidden rounded-2xl md:grid-cols-[200px_1fr]">
-          <aside className="hidden border-r border-white/5 p-4 md:block">
-            <Mark className="size-6" />
-            <div className="mt-6 space-y-1 text-[13px]">
-              {features.map((x, k) => (
-                <div key={x.tab} className={cn('flex items-center gap-2 rounded-lg px-2.5 py-2', k === i ? 'bg-white/[0.07] text-frost' : 'text-frost/45')}>
-                  <x.icon className="size-4" />{x.tab}
-                </div>
-              ))}
+      <div className="mt-12 grid gap-px overflow-hidden rounded-2xl border bg-border sm:grid-cols-2">
+        {features.map(([t, b, tag]) => (
+          <div key={t} className="group bg-surface p-7 transition hover:bg-paper">
+            <div className="flex items-center justify-between">
+              <span className="eyebrow">/api/{tag}</span>
+              <Plus className="size-4 text-fg/30 transition group-hover:rotate-90 group-hover:text-signal" />
             </div>
-          </aside>
-          <div key={i} className="animate-rise p-5 sm:p-7">
-            <div className="flex items-center gap-2 text-frost"><f.icon className="size-5 text-glacier" /><p className="text-lg">{f.tab}</p></div>
-            <p className="mt-2 max-w-md text-sm text-frost/65">{f.lead}</p>
-            <div className="mt-6 divide-y divide-white/5 rounded-xl bg-black/20">
-              {f.rows.map(([k, v]) => (
-                <div key={k} className="flex items-center justify-between gap-4 px-4 py-3 text-[13px]">
-                  <span className="text-frost/55">{k}</span>
-                  <span className="text-right font-mono text-[12px] text-frost">{v}</span>
-                </div>
-              ))}
-            </div>
+            <p className="mt-10 text-[20px] tracking-[-0.015em] text-fg">{t}</p>
+            <p className="mt-2 max-w-sm text-[13px] text-fg/60">{b}</p>
           </div>
-        </div>
+        ))}
       </div>
     </section>
   )
 }
 
 const modes = [
-  { icon: Lock, name: 'Open listing', blurb: 'Public in the market and searchable.', items: ['Public search and category browse', 'Offers and counteroffers', 'Encrypted file or capsule delivery', 'Buyer acceptance before payout'], cta: 'List publicly' },
-  { icon: KeyRound, name: 'Unlisted link', blurb: 'Hidden from search; shared by URL.', items: ['Everything in Open', 'Excluded from browse and search', 'Encrypted negotiation threads', 'Signed receipts and proofs', 'Share the link in your own channel'], cta: 'Create a link', featured: true },
-  { icon: Ticket, name: 'Private invitation', blurb: 'One buyer, one use, one capability.', items: ['Single-use hashed capability', 'Designated buyer', 'Fixed or negotiable price', 'Expiry and revocation', 'Trade Passport for both sides'], cta: 'Invite a buyer' },
+  { name: 'Open listing', blurb: 'Public in the market and searchable.', items: ['Category browse and search', 'Offers and counteroffers', 'Encrypted file delivery', 'Buyer acceptance before payout'] },
+  { name: 'Unlisted link', blurb: 'Hidden from search and shared by URL.', items: ['Everything in Open', 'Excluded from browse and search', 'Encrypted negotiation threads', 'Signed receipts and proofs'], featured: true },
+  { name: 'Private invitation', blurb: 'One buyer, one use, one capability.', items: ['Single-use hashed capability', 'Designated buyer', 'Expiry and revocation', 'Trade Passport for both sides'] },
 ]
 
 function Selling() {
   return (
     <section id="selling" className="mx-auto max-w-6xl scroll-mt-20 px-4 pt-28 sm:px-6">
-      <SectionHead tag="Ways to sell" title="Choose how visible your work is" aside="Pick how many people can see the listing. Every option has the same escrow and buyer-acceptance protection." />
-      <div className="mt-12 grid gap-4 md:grid-cols-3 md:items-end">
+      <span className="eyebrow">Ways to sell</span>
+      <TwoTone className="mt-5 max-w-xl" strong="Choose how visible your work is." soft="The escrow is the same in every case." />
+      <div className="mt-12 grid gap-4 md:grid-cols-3">
         {modes.map((m) => (
-          <div key={m.name} className={cn('relative flex flex-col rounded-2xl p-6', m.featured ? 'bg-frost text-ink md:pb-8 md:pt-10' : 'border bg-card text-frost')}>
-            {m.featured && <span className="absolute inset-x-0 top-0 rounded-t-2xl bg-glacier py-1 text-center text-[11px] font-medium text-ink">Most sellers start here</span>}
-            <m.icon className={cn('size-6', m.featured ? 'text-ink' : 'text-frost/80')} />
-            <p className="mt-5 text-[15px] font-medium">{m.name}</p>
-            <p className={cn('mt-1 text-[13px]', m.featured ? 'text-ink/60' : 'text-muted-foreground')}>{m.blurb}</p>
-            <div className={cn('my-5 h-px', m.featured ? 'bg-ink/10' : 'bg-white/10')} />
-            <ul className="space-y-2.5 text-[13px]">
+          <div key={m.name} className={cn('flex flex-col rounded-2xl p-6', m.featured ? 'bg-fg text-surface' : 'glass text-fg')}>
+            <div className="flex items-center justify-between">
+              <p className="text-[17px]">{m.name}</p>
+              {m.featured && <span className="rounded-full bg-signal px-2 py-0.5 font-mono text-[10px] text-surface">most used</span>}
+            </div>
+            <p className={cn('mt-1 text-[13px]', m.featured ? 'text-surface/60' : 'text-fg/55')}>{m.blurb}</p>
+            <ul className={cn('mt-6 space-y-2.5 border-t pt-6 text-[13px]', m.featured && 'border-surface/15')}>
               {m.items.map((it) => (
-                <li key={it} className="flex items-center gap-2">
-                  <span className={cn('grid size-4 place-items-center rounded-[4px]', m.featured ? 'bg-ink text-frost' : 'bg-white/10')}><Check className="size-3" strokeWidth={3} /></span>{it}
-                </li>
+                <li key={it} className="flex items-center gap-2.5"><Check className={cn('size-3.5', m.featured ? 'text-signal' : 'text-fg/50')} strokeWidth={2.5} />{it}</li>
               ))}
             </ul>
-            <Link to="/studio/new" className={cn('mt-8 inline-flex items-center justify-center gap-1 rounded-lg py-2.5 text-[13px] font-medium', m.featured ? 'bg-ink text-frost' : 'bg-frost text-ink')}>
-              {m.cta} <ChevronRight className="size-4" />
+            <Link to="/studio/new" className={cn('mt-8 inline-flex items-center justify-center gap-1 rounded-lg py-2.5 text-[13px] font-medium', m.featured ? 'bg-surface text-fg' : 'bg-fg text-surface')}>
+              Start listing <ArrowUpRight className="size-3.5" />
             </Link>
-            <p className={cn('mt-2 text-center text-[11px]', m.featured ? 'text-ink/50' : 'text-frost/40')}>Testnet ZEC · mock settlement</p>
           </div>
         ))}
       </div>
@@ -240,35 +176,33 @@ function Selling() {
 }
 
 const sees = [
-  { who: 'Database observer', can: 'Ciphertext, listing prices, order states', cannot: 'Capsule content, conversation text, evidence' },
-  { who: 'Platform operator', can: 'Offer amounts, timestamps, payout holds', cannot: 'Content keys or buyer private keys' },
-  { who: 'Public visitor', can: 'Live listings and re-encoded previews', cannot: 'Buyers, offers or any transaction feed' },
-  { who: 'Assigned reviewer', can: 'Dispute evidence the buyer chose to share', cannot: 'Anything not explicitly consented' },
+  ['Database observer', 'Ciphertext, listing prices, order states', 'Capsule content, conversation text, evidence'],
+  ['Platform operator', 'Offer amounts, timestamps, payout holds', 'Content keys or buyer private keys'],
+  ['Public visitor', 'Live listings and re-encoded previews', 'Buyers, offers or any transaction feed'],
+  ['Assigned reviewer', 'Evidence the buyer chose to share', 'Anything without explicit consent'],
 ]
 
 function Privacy() {
   return (
     <section id="privacy" className="mx-auto max-w-6xl scroll-mt-20 px-4 pt-28 sm:px-6">
-      <SectionHead tag="Privacy model" title="Who can see what" aside="This is the threat model in plain terms. The full model and the known gaps are in the protocol docs." />
-      <div className="mt-12 grid overflow-hidden rounded-2xl border md:grid-cols-[1fr_1.15fr]">
-        <div className="flex flex-col justify-between gap-10 bg-card p-7 sm:p-9">
-          <div>
-            <EyeOff className="size-6 text-glacier" />
-            <p className="mt-6 text-[22px] leading-snug tracking-[-0.01em] text-frost sm:text-[26px]">
-              “The server does not receive capsule plaintext keys or buyer private keys. An observer with only database and storage access cannot decrypt capsule content, conversations or reviewer evidence.”
-            </p>
-          </div>
-          <p className="flex items-center gap-3 text-[13px] text-frost/60"><ShieldCheck className="size-4" />From the Gallery Arcana threat model</p>
+      <div className="grid items-end gap-6 md:grid-cols-[1.4fr_1fr]">
+        <TwoTone strong="Who can see what," soft="written down before anything was built." />
+        <p className="max-w-xs text-[13px] text-fg/60 md:justify-self-end">This is the threat model in plain terms. The protocol docs list the known gaps.</p>
+      </div>
+      <div className="mt-12 grid gap-6 lg:grid-cols-[1fr_1.3fr]">
+        <div className="relative aspect-square overflow-hidden rounded-2xl border bg-surface lg:aspect-auto">
+          <Halftone shape={sphere} step={6} seed={9} erode={0.3} />
+          <p className="absolute bottom-4 left-4 right-4 rounded-lg border bg-surface px-3 py-2 font-mono text-[11px] text-fg/60">The server never holds capsule content keys or buyer private keys.</p>
         </div>
-        <div className="relative isolate grid gap-3 p-4 sm:grid-cols-2 sm:p-5">
-          <div className="absolute inset-0 -z-10 opacity-80"><Landscape /></div>
-          {sees.map((s) => (
-            <div key={s.who} className="rounded-xl bg-frost p-4 text-ink shadow-lg shadow-black/20">
-              <p className="text-[13px] font-semibold">{s.who}</p>
-              <p className="mt-3 text-[11px] uppercase tracking-wider text-ink/45">Can see</p>
-              <p className="text-[13px] text-ink/80">{s.can}</p>
-              <p className="mt-2 text-[11px] uppercase tracking-wider text-ink/45">Cannot see</p>
-              <p className="text-[13px] text-ink/80">{s.cannot}</p>
+        <div className="overflow-hidden rounded-2xl border bg-surface">
+          <div className="grid grid-cols-[1fr_1fr_1fr] border-b bg-paper px-5 py-3 font-mono text-[11px] uppercase tracking-wider text-fg/50">
+            <span>Who</span><span>Can see</span><span>Cannot see</span>
+          </div>
+          {sees.map(([who, can, cannot]) => (
+            <div key={who} className="grid grid-cols-[1fr_1fr_1fr] gap-3 border-b px-5 py-5 text-[13px] last:border-0">
+              <span className="text-fg">{who}</span>
+              <span className="text-fg/65">{can}</span>
+              <span className="text-fg/65"><span className="mr-1.5 inline-block size-1.5 -translate-y-px rounded-full bg-signal" />{cannot}</span>
             </div>
           ))}
         </div>
@@ -278,7 +212,7 @@ function Privacy() {
 }
 
 const faq = [
-  ['Is this real money?', 'No. The current build uses a mock wallet on Zcash testnet. Real Zcash and mainnet remain disabled until the live-testnet acceptance gate passes.'],
+  ['Is this real money?', 'No. The current build uses a mock wallet on Zcash testnet. Real Zcash and mainnet stay disabled until the live-testnet acceptance gate passes.'],
   ['Do I need an email?', 'No. You need an alias and a passphrase of at least 12 characters. Sessions are HttpOnly cookies that you can rotate and revoke.'],
   ['What if the file is not what was described?', 'Funds stay on hold after payment. The buyer can open a dispute and share selected evidence with an assigned reviewer, who can release or refund.'],
   ['Does a proof mean I legally own it?', 'No. Signed receipts show a historical platform claim, and asset-control checks show technical control at one point in time. Neither is legal title.'],
@@ -287,11 +221,11 @@ const faq = [
 function Faq() {
   return (
     <section id="faq" className="mx-auto max-w-3xl scroll-mt-20 px-4 pt-28 sm:px-6">
-      <h2 className="text-center text-[28px] tracking-[-0.02em] text-frost">Questions</h2>
-      <div className="mt-8 divide-y divide-white/5 border-y">
+      <p className="dot-display text-center text-[36px] text-fg"><DotText>FAQ.</DotText></p>
+      <div className="mt-8 divide-y border-y">
         {faq.map(([q, a]) => (
           <details key={q} className="group py-4">
-            <summary className="flex cursor-pointer list-none items-center justify-between text-[15px] text-frost">{q}<ChevronRight className="size-4 text-frost/40 transition group-open:rotate-90" /></summary>
+            <summary className="flex cursor-pointer list-none items-center justify-between text-[15px] text-fg">{q}<Plus className="size-4 text-fg/40 transition group-open:rotate-45 group-open:text-signal" /></summary>
             <p className="mt-2 text-sm text-muted-foreground">{a}</p>
           </details>
         ))}
@@ -302,15 +236,16 @@ function Faq() {
 
 function Cta() {
   return (
-    <section className="mx-auto max-w-5xl px-4 pt-28 sm:px-6">
-      <div className="relative isolate overflow-hidden rounded-3xl px-6 py-20 text-center">
-        <div className="absolute inset-0 -z-10"><Landscape /></div>
-        <div className="absolute inset-0 -z-10 bg-ink/35" />
-        <h2 className="mx-auto max-w-md text-[30px] leading-tight tracking-[-0.02em] text-frost sm:text-[38px]">Bring your work <span className="font-serif italic">into the vault</span></h2>
-        <p className="mx-auto mt-3 max-w-sm text-sm text-frost/70">Seal a file, set a price and share it publicly, as an unlisted link or by private invitation.</p>
-        <div className="mt-7 flex justify-center gap-3">
-          <Link to="/studio/new" className="rounded-full bg-ink px-5 py-2 text-[13px] font-medium text-frost">Start selling</Link>
-          <Link to="/market" className="rounded-full bg-frost px-5 py-2 text-[13px] font-medium text-ink">Browse the market</Link>
+    <section className="mx-auto max-w-6xl px-4 pt-28 sm:px-6">
+      <div className="relative overflow-hidden rounded-3xl bg-fg px-6 py-16 text-center sm:py-20">
+        <div className="absolute inset-x-0 bottom-0 h-1/2 opacity-25"><Halftone shape={reach} step={8} seed={3} erode={0.5} className="text-surface" /></div>
+        <div className="relative">
+          <p className="dot-display text-[34px] leading-none text-surface sm:text-[52px]"><DotText>Into the vault.</DotText></p>
+          <p className="mx-auto mt-4 max-w-sm text-sm text-surface/65">Seal a file, set a price and share it publicly, as an unlisted link or by private invitation.</p>
+          <div className="mt-8 flex justify-center gap-3">
+            <Link to="/studio/new" className="rounded-xl bg-signal px-5 py-2.5 text-[13px] font-medium text-surface">Start selling</Link>
+            <Link to="/market" className="rounded-xl bg-surface px-5 py-2.5 text-[13px] font-medium text-fg">Browse the market</Link>
+          </div>
         </div>
       </div>
     </section>
@@ -320,7 +255,10 @@ function Cta() {
 export default function Landing() {
   return (
     <>
+      <SiteNav />
       <Hero />
+      <ProofStrip />
+      <Capsules />
       <HowItWorks />
       <Features />
       <Selling />

@@ -67,7 +67,7 @@ export default function ListingPage() {
     try { await api.setStatus(listing.id, listing.status === 'live' ? 'paused' : 'live'); await load() } catch (e) { toast.error((e as Error).message) }
   }
 
-  if (error) return <PageShell><p className="py-24 text-center text-muted-foreground">{error} <Link className="text-glacier" to="/market">Back to market</Link></p></PageShell>
+  if (error) return <PageShell><p className="py-24 text-center text-muted-foreground">{error} <Link className="text-signal" to="/market">Back to market</Link></p></PageShell>
   if (!listing) return <PageShell><div className="grid gap-10 md:grid-cols-2"><Skeleton className="aspect-[4/5] rounded-2xl" /><div className="space-y-4"><Skeleton className="h-10 w-3/4" /><Skeleton className="h-4 w-1/3" /><Skeleton className="h-32" /></div></div></PageShell>
 
   const D = delivery[listing.delivery]
@@ -77,26 +77,26 @@ export default function ListingPage() {
 
   return (
     <PageShell>
-      <Link to="/market" className="inline-flex items-center gap-1.5 text-[13px] text-frost/60 hover:text-frost"><ArrowLeft className="size-4" />Market</Link>
+      <Link to="/market" className="inline-flex items-center gap-1.5 text-[13px] text-fg/60 hover:text-fg"><ArrowLeft className="size-4" />Market</Link>
       <div className="mt-6 grid gap-10 md:grid-cols-[1.1fr_1fr] md:gap-14">
         <div className="aspect-[4/5] overflow-hidden rounded-2xl border bg-muted"><ListingArt listing={listing} /></div>
         <div className="md:pt-4">
           <div className="flex flex-wrap items-center gap-2 text-[12px]">
-            <span className="rounded-full bg-white/[0.06] px-2.5 py-0.5 text-frost/75">{categoryLabel[listing.category]}</span>
-            {capsule && <span className="inline-flex items-center gap-1 rounded-full border border-glacier/30 px-2.5 py-0.5 text-glacier"><FileLock2 className="size-3" />Arcana Capsule</span>}
-            {listing.visibility === 'unlisted' && <span className="rounded-full bg-white/[0.06] px-2.5 py-0.5 text-frost/75">Unlisted</span>}
-            {listing.status !== 'live' && <span className="rounded-full bg-steel/20 px-2.5 py-0.5 capitalize text-steel">{listing.status}</span>}
+            <span className="rounded-full bg-fg/[0.06] px-2.5 py-0.5 text-fg/75">{categoryLabel[listing.category]}</span>
+            {capsule && <span className="inline-flex items-center gap-1 rounded-full border border-signal/30 px-2.5 py-0.5 text-signal"><FileLock2 className="size-3" />Arcana Capsule</span>}
+            {listing.visibility === 'unlisted' && <span className="rounded-full bg-fg/[0.06] px-2.5 py-0.5 text-fg/75">Unlisted</span>}
+            {listing.status !== 'live' && <span className="rounded-full bg-stone/20 px-2.5 py-0.5 capitalize text-stone">{listing.status}</span>}
           </div>
-          <h1 className="mt-4 text-[32px] leading-tight tracking-[-0.025em] text-frost sm:text-[40px]">{listing.title}</h1>
+          <h1 className="mt-4 text-[32px] leading-tight tracking-[-0.025em] text-fg sm:text-[40px]">{listing.title}</h1>
           <p className="mt-2 text-sm text-muted-foreground">by @{listing.seller_alias} · listed {shortDate(listing.created_at)}</p>
-          <p className="mt-8 font-mono text-[28px] text-frost">{usd(listing.price_usd_cents)}</p>
+          <p className="mt-8 font-mono text-[28px] text-fg">{usd(listing.price_usd_cents)}</p>
           <p className="text-xs text-muted-foreground">Paid in testnet ZEC at checkout's fixed quote</p>
 
-          {listing.description && <p className="mt-8 whitespace-pre-line text-[15px] leading-relaxed text-frost/80">{listing.description}</p>}
+          {listing.description && <p className="mt-8 whitespace-pre-line text-[15px] leading-relaxed text-fg/80">{listing.description}</p>}
 
           <div className="mt-8 space-y-3 rounded-2xl border bg-card p-5 text-[13px]">
-            <p className="flex items-start gap-2.5 text-frost/80"><D.icon className="mt-0.5 size-4 shrink-0 text-glacier" />{D.text}</p>
-            <p className="flex items-start gap-2.5 text-frost/80"><ShieldCheck className="mt-0.5 size-4 shrink-0 text-glacier" />The seller is paid only after you verify the file and accept, or after a dispute is resolved</p>
+            <p className="flex items-start gap-2.5 text-fg/80"><D.icon className="mt-0.5 size-4 shrink-0 text-signal" />{D.text}</p>
+            <p className="flex items-start gap-2.5 text-fg/80"><ShieldCheck className="mt-0.5 size-4 shrink-0 text-signal" />The seller is paid only after you verify the file and accept, or after a dispute is resolved</p>
           </div>
 
           <div className="mt-8 space-y-3">
@@ -122,12 +122,12 @@ export default function ListingPage() {
 
           {offers.length > 0 && (
             <div className="mt-8">
-              <p className="text-xs uppercase tracking-[0.14em] text-frost/45">Your offers</p>
-              <div className="mt-3 divide-y divide-white/5 rounded-xl border">
+              <p className="text-xs uppercase tracking-[0.14em] text-fg/45">Your offers</p>
+              <div className="mt-3 divide-y divide-fg/5 rounded-xl border">
                 {offers.map((o) => (
                   <div key={o.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-[13px]">
                     <div>
-                      <p className="font-mono text-frost">{usd(o.amount_usd_cents)}{o.counter_usd_cents && <span className="text-steel"> → counter {usd(o.counter_usd_cents)}</span>}</p>
+                      <p className="font-mono text-fg">{usd(o.amount_usd_cents)}{o.counter_usd_cents && <span className="text-stone"> → counter {usd(o.counter_usd_cents)}</span>}</p>
                       <p className="text-muted-foreground">{sentence(o.status)}</p>
                     </div>
                     <div className="flex gap-2">
@@ -139,7 +139,7 @@ export default function ListingPage() {
               </div>
             </div>
           )}
-          {!account && <div className="mt-6"><Notice><Link className="text-glacier" to={`/auth?next=/listing/${id}`}>Log in with your alias</Link> to buy or make an offer. No email required.</Notice></div>}
+          {!account && <div className="mt-6"><Notice><Link className="text-signal" to={`/auth?next=/listing/${id}`}>Log in with your alias</Link> to buy or make an offer. No email required.</Notice></div>}
         </div>
       </div>
 
@@ -150,7 +150,7 @@ export default function ListingPage() {
             <DialogDescription>Only the seller sees it. Asking price is {usd(listing.price_usd_cents)}.</DialogDescription>
           </DialogHeader>
           <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-frost/50">$</span>
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-fg/50">$</span>
             <Input autoFocus inputMode="decimal" placeholder="0.00" className="h-11 pl-7 font-mono" value={amount} onChange={(e) => setAmount(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && makeOffer()} />
           </div>
           <DialogFooter><Button className="h-10 w-full sm:w-auto" disabled={busy} onClick={makeOffer}>Send offer</Button></DialogFooter>

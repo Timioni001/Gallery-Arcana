@@ -26,9 +26,20 @@ The API binds to loopback by default. `GET /api/health` reports process liveness
 
 Copy `.env.worker.example` to `.env.worker` for worker-only options. The localhost payment simulator is disabled unless a strong `MOCK_SIMULATOR_TOKEN` is configured. It requires Bearer authentication and never submits blockchain transactions. Wallet spending credentials must not be placed in the API environment.
 
+## Ubuntu / WSL quick start
+
+From an Ubuntu (or WSL2) shell with Node.js 22+:
+
+```bash
+npm run setup:wsl    # installs/starts PostgreSQL, creates role+DB, .env files, keys, migrations, web deps
+npm run dev          # worker + API + web together; open http://localhost:5173 from Windows
+```
+
+Clone inside the Linux filesystem (for example `~/code`), not under `/mnt/c`, so file watching and npm installs stay fast. To pay for a test order, copy the memo from the order page and run `npm run mock:pay -- <memo>`. This uses the local mock simulator and sends no blockchain transaction.
+
 ## Web app
 
-`web/` is a Vite + React + Tailwind v4 frontend (shadcn/Base UI primitives) with the landing page, market, listing/offer/checkout, order delivery verification and the seller studio. With the API and worker running:
+`web/` is a Vite + React + Tailwind v4 frontend (shadcn/Base UI primitives; warm paper, dot-matrix and isometric line-art design) with the landing page, market, listing/offer/checkout, order delivery verification and the seller studio. With the API and worker running:
 
 ```bash
 npm ci --prefix web
