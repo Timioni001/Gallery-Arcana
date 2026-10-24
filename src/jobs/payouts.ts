@@ -8,7 +8,7 @@ async function recordSent(id:string,txid:string){
     await c.query('SELECT id FROM listings WHERE id=$1 FOR UPDATE',[ref.listing_id]);
     await c.query('SELECT id FROM orders WHERE id=$1 FOR UPDATE',[ref.id]);
     const payout=(await c.query("UPDATE payouts SET status='sent',txid=$2,updated_at=now(),failure_code=NULL WHERE id=$1 AND status='sending' RETURNING kind,ref_id",[id,txid])).rows[0];
-    if(payout?.kind==='buyer_refund')await c.query("UPDATE orders SET refund_status='sent' WHERE id=$1 AND refund_status='queued'",[payout.ref_id]);
+    if(payout?.kind==='buyer_refund')await c.query("UPDATE orders SET refund_status='sent',resolved_at=COALESCE(resolved_at,now()) WHERE id=$1 AND refund_status='queued'",[payout.ref_id]);
   });
 }
 export async function reconcilePayouts(wallet:WalletAdapter){

@@ -1,0 +1,67 @@
+# Gallery Arcana — complete available backend inventory
+
+Version 0.4 combines the original marketplace, the security/recovery work, and the private-acquisitions archive. There is no frontend. The working payment system is a deterministic durable mock; no real blockchain settlement is represented as verified.
+
+## Accounts and access
+
+- Pseudonymous alias signup/login without mandatory identity verification; normalized aliases and salted scrypt passphrase hashes.
+- Random hashed sessions with idle and absolute expiration, atomic rotation, logout and account-wide revocation. Creation/rotation/revocation serialize to prevent successor-token races.
+- HttpOnly, Strict SameSite cookies; Secure on HTTPS; exact-origin/custom-header/fetch-site CSRF checks. No external CORS access.
+- Participant-only offers and buyer order/payment APIs, seller-owned edits/uploads, private seller sale summaries, strong-token loopback administrative access disabled by default.
+- Shared PostgreSQL limits for IP, account and normalized-login buckets; input validation, parameterized SQL and privacy-safe error/log projections.
+
+## Listings and negotiation
+
+- Seller-owned public or unlisted listings, metadata editing with revisions, owned private files and optional previews.
+- Public search, categories, bounded pagination and deterministic ordering; paused/reserved/sold availability states.
+- Private offers, seller acceptance/rejection/counters, buyer counter acceptance/rejection and withdrawal; stale revision and ownership checks.
+- One active offer per buyer/listing; one reservation/completed acquisition per asset. Edits invalidate active offers and reserved/sold listings cannot change.
+- Manual/external references can be listed and negotiated; their external ownership/delivery is not verified and they cannot use automatic file checkout.
+
+## Purchasing and private acquisitions
+
+- Atomic checkout reserves one listing, snapshots file/title/name/digest, price, seller destination and payout amount, and persists a unique invoice/destination/memo/deadline/ZIP-321 request.
+- All currency accounting uses integer zatoshis and integer fixed-rate quotes. Competing buyers cannot reserve conflicting sales; expired reservations recover without a worker; late old invoices cannot release a new reservation.
+- New orders move `awaiting_payment → funded → paid` through verified mock funding followed by explicit buyer acceptance. Seller funds stay on hold until acceptance or operator release; no silence-based payout.
+- Buyer-authenticated receipt/download access while an account link remains. Independent digest confirmation and prior byte preparation are required for buyer release.
+- Confidential buyer disputes; loopback operator release or full refund; exact-once payout/event transitions under concurrency. Dispute reasons are private operator-readable plaintext.
+- Seller proceeds use checkout terms; initial excess is refundable separately after release. Expired partial/late payments have a refund path and never unlock goods.
+- Private receipt renewal revokes old capabilities; signed acquisition proofs are retrieved privately and independently verifiable with Ed25519. Legacy orders retain their original terms without fabricated attestations.
+
+## Assets, proofs and privacy
+
+- Private originals up to 25 MB, AES-256-GCM encryption, authenticated new-format file identifiers and legacy-format decryption.
+- SHA-256 recorded from plaintext upload, privately propagated through the listing and snapshotted order, checked on every delivery; missing legacy hashes have an idempotent decrypt-and-backfill command.
+- Preview PNG/JPEG/WebP decoding/re-encoding strips metadata, rejects malformed types/animation, and enforces 5 MB/25-million-pixel limits. Previews are public.
+- Restricted exclusive file writes, path validation, symlink protections, safe attachment names/octet-stream delivery and cleanup on failed DB association.
+- Strict Ed25519 proof schemas/canonical encoding, distinct buyer/operator outcomes, private-key permission and pair validation, public-only verification key responses and safe key generation without overwrite.
+- No public buyer history, offer feed, invoice details, original digest, proof inventory or negotiation data. Attestations contain minimal but correlatable IDs/digest/time and are not ownership deeds or chain receipts.
+- Settled retention removes buyer/payment/offer associations, dispute reasons, note metadata and completed mock submission details, while retaining receipt redemption. Unresolved funded/disputed/reviewed/uncertain funds remain recoverable. Backups/wallet history have separate retention limits.
+
+## Wallet and crash recovery
+
+- PostgreSQL-backed mock addresses, received notes and idempotent sends survive worker crashes/restarts.
+- Exact address/memo/value/output-identity attribution, configured confirmations, persistent deduplication, spent-note adapter contract and synchronization gating; balances and buyer-supplied transaction IDs never prove an invoice.
+- Under/over/late payments, conflicting output attribution and deterministic mock reorganizations are exercised by tests. Settled changes freeze delivery and queued spending for manual reconciliation.
+- Atomic payout claims, durable submission UUIDs, exact destination/value reconciliation, and refusal to automatically retry ambiguous sends. Reconciliation command reports unresolved submissions.
+- Source-pinned Zallet/Zebra investigation cohort, offline supported-response normalizer and bounded read-only RPC diagnostic with method allowlist, authentication, timeout/size/ID checks, account/receiver matching and stable-tip sample checks.
+- Real-wallet mode, mainnet and production fail closed. The read-only probe is not a scanner or acceptance gate substitute; genuine funded testnet integration remains blocked.
+
+## Operations and automation
+
+- Node.js 22+, TypeScript, Fastify and PostgreSQL 16; separate API and wallet worker. Native Ubuntu/WSL PostgreSQL instructions; optional loopback-bound Docker database.
+- Configuration/encryption/signing-key validation, no spending-secret bindings in the API, structured allowlisted logs, liveness/readiness endpoints and graceful shutdown.
+- Single worker advisory lock, owned heartbeat UUIDs, backoff, connection-loss failure exit, serialized cycles, privacy cleanup and durable recovery.
+- Transactional checksummed baseline/adoption/migrations 001–007; no direct schema replay on a populated database.
+- Unit/security/RPC-contract tests, isolated PostgreSQL integration databases and temporary storage, real HTTP API/worker acceptance with lock loss and SIGKILL recovery, and runnable mock demo including offline proof verification.
+- SHA-pinned GitHub CI actions, Node 22/24 matrix and PostgreSQL service. Local results are documented separately from hosted CI status.
+
+## Commands and documentation
+
+`npm ci`, `npm run keys`, `npm run migrate`, `npm run assets:backfill`, `npm run worker`, `npm run api`, `npm run demo:mock`, `npm run test:all`, `npm run payouts:reconcile`, `npm run zallet:probe`.
+
+[API contract](API.md) · [Acquisition protocol](PRIVATE_ACQUISITIONS.md) · [Operations](OPERATIONS.md) · [Domain invariants](INVARIANTS.md) · [Threat model](THREAT_MODEL.md) · [Executed validation](VALIDATION.md) · [Real Zcash gate](ZALLET_GAP.md).
+
+## Not available or not verified
+
+No live Zcash/testnet settlement, mainnet custody, live FX feed, production key vault/backup recovery, external security certification, individual operator authentication, proof revocation/key-history service, client-key/E2EE negotiation, malware scanning, legal ownership/licensing guarantees, NFT/domain/repository custody, cross-chain atomic transfer, auctions, platform token or frontend. A buyer confirmation/platform signature cannot provide those guarantees.

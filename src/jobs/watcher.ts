@@ -18,7 +18,7 @@ function attributed(notes:ReceivedNote[],address:string,memo:string){
 }
 async function review(c:PoolClient,paymentId:string,orderId:string){
   await c.query("UPDATE payments SET status='review' WHERE id=$1",[paymentId]);
-  await c.query("UPDATE orders SET status=CASE WHEN status='paid' THEN 'payment_review' ELSE status END,refund_status='review' WHERE id=$1",[orderId]);
+  await c.query("UPDATE orders SET status=CASE WHEN status IN ('funded','disputed','paid') THEN 'payment_review' ELSE status END,refund_status='review' WHERE id=$1",[orderId]);
   await c.query("UPDATE payouts SET status='cancelled',failure_code='PAYMENT_REVIEW',updated_at=now() WHERE ref_id=$1 AND status='queued'",[orderId]);
   log('payment_review',{id:paymentId,level:'warn'});
 }

@@ -23,6 +23,7 @@ export async function checkout(buyerId:string,listingId:string,offerId?:string){
     if(item.status!=='live')throw conflict('This listing is unavailable');
     if(item.delivery!=='download')throw conflict('Automatic checkout supports downloadable goods only');
     if(!item.payout_address)throw conflict('Seller must configure a payout address');
+    if(!item.file_sha256)throw conflict('Asset fingerprint required; backfill or re-upload the original');
     let price=item.price_usd_cents as number;
     if(offerId){
       const offer=(await c.query('SELECT * FROM offers WHERE id=$1 AND listing_id=$2 AND buyer_id=$3 FOR UPDATE',[offerId,listingId,buyerId])).rows[0];
@@ -32,19 +33,22 @@ export async function checkout(buyerId:string,listingId:string,offerId?:string){
     const holdMin=await setting<number>('reservation_minutes',c);
     if(!Number.isSafeInteger(holdMin)||holdMin<1||holdMin>60)throw new Error('Invalid reservation setting');
     const expiresAt=(await c.query('SELECT clock_timestamp()+make_interval(mins=>$1) AS deadline',[holdMin])).rows[0].deadline as Date;
-    const created=(await c.query(`INSERT INTO orders(listing_id,buyer_id,offer_id,price_usd_cents,payout_address,receipt_hash,expires_at,file_key,file_name,title)
-      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,[listingId,buyerId,offerId??null,price,item.payout_address,hashCode(receiptCode),expiresAt,item.file_key,item.file_name,item.title])).rows[0];
+    const created=(await c.query(`INSERT INTO orders(listing_id,buyer_id,offer_id,price_usd_cents,payout_address,receipt_hash,expires_at,file_key,file_name,title,file_sha256)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`,[listingId,buyerId,offerId??null,price,item.payout_address,hashCode(receiptCode),expiresAt,item.file_key,item.file_name,item.title,item.file_sha256])).rows[0];
     await c.query("UPDATE listings SET status='reserved',updated_at=now() WHERE id=$1",[listingId]);
     const payment=await createPayment(c,{usdCents:price,refId:created.id,expiresAt});
-    await c.query('UPDATE orders SET payment_id=$2 WHERE id=$1',[created.id,payment.paymentId]);
+    const fee=await setting<number>('platform_cut_bps',c);
+    if(!Number.isSafeInteger(fee)||fee<0||fee>10000)throw new Error('Invalid platform fee');
+    const sellerPayout=BigInt(payment.amountZat)*BigInt(10000-fee)/10000n;
+    await c.query('UPDATE orders SET payment_id=$2,seller_payout_zat=$3 WHERE id=$1',[created.id,payment.paymentId,sellerPayout.toString()]);
     return {orderId:created.id as string,payment};
   });
   return {...order,receiptCode};
 }
 export async function orderStatus(accountId:string,orderId:string){
-  const row=(await pool.query(`SELECT o.id,o.listing_id,o.title,o.price_usd_cents,o.status,o.expires_at,o.paid_at,o.refund_status,o.refund_zat,
+  const row=(await pool.query(`SELECT o.id,o.listing_id,o.title,o.price_usd_cents,o.status,o.expires_at,o.paid_at,o.refund_status,o.refund_zat,o.acquisition_version,o.file_sha256,o.funded_at,o.file_first_accessed_at,o.delivery_confirmed_at,o.disputed_at,
     COALESCE(p.received_zat,0)::text AS received_zat,COALESCE(p.confirmations,0) AS confirmations,
-    'download' AS delivery,(o.status='paid') AS delivered FROM orders o LEFT JOIN payments p ON p.id=o.payment_id WHERE o.id=$1 AND o.buyer_id=$2`,[orderId,accountId])).rows[0];
+    'download' AS delivery,(o.status='paid') AS delivered,(o.status IN ('funded','paid','disputed')) AS downloadable,(o.delivery_confirmed_at IS NOT NULL) AS buyer_confirmed FROM orders o LEFT JOIN payments p ON p.id=o.payment_id WHERE o.id=$1 AND o.buyer_id=$2`,[orderId,accountId])).rows[0];
   if(!row)throw notFound();return row;
 }
 export async function orderPayment(accountId:string,orderId:string){
@@ -59,12 +63,12 @@ export async function myOrders(accountId:string){
   return (await pool.query('SELECT id,listing_id,title,status,price_usd_cents,created_at,refund_status FROM orders WHERE buyer_id=$1 ORDER BY created_at DESC,id DESC LIMIT 100',[accountId])).rows;
 }
 export async function sales(accountId:string){
-  return (await pool.query(`SELECT o.id,o.listing_id,o.title,o.status,o.price_usd_cents,o.created_at FROM orders o JOIN listings l ON l.id=o.listing_id
+  return (await pool.query(`SELECT o.id,o.listing_id,o.title,o.status,o.price_usd_cents,o.created_at,o.funded_at,o.file_first_accessed_at,o.delivery_confirmed_at,o.disputed_at FROM orders o JOIN listings l ON l.id=o.listing_id
     WHERE l.seller_id=$1 ORDER BY o.created_at DESC,o.id DESC LIMIT 100`,[accountId])).rows;
 }
 export async function renewReceipt(accountId:string,orderId:string){
   const code=newCode('RCT',16);
-  const {rows}=await pool.query("UPDATE orders SET receipt_hash=$3 WHERE id=$1 AND buyer_id=$2 AND status='paid' RETURNING id,title,price_usd_cents,paid_at",[orderId,accountId,hashCode(code)]);
+  const {rows}=await pool.query("UPDATE orders SET receipt_hash=$3 WHERE id=$1 AND buyer_id=$2 AND status IN ('funded','disputed','paid') RETURNING id,title,price_usd_cents,paid_at",[orderId,accountId,hashCode(code)]);
   if(!rows[0])throw notFound();return {...rows[0],receiptCode:code};
 }
 export async function releaseExpired(c:PoolClient){
@@ -86,10 +90,11 @@ export async function settlePurchase(c:PoolClient,p:PaymentRow,late:boolean){
     return;
   }
   const excess=received-expected;
-  await c.query("UPDATE orders SET status='paid',paid_at=now(),refund_zat=$2,refund_status=$3 WHERE id=$1",[order.id,excess.toString(),excess>0n?'due':'none']);
+  await c.query("UPDATE orders SET status=$4,paid_at=CASE WHEN $4='paid' THEN now() ELSE NULL END,funded_at=now(),refund_zat=$2,refund_status=$3 WHERE id=$1",[order.id,excess.toString(),excess>0n?'due':'none',order.acquisition_version===1?'funded':'paid']);
   await c.query("UPDATE listings SET status='sold',updated_at=now() WHERE id=$1",[item.id]);
   await c.query(`UPDATE offers SET status=CASE WHEN id=$2 THEN 'completed' ELSE 'declined' END,revision=revision+1,updated_at=now()
     WHERE listing_id=$1 AND status IN ('open','countered','accepted')`,[item.id,order.offer_id]);
+  if(order.acquisition_version===1)return; // Funding unlocks inspection; acceptance queues the payout.
   const cutBps=await setting<number>('platform_cut_bps',c);
   if(!Number.isSafeInteger(cutBps)||cutBps<0||cutBps>10_000)throw new Error('Invalid platform fee');
   const payout=expected*BigInt(10_000-cutBps)/10_000n;

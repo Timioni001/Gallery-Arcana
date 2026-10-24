@@ -18,23 +18,23 @@ export const listingPatchSchema=z.object(listingFields).partial().extend({expect
 type ListingInput=z.infer<typeof listingSchema>;
 async function assets(db:Db,sellerId:string,input:ListingInput){
   if(input.delivery==='download'&&!input.fileKey)throw bad('Upload a file before publishing a downloadable product');
-  let fileName:string|null=null;
+  let fileName:string|null=null,fileSha256:string|null=null;
   for(const [key,kind] of [[input.previewKey,'previews'],[input.fileKey,'private']]){
     if(!key)continue;
-    const {rows}=await db.query('SELECT original_name FROM uploaded_assets WHERE key=$1 AND owner_id=$2 AND kind=$3',[key,sellerId,kind]);
+    const {rows}=await db.query('SELECT original_name,file_sha256 FROM uploaded_assets WHERE key=$1 AND owner_id=$2 AND kind=$3',[key,sellerId,kind]);
     if(!rows[0])throw forbidden('Upload this asset from your own account first');
-    if(kind==='private')fileName=rows[0].original_name;
+    if(kind==='private'){fileName=rows[0].original_name;fileSha256=rows[0].file_sha256;}
   }
-  return fileName;
+  return {fileName,fileSha256};
 }
 export async function createListing(sellerId:string,input:ListingInput){
   return tx(async c=>{
-    const fileName=await assets(c,sellerId,input);
+    const {fileName,fileSha256}=await assets(c,sellerId,input);
     if(!(await c.query('SELECT payout_address FROM accounts WHERE id=$1',[sellerId])).rows[0]?.payout_address)
       throw forbidden('Set your Zcash payout address before listing');
-    const {rows}=await c.query(`INSERT INTO listings(seller_id,title,description,category,visibility,delivery,preview_key,file_key,file_name,asset_reference,price_usd_cents)
-      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id,revision`,
-      [sellerId,input.title,input.description,input.category,input.visibility,input.delivery,input.previewKey??null,input.fileKey??null,fileName,input.assetReference??null,input.priceUsdCents]);
+    const {rows}=await c.query(`INSERT INTO listings(seller_id,title,description,category,visibility,delivery,preview_key,file_key,file_name,asset_reference,price_usd_cents,file_sha256)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id,revision`,
+      [sellerId,input.title,input.description,input.category,input.visibility,input.delivery,input.previewKey??null,input.fileKey??null,fileName,input.assetReference??null,input.priceUsdCents,fileSha256]);
     return {listingId:rows[0].id,revision:rows[0].revision};
   });
 }
@@ -46,10 +46,10 @@ export async function editListing(sellerId:string,id:string,patch:z.infer<typeof
     if(row.revision!==patch.expectedRevision)throw conflict('Listing changed; reload before editing');
     const input=listingSchema.parse({title:row.title,description:row.description,category:row.category,visibility:row.visibility,delivery:row.delivery,
       previewKey:row.preview_key??undefined,fileKey:row.file_key??undefined,assetReference:row.asset_reference??undefined,priceUsdCents:row.price_usd_cents,...patch});
-    const fileName=await assets(c,sellerId,input);
+    const {fileName,fileSha256}=await assets(c,sellerId,input);
     const {rows}=await c.query(`UPDATE listings SET title=$2,description=$3,category=$4,visibility=$5,delivery=$6,preview_key=$7,
-      file_key=$8,file_name=$9,asset_reference=$10,price_usd_cents=$11,revision=revision+1,updated_at=now() WHERE id=$1 RETURNING id,revision`,
-      [id,input.title,input.description,input.category,input.visibility,input.delivery,input.previewKey??null,input.fileKey??null,fileName,input.assetReference??null,input.priceUsdCents]);
+      file_key=$8,file_name=$9,asset_reference=$10,price_usd_cents=$11,file_sha256=$12,revision=revision+1,updated_at=now() WHERE id=$1 RETURNING id,revision`,
+      [id,input.title,input.description,input.category,input.visibility,input.delivery,input.previewKey??null,input.fileKey??null,fileName,input.assetReference??null,input.priceUsdCents,fileSha256]);
     await c.query("UPDATE offers SET status='declined',revision=revision+1,updated_at=now() WHERE listing_id=$1 AND status IN ('open','countered','accepted')",[id]);
     return rows[0];
   });

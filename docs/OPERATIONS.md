@@ -28,10 +28,12 @@ The included container binds Postgres to loopback and uses development-only cred
 npm ci
 cp .env.example .env       # preserve an existing file
 openssl rand -hex 32       # securely put the generated value in ASSET_ENCRYPTION_KEY
+npm run keys              # once; preserve existing signing files
 npm run migrate
+npm run assets:backfill   # existing originals without fingerprints
 ```
 
-Keep the encryption key stable and back it up securely together with storage. Losing it loses private originals. No setup script should regenerate an existing key. The API validates the key before listening. Files and directories use restrictive permissions. Original archive-format encrypted files remain readable; new files bind the storage key as GCM associated data.
+Keep the encryption key stable and back it up securely together with storage. Losing it loses private originals. No setup script should regenerate an existing key. The API validates the encryption key and matching Ed25519 signing/verification files before listening. Signing private files must have no group/other permission bits; key generation refuses overwrite. Keep signing material backed up, and preserve public verification keys for old attestations. Files and directories use restrictive permissions. Original archive-format encrypted files remain readable; new files bind the storage key as GCM associated data.
 
 Use `chmod 600 .env` after creating it. `.env`, `.env.worker`, dependency directories and asset storage are ignored by Git. Never put secrets in command output, logs or source control. `PUBLIC_ORIGIN` must be an exact origin; remote HTTP is rejected. HTTPS origins enable Secure cookies. Keep `trustProxy` disabled unless a specific trusted proxy configuration is implemented and verified.
 
@@ -44,7 +46,7 @@ npm run api               # terminal B; localhost API port 8080
 
 Both load shared development settings from `.env`; only the worker additionally loads `.env.worker`. The public API imports no wallet adapter and rejects a nonempty `ZALLET_RPC_PASS`, `ZCASH_SPENDING_KEY` or `WALLET_SEED` in its environment. For future custody deployment, use separate OS/database identities and a dedicated secret store; current development processes share a database identity and are not a production isolation boundary.
 
-The worker holds an exclusive PostgreSQL advisory lock, schedules one payment cycle at a time, backs off failed cycles, and stores a heartbeat. Each process registers a new instance UUID after acquiring the lock; later heartbeat and shutdown updates require that UUID, preventing a draining predecessor from overwriting its replacement. Losing the lock connection drains the worker with exit code 1 and stops subsequent cycle stages. A cycle refreshes destinations, expires reservations, scans complete output snapshots and then handles payouts. Spending does not follow a failed scan. SIGINT/SIGTERM drain work and close listeners, database pools and worker locks. SIGKILL recovery uses persisted invoices, output observations and mock wallet state.
+The worker holds an exclusive PostgreSQL advisory lock, schedules one payment cycle at a time, backs off failed cycles, and stores a heartbeat. Each process registers a new instance UUID after acquiring the lock; later heartbeat and shutdown updates require that UUID, preventing a draining predecessor from overwriting its replacement. Losing the lock connection drains the worker with exit code 1 and stops subsequent cycle stages. A cycle refreshes destinations, expires reservations, scans complete output snapshots and then handles payouts. Spending does not follow a failed scan. Funding new acquisitions does not queue seller payouts; buyer acceptance or explicit operator release is required. SIGINT/SIGTERM drain work and close listeners, database pools and worker locks. SIGKILL recovery uses persisted invoices, output observations and mock wallet state.
 
 Liveness: `GET /api/health`. Readiness: `GET /api/ready`, which returns 503 if the current schema/key, recent ready worker heartbeat or free destination is missing. The worker has loopback `/health` and `/ready`. Readiness proves the local mock workflow only, not Zcash synchronization.
 
@@ -55,6 +57,8 @@ Copy `.env.worker.example` to `.env.worker`. Add a generated 32-byte hex `MOCK_S
 ## Migrations and tests
 
 `npm run migrate` serializes changes with an advisory lock and applies the original baseline plus ordered `db/migrations/*.sql` in a transaction. Applied SQL checksums are immutable. An intact original unversioned schema is adopted, then upgraded; an incomplete baseline fails instead of guessing. Migration 004 adopts legacy mock destination records; historical notes lost by the original in-memory simulator cannot be reconstructed and are never fabricated. Back up non-disposable databases before upgrades. Add a new migration for further schema changes.
+
+Migrations 006/007 add private acquisition holds, immutable digest/payout snapshots and audited dispositions. Existing orders retain their original version-0 behavior; new orders use explicit buyer acceptance. Run `npm run assets:backfill` after migration before checking out legacy listings. This decrypts originals to fill missing fingerprints and refuses missing/corrupt files. Use the normal migration runner for both fresh and upgrade paths, not the archive's standalone upgrade script.
 
 Migration 005 fences worker heartbeat ownership and invalidates the old readiness record. Stop existing API/worker processes, run migrations, then start both processes on the upgraded code. Keep the current schema and application version together.
 
@@ -81,3 +85,11 @@ Settled reorgs, changed confirmed totals or inconsistent output identities enter
 ## Real-wallet infrastructure diagnosis
 
 `npm run zallet:probe` performs supported read-only RPC checks through a loopback endpoint configured in `.env.worker`. It cannot generate addresses, create accounts, spend or enable real mode. See [ZALLET_GAP.md](ZALLET_GAP.md) for binding setup, exactly what is sampled and the live acceptance requirements. A passing probe is not a verified Zcash payment.
+
+## Runnable mock acquisition demo
+
+Configure the optional simulator as described above, then run `npm run demo:mock` from the checkout. It loads the shared/worker config, requires loopback mock/test services and the simulator token, creates two new demo identities and an unlisted original, negotiates an offer, funds the invoice through the mock, independently checks downloaded bytes/digest, confirms delivery and verifies the signed proof offline. It prints result flags, not credentials or invoice data. It creates application records and is not a blockchain transaction. Automated HTTP tests run it against their disposable database.
+
+## Dispute operation
+
+Admin dispute list/resolution require a strong `ADMIN_TOKEN`, direct loopback and `X-Admin-Token`, with the normal CSRF header on mutations. Keep all `/api/admin/*` routes out of external reverse-proxy routing; a proxy can make remote traffic appear loopback. Tokens provide shared operator authorization, not individual operator identity. Each successful release/refund has an immutable-kind/timestamp acquisition event, but there is no independent tamper-proof audit service. Review confidential reasons privately; release signs `operator_release`, refund queues all received funds. Concurrent/repeated decisions cannot allocate both ways. Payment-review orders require separate wallet reconciliation and cannot be resolved through this endpoint.

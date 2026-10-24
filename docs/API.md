@@ -10,7 +10,7 @@ Errors use `{error: string}` with 400 for input errors, 401 for missing authenti
 | --- | --- |
 | `GET /` | API name, version and documentation metadata. |
 | `GET /api/health` | Process liveness, `mode: mock`, `network: test`. No chain-readiness claim. |
-| `GET /api/ready` | 200 only when migrations, encryption key, worker heartbeat and free destination pool are ready; otherwise 503. |
+| `GET /api/ready` | 200 only when migrations, encryption/signing keys, worker heartbeat and free destination pool are ready; otherwise 503. |
 | `GET /api/listings` | Live public listings. Optional `category=digital\|collectible\|onchain\|other`, literal title `q` (70 chars), `limit` 1–80 (default 40), `offset` 0–10000. Returns an array ordered by creation time and ID. |
 | `GET /api/listings/{id}` | Listing metadata by UUID; unlisted links are readable by anyone possessing the URL. Paused listings are visible only to their seller. |
 | `GET /previews/{key}` | Public re-encoded PNG/JPEG/WebP bytes; never a private original. |
@@ -36,7 +36,7 @@ Tokens are random 256-bit values, stored as hashes. Cookies are HttpOnly, SameSi
 | Route | Contract |
 | --- | --- |
 | `POST /api/assets/previews` | Authenticated raw bytes with `Content-Type: application/octet-stream` and `X-Asset-Type: image/png\|image/jpeg\|image/webp`. Max 5 MB, max 25 million decoded pixels. Actual image decoding/re-encoding strips metadata. Returns `{key}`. |
-| `POST /api/assets/private` | Authenticated raw bytes, max 25 MB, optional `X-Asset-Filename`. Bytes are encrypted and later delivered as an attachment with octet-stream type. Claimed MIME never changes this treatment. Returns `{key}`. |
+| `POST /api/assets/private` | Authenticated raw bytes, max 25 MB, optional `X-Asset-Filename`. Bytes are encrypted and later delivered as an attachment with octet-stream type. Claimed MIME never changes this treatment. Returns `{key,sha256}`. The digest is private upload metadata. |
 | `POST /api/listings` | `{title,description?,category?,visibility?,delivery?,fileKey?,previewKey?,assetReference?,priceUsdCents}`. Title 3–120 chars, description ≤2500, price 50–100000000 integer cents. Defaults: digital/public/download. Seller must own attached uploads and configure payout. Download delivery requires a private file. Returns `{listingId,revision}`. |
 | `PATCH /api/listings/{id}` | Seller only, live/paused listings only. Partial create fields plus required `expectedRevision`. Advances revision and invalidates active offers. Reserved/sold products cannot be edited. |
 | `GET /api/listings/mine` | Authenticated seller's listings and revisions. |
@@ -60,18 +60,32 @@ Seller acceptance applies only to the original open offer. A seller cannot accep
 | --- | --- |
 | `POST /api/listings/{id}/checkout` | Authenticated buyer `{}` or `{offerId}` for their current accepted offer. Atomically reserves the listing and returns `{orderId,payment:{paymentId,address,memo,amountZat,amountZec,usdCents,uri,expiresAt},receiptCode}`. Address is mock-only and single-use. Save the bearer receipt secret securely. |
 | `GET /api/orders` | Current buyer's order summaries, never a public history. |
-| `GET /api/orders/{id}` | Buyer-only status, immutable product title/price, payment progress/confirmations and refund state. |
+| `GET /api/orders/{id}` | Buyer-only status, immutable title/price/digest, funded/download/acceptance timestamps, payment progress/confirmations and refund state. |
 | `GET /api/orders/{id}/payment` | Buyer-only original address, memo, quote and ZIP-321 URI. Never returns the receipt secret. |
 | `GET /api/sales` | Seller's order summaries. Omits buyer identity, memos, payment destinations and receipt secrets. |
-| `POST /api/orders/{id}/receipt` | Paid order's authenticated buyer replaces the receipt code. Returns private receipt metadata plus a new `receiptCode`; previous code is revoked. |
-| `POST /api/files/{listingId}` | `{receiptCode}` bearer-capability authorization. Returns the paid order's snapshotted original as an octet-stream attachment. Invalid, unpaid, reviewed or revoked codes do not deliver. A login is not an additional requirement for this capability endpoint. |
-| `POST /api/refunds/late` | `{receiptCode,address}` claims confirmed late/expired partial funds or pre-settlement overpayment excess. The receipt is bearer authorization to choose the refund destination. Returns `{refundId,status:"queued"}`; repeat claims fail. |
+| `POST /api/orders/{id}/receipt` | Funded/disputed/paid order's authenticated buyer replaces the receipt code. Returns private receipt metadata plus a new `receiptCode`; previous code is revoked. |
+| `POST /api/files/{listingId}` | `{receiptCode}` plus the buyer session for linked v0.4 acquisitions. Funded/paid/disputed only; verifies the snapshotted SHA-256 and returns `X-Arcana-Asset-SHA256`. Legacy and retention-anonymized paid receipts retain bearer redemption. Unfunded/reviewed/refunded/revoked codes do not deliver. |
+| `POST /api/refunds/late` | `{receiptCode,address}` claims confirmed late/expired partial funds or initial overpayment excess after release. The receipt is bearer authorization to choose the refund destination. Returns `{refundId,status:"queued"}`; repeat claims fail. |
 
-Statuses: `awaiting_payment`, `paid`, `expired`, `refund_due`, `refund_queued`, `payment_review`. Independent refund state is `none`, `due`, `queued`, `sent`, or `review`. Expected ZEC is an exact integer-zatoshi minimum. Underpayment never delivers. Initial excess is refundable; seller payout uses only the agreed expected amount. Later deposits or lost confirmed outputs enter manual review instead of silently modifying an existing payout.
+Statuses: `awaiting_payment`, `funded`, `disputed`, `paid`, `expired`, `refund_due`, `refund_queued`, `payment_review`. New orders require explicit acceptance after funding; pre-upgrade orders keep the previous payment-to-paid transition. Independent refund state is `none`, `due`, `queued`, `sent`, or `review`. Expected ZEC is an exact integer-zatoshi minimum. Underpayment never delivers. Initial excess is refundable; seller payout uses snapshotted checkout terms and never includes excess. Later deposits or lost confirmed outputs enter manual review instead of silently modifying an existing payout.
+
+## Buyer acceptance, disputes and attestations
+
+| Route | Contract |
+| --- | --- |
+| `POST /api/orders/{id}/confirm-delivery` | Buyer `{receiptCode,assetSha256}`; exact digest, prior authenticated file preparation, and funded state required. Signs a minimal Ed25519 claim, marks paid and queues proceeds atomically. Replays/stale state receive 409. |
+| `POST /api/orders/{id}/dispute` | Buyer `{reason}` (trimmed 10–2000 chars), funded state only. Returns disputed/on-hold; reason is private operator-readable plaintext. |
+| `POST /api/orders/{id}/proof` | Bearer `{receiptCode}`; returns the stored proof only for a paid acquisition. No public order lookup or fabricated legacy proof. |
+| `GET /api/proofs/public-key` | `{algorithm:"Ed25519",publicKey}` in PEM form. |
+| `POST /api/proofs/verify` | `{proof}` → `{valid}`; strict schema/signature check against the current public key, no order lookup. |
+| `GET /api/admin/disputes` | Strong admin token and direct loopback; private unresolved dispute queue. |
+| `POST /api/admin/orders/{id}/resolve` | Same gate; `{decision:"release"}` or `{decision:"refund",refundAddress}`. Disputed state and confirmed funds required; one audited disposition. |
+
+A dispute refund returns the complete confirmed amount, including initial excess, and blocks further file delivery. Refund state becomes sent after reconciliation; order status remains `refund_queued` with `refund_status:"sent"`. An operator release is distinguished from buyer acceptance in the proof. No automatic timeout release or payment-review bypass exists. Proofs attest platform statements, not legal ownership or live blockchain settlement. See [PRIVATE_ACQUISITIONS.md](PRIVATE_ACQUISITIONS.md).
 
 ## Local operational interfaces
 
-`GET /api/admin/payouts/stuck` is disabled by default. With a strong configured admin token it additionally requires a direct loopback connection and `X-Admin-Token`. It only returns payout IDs, kinds, states, attempts and timestamps. Do not forward this route through an external reverse proxy. Prefer `npm run payouts:reconcile`.
+`GET /api/admin/payouts/stuck` is disabled by default. With a strong configured admin token it additionally requires a direct loopback connection and `X-Admin-Token`. It only returns payout IDs, kinds, states, attempts and timestamps. Do not forward any `/api/admin/*` route through an external reverse proxy. Prefer `npm run payouts:reconcile`.
 
 The separate worker exposes loopback `GET /health`, `GET /ready`, and optional `POST /dev/pay`. Simulation requires `MOCK_SIMULATOR_TOKEN` through Bearer authentication and `{address,zat:"integer",memo}`. It persists mock notes; it does not send Zcash. It does not accept buyer-provided transaction IDs or confirmations as blockchain proof.
 

@@ -1,34 +1,39 @@
-# Executed validation
+# Executed validation — v0.4 integrated build
 
-Complete runs: Node.js **22.23.4** and **24.19.0**, PostgreSQL **16.15**, Linux cloud environment, 2026-10-24. PostgreSQL in this instance is supplied by the optional local container; the test runner itself uses only PostgreSQL protocol connections and does not require Docker. Ubuntu/WSL native setup is documented, but a WSL host was not available for direct execution.
+Executed on 2026-10-24 in Linux cloud: Node.js **22.23.4** and **24.19.0**, PostgreSQL **16.15**. The local PostgreSQL service uses the optional container; test scripts use PostgreSQL protocol connections only. Native Ubuntu/WSL setup is documented but a WSL host was not available to execute directly.
 
-| Command | Final result |
+| Command/check | Executed result |
 | --- | --- |
-| `npm install` | Passed at baseline; subsequent declared dependencies were installed normally with verification enabled. |
-| `npm ci` | Passed from package-lock.json under Node 22.23.4. |
-| `npm test` | 21 passed, 0 failed. Two database test entrypoints intentionally skipped in this database-free command. |
-| `npm run test:integration` | Original journey: 1 passed. Expanded file: 26 acceptance subtests plus its parent, 27 reported passes. Total: 28 reported passes, 0 failed/skipped, representing 27 integration scenarios. Each file uses a separate disposable PostgreSQL database/storage directory. |
-| `npm run typecheck` | Passed. |
-| `npm run test:all` | Passed under Node 22.23.4 and 24.19.0. Executes unit/security tests, isolated PostgreSQL tests and typecheck. |
-| `npm run migrate` repeated | Both runs passed against the application database; checksummed migrations 001–005 current. Fresh install, repetition, checksum tampering and original unversioned-schema adoption also exercised by the database suite. |
-| `npm audit --omit=dev --audit-level=high` | Zero known vulnerabilities reported after upgrading the vulnerable Zod dependency to 4.6.7. This is a dependency advisory check, not a security certification. |
+| Baseline `npm run test:all` before integration | Passed on the existing hardened v0.3 backend. |
+| `npm install --package-lock-only --ignore-scripts` | Passed; version/scripts updated without adding dependencies. |
+| `npm ci` | Passed, 79 packages. |
+| `npm test` | 25 passed, 0 failed; 3 database entrypoints intentionally skipped in the database-free command. |
+| `npm run test:integration` | Original journey: 1 pass. Marketplace/recovery: 26 subtests plus parent, 27 reported passes. Private acquisitions: 10 subtests plus parent, 11 reported passes. Total 37 scenarios / 39 reported passes, 0 failures/skips. |
+| `npm run typecheck` | Passed, full TypeScript checking. |
+| `npm run test:all` | Passed on Node 22.23.4 and 24.19.0. |
+| `npm run keys` equivalent generation script | Created the ignored local Ed25519 pair; private file mode 0600. Existing material was not overwritten. |
+| `npm run migrate` twice | Passed against the application database; checksummed migrations 001–007 current. Fresh/adopted schema, repetition and checksum rejection also tested. |
+| `npm run assets:backfill` | Passed against the application database, 0 missing hashes. Integration fixture: 1 legacy original backfilled, second run 0, and checkout enabled only after backfill. |
+| `npm run demo:mock` script | Executed by the real HTTP acceptance scenario against its isolated API/worker: upload, offer, funding, digest verification, explicit acceptance and offline proof verification passed. It does not submit blockchain transactions. |
+| Updated cloud installer | Executed successfully: npm ci, preserved encryption/signing config, key validation, existing PostgreSQL readiness, migrations and digest backfill. Docker fallback was not needed. |
+| `npm audit --omit=dev --audit-level=high` | Zero known production dependency vulnerabilities reported. Not a security certification. |
 | `git diff --check` | Passed. |
-| API/worker smoke startup | API health/ready and worker ready returned 200 with mock/test readiness after the current application migrations. |
-| `npm run payouts:reconcile` | Passed on the application database; no unresolved submissions. |
-| `node --import tsx --test test/zalletProbe.test.ts` | 8 passed against local synthetic JSON-RPC contracts/servers; no blockchain activity. |
-| `npm run zallet:probe` | Expected blocked result, exit 1, redacted `UNAVAILABLE` code against the configured local endpoint. No live settlement claim. |
-| GitHub workflow | Added SHA-pinned checkout/setup actions and Node 22/24 + PostgreSQL 16.15 matrix; YAML parsed locally. Hosted execution is separate from the local results above. |
+| API/worker startup | Readiness returned 200 in mock/test mode with current schema/key configuration. |
 
-## Database acceptance coverage
+## Coverage and isolation
 
-The original tests are retained. Expanded tests verify session rotation races/expiry/revocation, including a blocked rotation racing revoke-all; replacement-worker heartbeat ownership; CSRF and default-admin rejection; seller edits and stale revisions; unlisted/paused visibility, filtering and pagination; offer/counter roles and stale-counter rejection; private order/payment/sale responses; receipt replacement and authorized download; ciphertext at rest; two-buyer checkout races; transactional rollback after invoice-quote failure; stale reservation recovery and delayed deposits; expired underpayments and excess refunds; repeated/duplicate/cross-invoice output observations; synchronization refusal; concurrent payout claims; deterministic reorganization freezes; lost-send-response reconciliation; refusal to retry unknown submissions; image decoding/metadata stripping, traversal/symlinks; shared rate limits; migration repetition/checksums/adoption; and metadata retention, including removal of completed mock submission destinations/transaction IDs.
+Each database test file receives an unpredictable, separate `arcana_test_*` database and temporary private storage/key material. Migrations run twice before the file. Cleanup drops only that disposable database/storage and preserves failures. No tests were deleted to hide failures.
 
-The HTTP acceptance scenario launches separate real API and worker processes against the isolated database. It terminates the worker's advisory-lock connection, verifies exit code 1/readiness failure, and starts a replacement with a new instance UUID. It then signs up seller and buyer, uploads the original, creates a listing, makes and accepts a private offer, checks out, authenticates to the mock simulator, kills the worker after its durable receive acknowledgement, restarts it, verifies payment/payout state, issues a private receipt and downloads the original over HTTP. SIGTERM shutdown of both processes completes with exit code 0. Logs are checked for simulator/session-token and invoice-memo leakage.
+Retained marketplace coverage includes identity/session races and revocation; CSRF and IDOR rejection; owner revisions, unlisted/paused/search/pagination; offer/counter roles and stale versions; checkout contention and rollback; expired/partial/excess/late payments; duplicate/cross-invoice outputs and sync gates; payout claims, lost responses and refusal to resend unknown submissions; reorganization freezes; storage MIME/EXIF/traversal/symlinks; shared rate limits; migration adoption/checksums; metadata retention and worker recovery.
 
-## Diagnosed baseline failures and limits
+New acquisition coverage includes seller holds before acceptance, authenticated downloads, exact SHA-256, strict/private proof retrieval and offline Ed25519 verification, rejection of unsigned extra claims, concurrent acceptance/dispute/refund/release, confidential dispute access, full excess-inclusive refunds, operator/buyer outcome distinction, rollback on missing signing keys, immutable digest/payout snapshots despite listing/fee changes, funded/disputed reorganization freezes, private-key permissions/public-key mismatch, legacy settlement without invented proofs, and safe idempotent original backfill. Resolved acquisition refunds remove dispute reasons after retention; settled late-payment refunds also lose buyer/payment links. Unresolved holds are retained.
 
-The initial `npm run migrate` failed with `relation settings already exists`; the versioned migration runner repairs this. Initial units/typecheck and the original database journey passed. New harness issues encountered during implementation were repaired; no failing tests were deleted or assertions disabled.
+The real HTTP scenario starts separate API/worker processes, terminates the advisory-lock connection (exit 1), verifies replacement ownership/readiness, and exercises the full offer-to-file-acceptance journey through a SIGKILL/restart after durable mock receive. It executes the demo script too, checks private response/log boundaries and graceful exit 0. These are actual HTTP/process/database tests with mock payments, not blockchain tests.
 
-Live Zcash acceptance is **blocked**. The read-only configured Zallet RPC probe returned `ECONNREFUSED`; binaries, persistent wallet/account configuration, synchronization and funded testnet transactions were unavailable. Official tagged documentation/source and synthetic RPC-contract fixtures were inspected/tested. No genuine shielded receive, payout, blockchain reorganization, binary interoperability or live wallet restart recovery is claimed.
+During integration, PostgreSQL caught inconsistent timestamp parameter inference; explicit casts repaired it. The adapted HTTP journey initially omitted the now-required buyer cookie on a later download; the request was corrected. Key tests also caught private PEM misuse in the public verification configuration; public-key validation/export now rejects it. The final complete runs pass.
 
-Review states deliberately require operator reconciliation. No automatic unfreeze or ambiguous payout retry is enabled. Production custody, live quote feeds, vault/backup recovery, external security review and malware scanning remain outside the verified local workflow. See ZALLET_GAP.md, INVARIANTS.md and THREAT_MODEL.md.
+## Separate live acceptance gate
+
+Real Zcash remains blocked and disabled. Earlier read-only configured RPC evidence was `ECONNREFUSED`/redacted `UNAVAILABLE`; no executable/node/account/funded synchronized testnet infrastructure was available. Official pinned source and synthetic response/transport contracts do not establish deployed binary interoperability, full-chain history, real receives, payouts or reorg recovery. Current probe evidence and prerequisites are in [ZALLET_GAP.md](ZALLET_GAP.md).
+
+GitHub CI is configured for Node 22/24 and PostgreSQL 16.15 with SHA-pinned actions; hosted results are separate from these local runs. Production custody, fresh FX, independent security review, per-operator authentication, key-history/revocation and tested backup/vault recovery remain outstanding. The complete available inventory is [CAPABILITIES.md](CAPABILITIES.md).
