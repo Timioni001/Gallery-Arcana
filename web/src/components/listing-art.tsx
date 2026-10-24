@@ -1,5 +1,7 @@
+import { useMemo } from 'react'
 import { previewUrl, type Listing } from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { Halftone, type Shape } from './halftone'
 
 function hash(s: string) {
   let h = 2166136261
@@ -7,20 +9,24 @@ function hash(s: string) {
   return h >>> 0
 }
 
-/** Seller preview when one exists, otherwise a deterministic cool-toned plate. */
+// Seeded plates so every listing without a preview still gets its own figure.
+const plates: ((h: number) => Shape)[] = [
+  (h) => (c, w, ht) => { const g = c.createRadialGradient(w * .35, ht * .35, 4, w / 2, ht / 2, w * .42); g.addColorStop(0, '#eee'); g.addColorStop(1, '#111'); c.fillStyle = g; c.beginPath(); c.arc(w / 2, ht * (.42 + (h % 20) / 100), w * .32, 0, 7); c.fill() },
+  (h) => (c, w, ht) => { const g = c.createLinearGradient(0, ht * .2, 0, ht); g.addColorStop(0, '#999'); g.addColorStop(1, '#000'); c.fillStyle = g; c.beginPath(); c.moveTo(w * .18, ht); c.lineTo(w * .18, ht * .45); c.arc(w / 2, ht * .45, w * .32, Math.PI, 0); c.lineTo(w * .82, ht); c.fill(); c.fillStyle = '#fff'; c.fillRect(w * (.4 + (h % 10) / 100), ht * .62, w * .12, ht * .4) },
+  (h) => (c, w, ht) => { for (let i = 0; i < 4; i++) { c.fillStyle = `rgb(${40 + i * 45},${40 + i * 45},${40 + i * 45})`; c.beginPath(); c.roundRect(w * (.16 + i * .05), ht * (.22 + i * .15), w * (.6 - (h >> i) % 3 * .06), ht * .12, 10); c.fill() } },
+  (h) => (c, w, ht) => { const g = c.createLinearGradient(0, ht * .3, 0, ht); g.addColorStop(0, '#666'); g.addColorStop(1, '#000'); c.fillStyle = g; c.beginPath(); c.moveTo(0, ht); for (let i = 0; i <= 8; i++) c.lineTo(w * i / 8, ht * (.45 + (((h >> (i * 3)) & 7) / 7) * .3)); c.lineTo(w, ht); c.fill() },
+]
+
+/** Seller preview when one exists, otherwise a deterministic dot-matrix plate. */
 export function ListingArt({ listing, className }: { listing: Pick<Listing, 'id' | 'title' | 'preview_key' | 'category'>; className?: string }) {
   const src = previewUrl(listing.preview_key)
-  if (src) return <img src={src} alt="" loading="lazy" className={cn('size-full object-cover', className)} />
   const h = hash(listing.id + listing.title)
-  const hue = 195 + (h % 75)
-  const x = 20 + (h >> 8) % 60, y = 15 + (h >> 16) % 50
+  const shape = useMemo(() => plates[h % plates.length](h), [h])
+  if (src) return <img src={src} alt="" loading="lazy" className={cn('size-full object-cover', className)} />
   return (
-    <div className={cn('relative size-full overflow-hidden grain', className)}
-      style={{ background: `radial-gradient(120% 90% at ${x}% ${y}%, oklch(0.74 0.1 ${hue}) 0%, oklch(0.44 0.07 ${hue + 15}) 45%, oklch(0.2 0.03 250) 100%)` }}>
-      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-x-0 bottom-0 h-1/2 w-full opacity-70" aria-hidden>
-        <path d={`M0 100V${60 + (h % 20)}L${18 + (h % 10)} ${40 + (h >> 4) % 25}L${42 + (h >> 6) % 10} ${62 + (h >> 3) % 15}L${64 + (h >> 9) % 10} ${30 + (h >> 5) % 30}L100 ${55 + (h >> 7) % 25}V100Z`} fill="oklch(0.14 0.015 250 / .85)" />
-      </svg>
-      <span className="absolute left-3 top-3 font-mono text-[10px] uppercase tracking-widest text-frost/55">{listing.category}</span>
+    <div className={cn('relative size-full bg-surface', className)}>
+      <Halftone shape={shape} step={6} seed={h} erode={0.4} square={h % 3 === 0} />
+      <span className="absolute left-3 top-3 rounded-full border border-fg/20 bg-surface px-2 font-mono text-[10px] uppercase tracking-wider text-fg/60">{listing.category}</span>
     </div>
   )
 }

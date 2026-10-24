@@ -17,6 +17,9 @@
     "assets:backfill": "node --env-file-if-exists=.env --import tsx scripts/backfill-asset-digests.ts",
     "demo:mock": "node --env-file-if-exists=.env --env-file-if-exists=.env.worker --import tsx scripts/demo-mock.ts",
     "crypto:build": "npm run build --workspace=@gallery-arcana/client-crypto",
+    "setup:wsl": "bash scripts/setup-wsl.sh",
+    "dev": "bash scripts/dev.sh",
+    "mock:pay": "node --env-file-if-exists=.env --env-file-if-exists=.env.worker --import tsx scripts/mock-pay.ts",
     "web:dev": "npm run dev --prefix web",
     "web:build": "npm run build --prefix web",
     "journey:capsule": "node --env-file-if-exists=.env --env-file-if-exists=.env.worker --import tsx scripts/journey-capsule.ts"

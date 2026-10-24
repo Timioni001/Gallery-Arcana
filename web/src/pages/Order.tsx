@@ -18,12 +18,12 @@ const stages = ['awaiting_payment', 'funded', 'verified', 'paid'] as const
 function Copyable({ label, value, mono = true }: { label: string; value: string; mono?: boolean }) {
   const [done, setDone] = useState(false)
   return (
-    <div className="rounded-xl bg-white/[0.03] px-4 py-3">
-      <p className="text-[11px] uppercase tracking-[0.14em] text-frost/45">{label}</p>
+    <div className="rounded-xl bg-fg/[0.03] px-4 py-3">
+      <p className="text-[11px] uppercase tracking-[0.14em] text-fg/45">{label}</p>
       <div className="mt-1 flex items-center justify-between gap-3">
-        <p className={cn('min-w-0 break-all text-[13px] text-frost', mono && 'font-mono')}>{value}</p>
-        <button aria-label={`Copy ${label}`} className="shrink-0 text-frost/50 hover:text-frost" onClick={() => { void navigator.clipboard.writeText(value); setDone(true); setTimeout(() => setDone(false), 1200) }}>
-          {done ? <Check className="size-4 text-glacier" /> : <Copy className="size-4" />}
+        <p className={cn('min-w-0 break-all text-[13px] text-fg', mono && 'font-mono')}>{value}</p>
+        <button aria-label={`Copy ${label}`} className="shrink-0 text-fg/50 hover:text-fg" onClick={() => { void navigator.clipboard.writeText(value); setDone(true); setTimeout(() => setDone(false), 1200) }}>
+          {done ? <Check className="size-4 text-signal" /> : <Copy className="size-4" />}
         </button>
       </div>
     </div>
@@ -93,33 +93,33 @@ export default function Order() {
 
   return (
     <PageShell>
-      <Link to="/studio?tab=purchases" className="text-[13px] text-frost/60 hover:text-frost">← Purchases</Link>
+      <Link to="/studio?tab=purchases" className="text-[13px] text-fg/60 hover:text-fg">← Purchases</Link>
       <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="font-mono text-xs text-frost/45">Order {order.id.slice(0, 8)}</p>
-          <h1 className="mt-1 text-[30px] tracking-[-0.02em] text-frost">{order.title}</h1>
+          <p className="font-mono text-xs text-fg/45">Order {order.id.slice(0, 8)}</p>
+          <h1 className="mt-1 text-[30px] tracking-[-0.02em] text-fg">{order.title}</h1>
         </div>
-        <p className={cn('text-sm', statusTone[order.status])}>{sentence(order.status)} · <span className="font-mono text-frost">{usd(order.price_usd_cents)}</span></p>
+        <p className={cn('text-sm', statusTone[order.status])}>{sentence(order.status)} · <span className="font-mono text-fg">{usd(order.price_usd_cents)}</span></p>
       </div>
 
       <ol className="mt-8 grid grid-cols-4 gap-2">
         {stages.map((s, i) => (
           <li key={s}>
-            <div className={cn('h-1 rounded-full', i <= stageIndex ? 'bg-glacier' : 'bg-white/10')} />
-            <p className={cn('mt-2 text-[12px]', i <= stageIndex ? 'text-frost' : 'text-frost/40')}>{['Awaiting payment', 'Funded', 'Verified', 'Accepted'][i]}</p>
+            <div className={cn('h-1 rounded-full', i <= stageIndex ? 'bg-signal' : 'bg-fg/10')} />
+            <p className={cn('mt-2 text-[12px]', i <= stageIndex ? 'text-fg' : 'text-fg/40')}>{['Awaiting payment', 'Funded', 'Verified', 'Accepted'][i]}</p>
           </li>
         ))}
       </ol>
 
       {loc.state?.fresh && receipt && (
-        <div className="mt-8"><Notice><b>Save your receipt code now.</b> It authorizes the download and any refund, and we only show it once: <span className="font-mono text-glacier">{receipt}</span></Notice></div>
+        <div className="mt-8"><Notice><b>Save your receipt code now.</b> It authorizes the download and any refund, and we only show it once: <span className="font-mono text-signal">{receipt}</span></Notice></div>
       )}
 
       <div className="mt-8 grid gap-6 md:grid-cols-[1.2fr_1fr]">
         <section className="rounded-2xl border bg-card p-5 sm:p-6">
           {order.status === 'awaiting_payment' && payment ? (
             <>
-              <h2 className="text-lg text-frost">Send payment</h2>
+              <h2 className="text-lg text-fg">Send payment</h2>
               <p className="mt-1 text-[13px] text-muted-foreground">Send exactly this amount, with the memo, from a testnet shielded wallet. This page updates by itself.</p>
               <div className="mt-5 space-y-2">
                 <Copyable label="Amount" value={`${payment.amountZec} ZEC`} />
@@ -127,17 +127,17 @@ export default function Order() {
                 <Copyable label="Memo" value={payment.memo} />
                 <Copyable label="ZIP-321 URI" value={payment.uri} />
               </div>
-              <p className="mt-4 text-[12px] text-frost/50">Received {received.toFixed(8)} ZEC · {order.confirmations} confirmations · expires {new Date(order.expires_at).toLocaleTimeString()}</p>
+              <p className="mt-4 text-[12px] text-fg/50">Received {received.toFixed(8)} ZEC · {order.confirmations} confirmations · expires {new Date(order.expires_at).toLocaleTimeString()}</p>
             </>
           ) : ['funded', 'disputed', 'paid'].includes(order.status) ? (
             <>
-              <h2 className="text-lg text-frost">Delivery</h2>
+              <h2 className="text-lg text-fg">Delivery</h2>
               <p className="mt-1 text-[13px] text-muted-foreground">Download the file. We hash it in your browser and compare the result with the SHA-256 recorded when you bought it.</p>
               <div className="mt-5 space-y-3">
                 <Input className="h-11 font-mono" placeholder="RCT-…" value={receipt} onChange={(e) => setReceipt(e.target.value.trim())} aria-label="Receipt code" />
                 <Button className="h-11 w-full" disabled={busy || !receipt} onClick={download}><Download className="size-4" />Download &amp; verify</Button>
                 {order.file_sha256 && <Copyable label="Expected SHA-256" value={order.file_sha256} />}
-                {verified && <p className="flex items-center gap-2 text-[13px] text-glacier"><Check className="size-4" />Checksum matches</p>}
+                {verified && <p className="flex items-center gap-2 text-[13px] text-emerald-700"><Check className="size-4" />Checksum matches</p>}
               </div>
               {order.status === 'funded' && (
                 <div className="mt-6 flex gap-3">
@@ -145,7 +145,7 @@ export default function Order() {
                   <Button variant="outline" className="h-11" onClick={() => setDisputeOpen(true)}><ShieldAlert className="size-4" />Dispute</Button>
                 </div>
               )}
-              <button onClick={renew} className="mt-4 text-[12px] text-frost/50 hover:text-frost">Lost your code? Issue a new receipt code</button>
+              <button onClick={renew} className="mt-4 text-[12px] text-fg/50 hover:text-fg">Lost your code? Issue a new receipt code</button>
             </>
           ) : (
             <p className="text-sm text-muted-foreground">This order is {sentence(order.status).toLowerCase()}. {order.status === 'expired' && 'Any late or partial funds can be reclaimed with your receipt code.'}</p>
@@ -157,9 +157,9 @@ export default function Order() {
             ['Buyer accepted', order.delivery_confirmed_at ? new Date(order.delivery_confirmed_at).toLocaleString() : '—'],
             ['Disputed', order.disputed_at ? new Date(order.disputed_at).toLocaleString() : '—'],
           ].map(([k, v]) => (
-            <div key={k} className="flex justify-between rounded-xl border px-4 py-3"><span className="text-frost/55">{k}</span><span className="text-frost">{v}</span></div>
+            <div key={k} className="flex justify-between rounded-xl border px-4 py-3"><span className="text-fg/55">{k}</span><span className="text-fg">{v}</span></div>
           ))}
-          <p className="px-1 text-[12px] text-frost/45">The seller payout is released only after you accept or a reviewer resolves a dispute. Testnet only: these are mock payments.</p>
+          <p className="px-1 text-[12px] text-fg/45">The seller payout is released only after you accept or a reviewer resolves a dispute. Testnet only: these are mock payments.</p>
         </aside>
       </div>
 

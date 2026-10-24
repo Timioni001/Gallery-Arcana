@@ -55,13 +55,13 @@ export default function Market() {
       <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
         <div>
           <span className="eyebrow">Market</span>
-          <h1 className="mt-4 text-[34px] leading-tight tracking-[-0.025em] text-frost sm:text-[42px]">Works, <span className="font-serif italic">sealed</span> until sold</h1>
+          <h1 className="mt-4 text-[34px] leading-tight tracking-[-0.025em] text-fg sm:text-[42px]">Works, sealed <span className="text-stone">until sold.</span></h1>
           <p className="mt-2 text-sm text-muted-foreground">Public listings only. Buyers and offers are never shown.</p>
         </div>
         <form onSubmit={(e) => { e.preventDefault(); set('q', q.trim() || undefined) }} className="relative w-full md:w-80">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-frost/40" />
+          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-fg/40" />
           <input value={q} onChange={(e) => setQ(e.target.value)} maxLength={70} placeholder="Search titles"
-            className="h-10 w-full rounded-full border bg-card pl-9 pr-4 text-sm text-frost outline-none placeholder:text-frost/35 focus:border-glacier/50" />
+            className="h-10 w-full rounded-full border bg-card pl-9 pr-4 text-sm text-fg outline-none placeholder:text-fg/35 focus:border-signal/50" />
         </form>
       </div>
 
@@ -71,19 +71,19 @@ export default function Market() {
             const on = (c.id === 'all' && !category) || c.id === category
             return (
               <button key={c.id} onClick={() => set('category', c.id === 'all' ? undefined : c.id)}
-                className={cn('rounded-full px-3.5 py-1.5 text-[13px] transition', on ? 'bg-frost text-ink' : 'bg-white/[0.04] text-frost/70 hover:text-frost')}>
+                className={cn('rounded-full px-3.5 py-1.5 text-[13px] transition', on ? 'bg-fg text-paper' : 'bg-fg/[0.04] text-fg/70 hover:text-fg')}>
                 {c.label}
               </button>
             )
           })}
         </div>
         <select value={sort} onChange={(e) => setSort(e.target.value as Sort)} aria-label="Sort"
-          className="h-8 rounded-full border bg-card px-3 text-[13px] text-frost/80 outline-none">
+          className="h-8 rounded-full border bg-card px-3 text-[13px] text-fg/80 outline-none">
           <option value="new">Newest</option><option value="low">Price: low to high</option><option value="high">Price: high to low</option>
         </select>
       </div>
 
-      {offline && <div className="mt-6"><Notice>The API is not reachable, so these are <b>preview listings</b> and can't be bought. Start the API and worker (<code className="font-mono text-glacier">npm run api</code>, <code className="font-mono text-glacier">npm run worker</code>) to see the live market.</Notice></div>}
+      {offline && <div className="mt-6"><Notice>The API is not reachable, so these are <b>preview listings</b> and can't be bought. Start the API and worker (<code className="font-mono text-signal">npm run api</code>, <code className="font-mono text-signal">npm run worker</code>) to see the live market.</Notice></div>}
 
       <div className="mt-8 grid grid-cols-2 gap-x-4 gap-y-10 sm:grid-cols-3 lg:grid-cols-4">
         {!sorted && Array.from({ length: 8 }, (_, i) => (
@@ -93,7 +93,7 @@ export default function Market() {
       </div>
       {sorted?.length === 0 && (
         <div className="py-24 text-center">
-          <p className="font-serif text-3xl italic text-frost/80">Nothing here yet.</p>
+          <p className="dot-display text-3xl text-fg">Nothing here yet.</p>
           <p className="mt-2 text-sm text-muted-foreground">Try another category, or be the first to list.</p>
         </div>
       )}

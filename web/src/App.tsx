@@ -10,6 +10,7 @@ import Studio from '@/pages/Studio'
 import NewListing from '@/pages/NewListing'
 import Order from '@/pages/Order'
 import { PageShell } from '@/components/page-shell'
+import { DotText } from '@/components/brand'
 
 function ScrollManager() {
   const { pathname, hash } = useLocation()
@@ -33,7 +34,7 @@ export default function App() {
           <Route path="/studio" element={<Studio />} />
           <Route path="/studio/new" element={<NewListing />} />
           <Route path="/orders/:id" element={<Order />} />
-          <Route path="*" element={<PageShell><p className="py-32 text-center font-serif text-4xl italic text-frost/80">Lost in the fog.</p></PageShell>} />
+          <Route path="*" element={<PageShell><p className="dot-display py-32 text-center text-5xl text-fg"><DotText>404. Not here.</DotText></p></PageShell>} />
         </Routes>
         <Toaster position="bottom-right" />
       </SessionProvider>
