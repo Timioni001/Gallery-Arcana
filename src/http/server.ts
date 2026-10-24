@@ -7,12 +7,13 @@ import {config} from '../config.ts';
 import {pool} from '../db.ts';
 import {HttpError,unauthorized,notFound,forbidden} from '../lib/errors.ts';
 import {allow} from '../lib/ratelimit.ts';
-import {hashCode} from '../lib/crypto.ts';
 import * as gate from '../services/gate.ts';
 import * as listings from '../services/listings.ts';
 import * as offers from '../services/offers.ts';
 import * as checkout from '../services/checkout.ts';
-import {storeAsset,previewStream,privateBytes,sanitizePreview,removeAsset,validateAssetKey} from '../services/storage.ts';
+import * as acquisitions from '../services/acquisitions.ts';
+import {attestationKeys,publicVerificationKey} from '../services/attestationKeys.ts';
+import {storeAsset,previewStream,sanitizePreview,removeAsset,validateAssetKey} from '../services/storage.ts';
 
 type Who={id:string;alias:string;hasPayout:boolean};
 const COOKIE='arc';
@@ -33,6 +34,11 @@ async function limit(req:FastifyRequest,bucket:string,n:number,ms:number){
 }
 async function limitAccount(accountId:string,bucket:string,n:number,ms:number){
   if(!await allow(`account:${accountId}:${bucket}`,n,ms))throw new HttpError(429,'Too many requests');
+}
+function requireAdmin(req:FastifyRequest){
+  if(!config.adminToken||!['127.0.0.1','::1'].includes(req.ip)||typeof req.headers['x-admin-token']!=='string')throw notFound();
+  const digest=(s:string)=>createHash('sha256').update(s).digest();
+  if(!timingSafeEqual(digest(req.headers['x-admin-token']),digest(config.adminToken)))throw notFound();
 }
 const id=z.object({id:z.string().uuid()});
 const amount=z.number().int().min(50).max(100_000_000);
@@ -67,12 +73,12 @@ export function buildServer(){
     log('api_error',{code:errorCode(err),level:'error'});
     return reply.status(500).send({error:'Internal error'});
   });
-  app.get('/',()=>({name:'Gallery Arcana API',version:'0.3.0',documentation:'README.md',frontend:false}));
+  app.get('/',()=>({name:'Gallery Arcana API',version:'0.4.0',documentation:'README.md',frontend:false}));
   app.get('/api/health',()=>({ok:true,mode:config.walletDriver,network:config.network}));
   app.get('/api/ready',async(_req,reply)=>{
     try{
-      validateAssetKey();
-      const db=await pool.query("SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version='005_worker_ownership.sql') AND EXISTS(SELECT 1 FROM worker_health WHERE name='payments' AND ready AND heartbeat_at>now()-interval '30 seconds') AND EXISTS(SELECT 1 FROM address_pool WHERE NOT claimed) AS ready");
+      validateAssetKey();attestationKeys();
+      const db=await pool.query("SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version='007_acquisition_payout_terms.sql') AND EXISTS(SELECT 1 FROM worker_health WHERE name='payments' AND ready AND heartbeat_at>now()-interval '30 seconds') AND EXISTS(SELECT 1 FROM address_pool WHERE NOT claimed) AS ready");
       if(!db.rows[0].ready)return reply.status(503).send({ready:false});
       return {ready:true,mode:'mock',network:'test'};
     }catch{return reply.status(503).send({ready:false});}
@@ -134,9 +140,10 @@ export function buildServer(){
     const mime=String(req.headers['x-asset-type']??'');
     const uploaded=storeAsset(kind,kind==='previews'?await sanitizePreview(data,mime):data,mime);
     const original=String(req.headers['x-asset-filename']??'').split(/[\\/]/).at(-1)?.replace(/[^a-zA-Z0-9._ -]/g,'_').slice(0,120)||null;
-    try{await pool.query('INSERT INTO uploaded_assets(key,owner_id,kind,original_name) VALUES($1,$2,$3,$4)',[uploaded.key,who.id,kind,original]);}
+    const digest=kind==='private'?createHash('sha256').update(data).digest('hex'):null;
+    try{await pool.query('INSERT INTO uploaded_assets(key,owner_id,kind,original_name,file_sha256) VALUES($1,$2,$3,$4,$5)',[uploaded.key,who.id,kind,original,digest]);}
     catch(error){removeAsset(kind,uploaded.key);throw error;}
-    return uploaded;
+    return {...uploaded,...(digest?{sha256:digest}:{})};
   });
   app.get('/previews/:key',async(req,reply)=>{
     const key=z.object({key:z.string().regex(/^[a-f0-9]{32}\.(png|jpg|webp)$/)}).parse(req.params).key;
@@ -175,14 +182,12 @@ export function buildServer(){
   app.post('/api/files/:id',async(req,reply)=>{
     await limit(req,'downloads',30,10*60_000);
     const code=z.object({receiptCode:z.string().min(10).max(100)}).parse(req.body).receiptCode;
-    const {rows}=await pool.query(`SELECT o.file_key,o.file_name FROM orders o WHERE o.listing_id=$1 AND o.status='paid' AND o.receipt_hash=$2`,
-      [id.parse(req.params).id,hashCode(code)]);
-    if(!rows[0]?.file_key)throw notFound('Paid downloadable file not found');
-    const file=privateBytes(rows[0].file_key);if(!file)throw notFound('File unavailable');
-    const name=String(rows[0].file_name||'gallery-arcana-asset.bin').replace(/[^a-zA-Z0-9._ -]/g,'_');
+    const file=await acquisitions.downloadAsset((await current(req))?.id,id.parse(req.params).id,code);
+    const name=String(file.name||'gallery-arcana-asset.bin').replace(/[^a-zA-Z0-9._ -]/g,'_');
     reply.header('Content-Disposition',`attachment; filename="${name}"`);
+    reply.header('X-Arcana-Asset-SHA256',file.digest);
     reply.type('application/octet-stream');
-    return reply.send(file);
+    return reply.send(file.bytes);
   });
   app.post('/api/refunds/late',async req=>{
     await limit(req,'refunds',10,60*60_000);
@@ -190,10 +195,28 @@ export function buildServer(){
     return checkout.claimLateRefund(b.receiptCode,b.address);
   });
   app.get('/api/admin/payouts/stuck',async req=>{
-    if(!config.adminToken||!['127.0.0.1','::1'].includes(req.ip)||typeof req.headers['x-admin-token']!=='string')throw notFound();
-    const digest=(s:string)=>createHash('sha256').update(s).digest();
-    if(!timingSafeEqual(digest(req.headers['x-admin-token']),digest(config.adminToken)))throw notFound();
+    requireAdmin(req);
     return (await pool.query(`SELECT id,kind,status,attempts,created_at FROM payouts WHERE status IN ('sending','failed')`)).rows;
+  });
+  app.post('/api/orders/:id/confirm-delivery',async req=>{
+    const who=await requireAccount(req),body=z.object({receiptCode:z.string().min(10).max(100),assetSha256:z.string().regex(/^[a-f0-9]{64}$/i)}).strict().parse(req.body);
+    return acquisitions.confirmDelivery(who.id,id.parse(req.params).id,body.receiptCode,body.assetSha256);
+  });
+  app.post('/api/orders/:id/dispute',async req=>{
+    const who=await requireAccount(req),body=z.object({reason:z.string().trim().min(10).max(2000)}).strict().parse(req.body);
+    return acquisitions.disputeDelivery(who.id,id.parse(req.params).id,body.reason);
+  });
+  app.post('/api/orders/:id/proof',async req=>{
+    const body=z.object({receiptCode:z.string().min(10).max(100)}).strict().parse(req.body);
+    return acquisitions.getAcquisitionProof(body.receiptCode,id.parse(req.params).id);
+  });
+  app.get('/api/proofs/public-key',()=>({algorithm:'Ed25519',publicKey:publicVerificationKey()}));
+  app.post('/api/proofs/verify',async req=>({valid:acquisitions.verifySignedTransfer(z.object({proof:z.unknown()}).parse(req.body).proof)}));
+  app.get('/api/admin/disputes',async req=>{requireAdmin(req);return acquisitions.adminDisputes();});
+  app.post('/api/admin/orders/:id/resolve',async req=>{
+    requireAdmin(req);await limit(req,'resolution',20,60_000);
+    const body=z.object({decision:z.enum(['release','refund']),refundAddress:z.string().max(350).optional()}).strict().parse(req.body);
+    return acquisitions.resolveDispute(id.parse(req.params).id,body.decision,body.refundAddress);
   });
   return app;
 }

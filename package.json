@@ -1,6 +1,6 @@
 {
   "name": "gallery-arcana-backend",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -12,7 +12,10 @@
     "test:integration": "node --env-file-if-exists=.env --import tsx scripts/test-integration.ts",
     "test:all": "npm test && npm run test:integration && npm run typecheck",
     "payouts:reconcile": "node --env-file-if-exists=.env --env-file-if-exists=.env.worker --import tsx scripts/reconcile-payouts.ts",
-    "zallet:probe": "node --env-file-if-exists=.env --env-file-if-exists=.env.worker --import tsx scripts/probe-zallet.ts"
+    "zallet:probe": "node --env-file-if-exists=.env --env-file-if-exists=.env.worker --import tsx scripts/probe-zallet.ts",
+    "keys": "node --import tsx scripts/generate-signing-key.ts",
+    "assets:backfill": "node --env-file-if-exists=.env --import tsx scripts/backfill-asset-digests.ts",
+    "demo:mock": "node --env-file-if-exists=.env --env-file-if-exists=.env.worker --import tsx scripts/demo-mock.ts"
   },
   "dependencies": {
     "fastify": "^5.0.0",

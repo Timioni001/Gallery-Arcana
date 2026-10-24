@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { randomBytes } from 'node:crypto';
+import { randomBytes,createHash } from 'node:crypto';
 import { unlinkSync } from 'node:fs';
 import { pool, tx } from '../src/db.ts';
 import { buildServer } from '../src/http/server.ts';
@@ -125,12 +125,16 @@ test('Postgres/API integration: auth, ownership, private offers, checkout, expir
     wallet.simulatePayment(purchase.payment.address, BigInt(purchase.payment.amountZat), purchase.payment.memo);
     await scanOnce(wallet);
     await scanOnce(wallet);
-    assert.equal((await pool.query('SELECT status FROM orders WHERE id=$1', [purchase.orderId])).rows[0].status, 'paid');
-    assert.equal((await pool.query("SELECT count(*)::int AS n FROM payouts WHERE kind='seller_sale' AND ref_id=$1", [purchase.orderId])).rows[0].n, 1,
-      'repeated scans do not enqueue duplicate payouts');
-    const download = await mutate('POST', `/api/files/${listingId}`, { receiptCode: purchase.receiptCode });
+    assert.equal((await pool.query('SELECT status FROM orders WHERE id=$1', [purchase.orderId])).rows[0].status, 'funded');
+    assert.equal((await pool.query("SELECT count(*)::int AS n FROM payouts WHERE kind='seller_sale' AND ref_id=$1", [purchase.orderId])).rows[0].n, 0,
+      'funding does not enqueue a seller payout');
+    const download = await mutate('POST', `/api/files/${listingId}`, { receiptCode: purchase.receiptCode },buyer.cookie);
     assert.equal(download.statusCode, 200, download.body);
     assert.equal(download.body, 'private integration item');
+    const confirmed=await mutate('POST',`/api/orders/${purchase.orderId}/confirm-delivery`,{receiptCode:purchase.receiptCode,assetSha256:createHash('sha256').update(download.rawPayload).digest('hex')},buyer.cookie);
+    assert.equal(confirmed.statusCode,200,confirmed.body);
+    assert.equal((await pool.query('SELECT status FROM orders WHERE id=$1',[purchase.orderId])).rows[0].status,'paid');
+    assert.equal((await pool.query("SELECT count(*)::int AS n FROM payouts WHERE kind='seller_sale' AND ref_id=$1",[purchase.orderId])).rows[0].n,1,'acceptance queues exactly one payout');
     assert.equal((await mutate('POST', `/api/files/${listingId}`, { receiptCode: 'invalid-receipt-code' })).statusCode, 404);
 
     const secondListing = await createListing(seller.cookie, fileKey, `Late artwork ${tag}`);

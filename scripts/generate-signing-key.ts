@@ -1,0 +1,12 @@
+import {generateKeyPairSync} from 'node:crypto';
+import {mkdirSync,writeFileSync,existsSync} from 'node:fs';
+import {resolve} from 'node:path';
+const directory=resolve(process.argv[2]??'./secrets');
+mkdirSync(directory,{recursive:true,mode:0o700});
+const privateFile=resolve(directory,'arcana_ed25519_private.pem');
+const publicFile=resolve(directory,'arcana_ed25519_public.pem');
+if(existsSync(privateFile)||existsSync(publicFile))throw new Error('Signing files already exist; refusing overwrite');
+const {privateKey,publicKey}=generateKeyPairSync('ed25519');
+writeFileSync(privateFile,privateKey.export({type:'pkcs8',format:'pem'}),{flag:'wx',mode:0o600});
+writeFileSync(publicFile,publicKey.export({type:'spki',format:'pem'}),{flag:'wx',mode:0o644});
+console.log('Keys created. Keep PRIVATE key secret. Set ATTESTATION_SIGNING_KEY_FILE and ATTESTATION_VERIFY_KEY_FILE in .env.');

@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import pg from 'pg';
 import assert from 'node:assert/strict';
-import {randomBytes,randomUUID} from 'node:crypto';
+import {randomBytes,randomUUID,createHash} from 'node:crypto';
 import {readFileSync,writeFileSync,symlinkSync,unlinkSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {spawn,type ChildProcess} from 'node:child_process';
@@ -52,6 +52,7 @@ test('isolated PostgreSQL marketplace and recovery acceptance', {skip:!enabled},
     assert.equal(res.statusCode,200,res.body);return res.json().listingId as string;
   };
   const checkout=async(id:string,client=buyer,offerId?:string)=>{
+    await topUpAddressPool(wallet);
     const res=await call('POST',`/api/listings/${id}/checkout`,offerId?{offerId}:{},client);
     assert.equal(res.statusCode,200,res.body);return res.json();
   };
@@ -59,8 +60,9 @@ test('isolated PostgreSQL marketplace and recovery acceptance', {skip:!enabled},
     wallet.simulatePayment(purchase.payment.address,amount,purchase.payment.memo,confirmations);
   const status=async(id:string)=>(await pool.query('SELECT * FROM orders WHERE id=$1',[id])).rows[0];
   const expire=async(id:string)=>{await pool.query("UPDATE orders SET expires_at=now()-interval '1 minute' WHERE id=$1",[id]);await pool.query("UPDATE payments SET expires_at=now()-interval '1 minute' WHERE ref_id=$1",[id]);};
-  const download=(id:string,code:string)=>call('POST',`/api/files/${id}`,{receiptCode:code});
-  const paid=async()=>{const id=await listing(),order=await checkout(id);await payment(order);await scanOnce(wallet);assert.equal((await status(order.orderId)).status,'paid');return {id,order};};
+  const download=(id:string,code:string,client=buyer)=>call('POST',`/api/files/${id}`,{receiptCode:code},client);
+  const confirm=async(id:string,order:any,client=buyer)=>{assert.equal((await download(id,order.receiptCode,client)).statusCode,200);const result=await call('POST',`/api/orders/${order.orderId}/confirm-delivery`,{receiptCode:order.receiptCode,assetSha256:createHash('sha256').update(original).digest('hex')},client);assert.equal(result.statusCode,200,result.body);};
+  const paid=async()=>{const id=await listing(),order=await checkout(id);await payment(order);await scanOnce(wallet);assert.equal((await status(order.orderId)).status,'funded');await confirm(id,order);assert.equal((await status(order.orderId)).status,'paid');return {id,order};};
 
   await t.test('sessions rotate atomically, expire, revoke and reject wrong credentials',async()=>{
     const account=await signup('auth');const old=account.cookie;
@@ -173,7 +175,7 @@ test('isolated PostgreSQL marketplace and recovery acceptance', {skip:!enabled},
     const output=await payment(order,BigInt(order.payment.amountZat),0);await scanOnce(wallet);assert.equal((await status(order.orderId)).status,'awaiting_payment');
     await pool.query('UPDATE mock_notes SET confirmations=$2 WHERE output_id=$1',[output,config.minConfirmations]);
     await scanOnce(new DatabaseMockWallet());
-    assert.equal((await status(order.orderId)).status,'paid');assert.equal((await download(id,order.receiptCode)).body,original.toString());
+    assert.equal((await status(order.orderId)).status,'funded');await confirm(id,order);assert.equal((await download(id,order.receiptCode)).body,original.toString());
     assert.equal(readFileSync(resolve(config.storageDir,'private',fileKey)).includes(original),false);
     const publicData=(await call('GET',`/api/listings/${id}`)).json();
     for(const key of ['buyer_id','offer_id','file_key','payment_id','receipt_hash','memo_code','payout_address'])assert.equal(key in publicData,false);
@@ -202,7 +204,7 @@ test('isolated PostgreSQL marketplace and recovery acceptance', {skip:!enabled},
     const fresh=await checkout(id,other);await payment(old);await scanOnce(wallet);
     assert.equal((await status(old.orderId)).status,'refund_due');assert.equal((await pool.query('SELECT status FROM listings WHERE id=$1',[id])).rows[0].status,'reserved');
     assert.equal((await download(id,old.receiptCode)).statusCode,404);
-    await payment(fresh);await scanOnce(wallet);assert.equal((await status(fresh.orderId)).status,'paid');
+    await payment(fresh);await scanOnce(wallet);assert.equal((await status(fresh.orderId)).status,'funded');
   });
   await t.test('underpaid expired invoices produce refunds and never unlock goods',async()=>{
     const id=await listing(),order=await checkout(id,other);await payment(order,BigInt(order.payment.amountZat)-1n);await scanOnce(wallet);
@@ -210,11 +212,13 @@ test('isolated PostgreSQL marketplace and recovery acceptance', {skip:!enabled},
     assert.equal((await status(order.orderId)).status,'refund_due');assert.equal((await download(id,order.receiptCode)).statusCode,404);
     const claim=await call('POST','/api/refunds/late',{receiptCode:order.receiptCode,address:'utest1mockrefund1234567890'});assert.equal(claim.statusCode,200,claim.body);
     await runPayouts(wallet);assert.equal((await status(order.orderId)).refund_status,'sent');
+    await pool.query("UPDATE orders SET resolved_at=now()-interval '31 days' WHERE id=$1",[order.orderId]);await scrubOrders();
+    assert.equal((await status(order.orderId)).buyer_id,null);assert.equal((await status(order.orderId)).payment_id,null);
     assert.equal((await call('POST','/api/refunds/late',{receiptCode:order.receiptCode,address:'utest1mockrefund1234567890'})).statusCode,409);
   });
   await t.test('overpayment pays only the agreed amount and refunds the excess',async()=>{
     const id=await listing(),order=await checkout(id);await payment(order,BigInt(order.payment.amountZat)+123n);await scanOnce(wallet);
-    assert.equal((await status(order.orderId)).refund_zat,'123');
+    assert.equal((await status(order.orderId)).refund_zat,'123');await confirm(id,order);
     const sale=(await pool.query("SELECT zat FROM payouts WHERE kind='seller_sale' AND ref_id=$1",[order.orderId])).rows[0];assert.equal(sale.zat,order.payment.amountZat);
     assert.equal((await call('POST','/api/refunds/late',{receiptCode:order.receiptCode,address:'utest1mockrefund1234567890'})).statusCode,200);
     await runPayouts(wallet);assert.equal((await status(order.orderId)).status,'paid');assert.equal((await status(order.orderId)).refund_status,'sent');
@@ -225,6 +229,7 @@ test('isolated PostgreSQL marketplace and recovery acceptance', {skip:!enabled},
     await Promise.all([scanOnce(new DuplicateWallet()),scanOnce(new DatabaseMockWallet())]);await scanOnce(wallet);
     assert.equal((await pool.query('SELECT received_zat FROM payments WHERE ref_id=$1',[order.orderId])).rows[0].received_zat,order.payment.amountZat);
     assert.equal((await pool.query('SELECT count(*)::int AS n FROM payment_notes WHERE payment_id=$1',[order.payment.paymentId])).rows[0].n,1);
+    assert.equal((await pool.query("SELECT count(*)::int AS n FROM payouts WHERE ref_id=$1 AND kind='seller_sale'",[order.orderId])).rows[0].n,0);await confirm(id,order);
     assert.equal((await pool.query("SELECT count(*)::int AS n FROM payouts WHERE ref_id=$1 AND kind='seller_sale'",[order.orderId])).rows[0].n,1);
   });
   await t.test('unsynchronized wallets cannot settle and an output cannot be reassigned to another invoice',async()=>{
@@ -249,7 +254,7 @@ test('isolated PostgreSQL marketplace and recovery acceptance', {skip:!enabled},
     await scanOnce(wallet);await pool.query('UPDATE mock_notes SET canonical=false WHERE output_id=$1',[note]);await scanOnce(wallet);
     assert.equal((await status(order.orderId)).status,'awaiting_payment');
     await pool.query('UPDATE mock_notes SET canonical=true,confirmations=$2 WHERE output_id=$1',[note,config.minConfirmations]);await scanOnce(wallet);
-    assert.equal((await status(order.orderId)).status,'paid');
+    assert.equal((await status(order.orderId)).status,'funded');await confirm(id,order);
     await pool.query('UPDATE mock_notes SET canonical=false WHERE output_id=$1',[note]);await scanOnce(wallet);
     assert.equal((await status(order.orderId)).status,'payment_review');assert.equal((await download(id,order.receiptCode)).statusCode,404);
     assert.equal((await pool.query("SELECT status FROM payouts WHERE kind='seller_sale' AND ref_id=$1",[order.orderId])).rows[0].status,'cancelled');
@@ -302,7 +307,7 @@ test('isolated PostgreSQL marketplace and recovery acceptance', {skip:!enabled},
       await migrate(legacy);await migrate(legacy);
       assert.equal((await legacy.query("SELECT alias FROM accounts WHERE alias='legacy_alias'")).rows[0].alias,'legacy_alias');
       assert.equal((await legacy.query('SELECT address FROM mock_addresses WHERE address=$1',[address])).rows[0].address,address);
-      assert.equal((await legacy.query('SELECT count(*)::int AS n FROM schema_migrations')).rows[0].n,5);
+      assert.equal((await legacy.query('SELECT count(*)::int AS n FROM schema_migrations')).rows[0].n,7);
     }finally{await legacy.end();await pool.query('DROP SCHEMA legacy_upgrade CASCADE');}
   });
   await t.test('retention removes settled buyer/payment links and keeps private file redemption working',async()=>{
@@ -359,10 +364,18 @@ test('isolated PostgreSQL marketplace and recovery acceptance', {skip:!enabled},
       assert.equal((await fetch(`http://127.0.0.1:${port}/dev/pay`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({})})).status,401);
       const accepted=await fetch(`http://127.0.0.1:${port}/dev/pay`,{method:'POST',headers:{'content-type':'application/json',authorization:`Bearer ${simulatorToken}`},body:JSON.stringify({address:order.payment.address,zat:order.payment.amountZat,memo:order.payment.memo})});assert.equal(accepted.status,200);
       child.kill('SIGKILL');await exited(child);child=start('worker');
-      await wait(async()=> (await status(order.orderId)).status==='paid');await wait(async()=> (await pool.query("SELECT status FROM payouts WHERE ref_id=$1 AND kind='seller_sale'",[order.orderId])).rows[0]?.status==='sent');
+      await wait(async()=> (await status(order.orderId)).status==='funded');
+      assert.equal((await pool.query("SELECT count(*)::int AS n FROM payouts WHERE ref_id=$1 AND kind='seller_sale'",[order.orderId])).rows[0].n,0);
+      const inspected=await http('POST',`/api/files/${id}`,{receiptCode:order.receiptCode},buyerCookie);assert.equal(inspected.status,200);assert.equal(await inspected.text(),original.toString());
+      assert.equal((await http('POST',`/api/orders/${order.orderId}/confirm-delivery`,{receiptCode:order.receiptCode,assetSha256:createHash('sha256').update(original).digest('hex')},buyerCookie)).status,200);
+      await wait(async()=> (await pool.query("SELECT status FROM payouts WHERE ref_id=$1 AND kind='seller_sale'",[order.orderId])).rows[0]?.status==='sent');
       const receipt=await http('POST',`/api/orders/${order.orderId}/receipt`,{},buyerCookie);assert.equal(receipt.status,200);const issued=await receipt.json() as {receiptCode:string};
-      const delivered=await http('POST',`/api/files/${id}`,{receiptCode:issued.receiptCode});assert.equal(delivered.status,200);assert.equal(await delivered.text(),original.toString());
+      const delivered=await http('POST',`/api/files/${id}`,{receiptCode:issued.receiptCode},buyerCookie);assert.equal(delivered.status,200);assert.equal(await delivered.text(),original.toString());
       assert.equal((await fetch(base+'/api/ready')).status,200);
+      const demo=spawn(process.execPath,['--import','tsx','scripts/demo-mock.ts'],{env:{...process.env,PUBLIC_ORIGIN:base,WORKER_PORT:String(port),MOCK_SIMULATOR_TOKEN:simulatorToken},stdio:['ignore','pipe','pipe']});
+      const demoOutput:string[]=[];demo.stdout!.on('data',b=>demoOutput.push(b.toString()));demo.stderr!.on('data',b=>demoOutput.push(b.toString()));children.push(demo);
+      await exited(demo);assert.equal(demo.exitCode,0,demoOutput.join(''));assert.equal(JSON.parse(demoOutput.join('')).proofVerified,true);
+      assert.equal(demoOutput.join('').includes(simulatorToken),false);
       child.kill('SIGTERM');await exited(child);assert.equal(child.exitCode,0);assert.equal((await fetch(base+'/api/ready')).status,503);
       api.kill('SIGTERM');await exited(api);assert.equal(api.exitCode,0);
       assert.equal(logs.join('').includes(simulatorToken),false);assert.equal(logs.join('').includes(order.payment.memo),false);assert.equal(logs.join('').includes(buyerCookie),false);
