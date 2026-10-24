@@ -9,6 +9,7 @@ import Auth from '@/pages/Auth'
 import Studio from '@/pages/Studio'
 import NewListing from '@/pages/NewListing'
 import Order from '@/pages/Order'
+import Observer from '@/pages/Observer'
 import { PageShell } from '@/components/page-shell'
 import { DotText } from '@/components/brand'
 
@@ -34,6 +35,7 @@ export default function App() {
           <Route path="/studio" element={<Studio />} />
           <Route path="/studio/new" element={<NewListing />} />
           <Route path="/orders/:id" element={<Order />} />
+          <Route path="/observer" element={<Observer />} />
           <Route path="*" element={<PageShell><p className="dot-display py-32 text-center text-5xl text-fg"><DotText>404. Not here.</DotText></p></PageShell>} />
         </Routes>
         <Toaster position="bottom-right" />

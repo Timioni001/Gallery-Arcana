@@ -81,7 +81,7 @@ export default function NewListing() {
             <div className="relative max-w-48"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-fg/50">$</span><Input id="p" inputMode="decimal" className="h-11 pl-7 font-mono" required value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0.00" /></div>
             <p className="text-xs text-muted-foreground">Quoted in testnet ZEC at checkout.</p>
           </div>
-          <div className="space-y-2"><Label>Category</Label><Choice value={category} onChange={setCategory} options={[['digital', 'Digital'], ['collectible', 'Collectible'], ['onchain', 'On-chain'], ['other', 'Other']]} /></div>
+          <div className="space-y-2"><Label>Category</Label><Choice value={category} onChange={setCategory} options={[['digital', 'Digital'], ['collectible', 'Collectible'], ['onchain', 'On-chain'], ['other', 'Digital property']]} /></div>
           <div className="space-y-2"><Label>Visibility</Label><Choice value={visibility} onChange={setVisibility} options={[['public', 'Public'], ['unlisted', 'Unlisted link']]} /></div>
           <div className="space-y-2"><Label>Delivery</Label><Choice value={delivery} onChange={setDelivery} options={[['download', 'Encrypted file'], ['manual', 'Hand delivery'], ['external', 'Off-platform']]} /></div>
         </div>

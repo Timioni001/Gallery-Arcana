@@ -3,7 +3,7 @@ export const usd = (cents: number) =>
 
 export const shortDate = (iso: string) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 
-export const categoryLabel: Record<string, string> = { digital: 'Digital', collectible: 'Collectible', onchain: 'On-chain', other: 'Other' }
+export const categoryLabel: Record<string, string> = { digital: 'Digital', collectible: 'Collectible', onchain: 'On-chain', other: 'Digital property' }
 
 export const statusTone: Record<string, string> = {
   live: 'text-glacier', paused: 'text-muted-foreground', reserved: 'text-steel', sold: 'text-muted-foreground',

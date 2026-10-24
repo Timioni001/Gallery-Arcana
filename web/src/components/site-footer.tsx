@@ -2,9 +2,9 @@ import { Link } from 'react-router-dom'
 import { Logo } from './brand'
 
 const cols = [
-  { title: 'Market', links: [['Browse', '/market'], ['Digital', '/market?category=digital'], ['Collectibles', '/market?category=collectible'], ['On-chain', '/market?category=onchain']] },
+  { title: 'Market', links: [['Browse', '/market'], ['Digital', '/market?category=digital'], ['Collectibles', '/market?category=collectible'], ['Onchain', '/market?category=onchain'], ['Digital property', '/market?category=other']] },
   { title: 'Sellers', links: [['Studio', '/studio'], ['List a work', '/studio/new'], ['Ways to sell', '/#selling']] },
-  { title: 'Protocol', links: [['How it works', '/#how'], ['Privacy model', '/#privacy'], ['FAQ', '/#faq']] },
+  { title: 'Protocol', links: [['Protected exchange', '/#how'], ['Privacy guarantees', '/#privacy'], ['Observer view', '/observer'], ['Build status', '/#status'], ['FAQ', '/#faq']] },
 ]
 
 export function SiteFooter() {
@@ -13,7 +13,7 @@ export function SiteFooter() {
       <div className="mx-auto grid max-w-6xl gap-10 px-4 pt-14 sm:px-6 md:grid-cols-[1.4fr_repeat(3,1fr)]">
         <div className="max-w-xs">
           <Logo />
-          <p className="mt-4 text-sm text-muted-foreground">A private marketplace for digital work. Encrypted on your device, paid in shielded testnet ZEC, settled only when you accept.</p>
+          <p className="mt-4 text-sm text-muted-foreground">A private market for digital assets. Discover, negotiate and exchange privately. Lawful digital commerce only.</p>
         </div>
         {cols.map((c) => (
           <div key={c.title}>

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { Menu, X } from 'lucide-react'
 import { Logo } from './brand'
+import { NetworkBadge } from './network-badge'
 import { api } from '@/lib/api'
 import { useSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
@@ -11,6 +12,7 @@ const links = [
   { to: '/#how', label: 'How it works' },
   { to: '/#privacy', label: 'Privacy' },
   { to: '/#selling', label: 'Selling' },
+  { to: '/observer', label: 'Observer view' },
 ]
 
 export function SiteNav() {
@@ -21,16 +23,17 @@ export function SiteNav() {
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-paper/85 backdrop-blur-xl">
       <div className="mx-auto grid h-16 max-w-6xl grid-cols-[1fr_auto_1fr] items-center px-4 sm:px-6">
-        <nav className="hidden items-center gap-6 text-[13px] text-fg/75 md:flex">
+        <nav className="hidden items-center gap-6 text-[13px] text-fg/75 lg:flex">
           {links.map((l) => (
             <NavLink key={l.to} to={l.to} className={({ isActive }) => cn('transition-colors hover:text-fg', isActive && l.to === '/market' && 'text-fg')}>{l.label}</NavLink>
           ))}
         </nav>
-        <button className="justify-self-start text-fg md:hidden" onClick={() => setOpen((o) => !o)} aria-label="Menu" aria-expanded={open}>
+        <button className="justify-self-start text-fg lg:hidden" onClick={() => setOpen((o) => !o)} aria-label="Menu" aria-expanded={open}>
           {open ? <X className="size-5" /> : <Menu className="size-5" />}
         </button>
         <Link to="/" aria-label="Gallery Arcana home" className="justify-self-center"><Logo /></Link>
         <div className="flex items-center justify-end gap-4 text-[13px]">
+          <NetworkBadge className="hidden xl:inline-flex" />
           {account ? (
             <>
               <Link to="/studio" className="hidden text-fg/75 hover:text-fg sm:inline">@{account.alias}</Link>
@@ -46,8 +49,9 @@ export function SiteNav() {
         </div>
       </div>
       {open && (
-        <div className="glass mx-4 mb-3 rounded-2xl p-4 md:hidden">
+        <div className="glass mx-4 mb-3 rounded-2xl p-4 lg:hidden">
           <div className="flex flex-col gap-3 text-sm">
+            <NetworkBadge className="self-start" />
             {links.map((l) => <Link key={l.to} to={l.to} onClick={() => setOpen(false)}>{l.label}</Link>)}
             <div className="hairline my-1" />
             {account
