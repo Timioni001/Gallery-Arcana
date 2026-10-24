@@ -5,6 +5,7 @@ import {log} from '../lib/log.ts';
 import {PayoutNotSubmittedError,type ReceivedNote,type SendLookup,type WalletAdapter} from './types.ts';
 import {RawNumber,ZalletRpc,ZalletRpcError,type ZalletRpcOptions} from './zalletRpc.ts';
 import {memoOrNull,parseZalletTransaction} from './zalletNotes.ts';
+import {shieldedDestination,unifiedPattern,type Network} from '../lib/network.ts';
 
 export const ZALLET_METHODS=['getwalletstatus','z_getaddressforaccount','z_listtransactions','z_viewtransaction','z_sendmany','z_getoperationstatus','z_getbalanceforaccount'] as const;
 type Rpc=Pick<ZalletRpc,'call'>;
@@ -18,10 +19,9 @@ const operation=z.object({id:z.string(),status:z.enum(['queued','executing','can
   result:z.object({txid:hash.optional(),txids:z.array(hash).min(1).max(16),broadcast:z.boolean()}).optional(),error:z.object({code:z.number()}).passthrough().optional()}).passthrough();
 const derived=z.object({address:z.string(),receiver_types:z.array(z.string())}).passthrough();
 
-export type ZalletBinding={accountId:string;fundingAddress:string;minConfirmations:number;reorgDepth?:number;pageSize?:number;maxTransactions?:number;sendTimeoutMs?:number};
+export type ZalletBinding={accountId:string;fundingAddress:string;minConfirmations:number;network?:Network;reorgDepth?:number;pageSize?:number;maxTransactions?:number;sendTimeoutMs?:number};
 const synced=(s:Status)=>!s.sync_work_remaining&&s.wallet_tip?.height===s.node_tip.height&&s.wallet_tip?.blockhash===s.node_tip.blockhash&&s.fully_synced_height===s.node_tip.height;
 const sameTip=(a:Status,b:Status)=>a.node_tip.height===b.node_tip.height&&a.node_tip.blockhash===b.node_tip.blockhash;
-const SHIELDED_DESTINATION=/^(utest1[a-z0-9]{20,1000}|ztestsapling1[a-z0-9]{60,100})$/;
 
 /**
  * Zcash testnet adapter for the pinned Zallet RPC contract (docs/ZALLET_GAP.md).
@@ -41,12 +41,12 @@ export class ZalletWallet implements WalletAdapter{
   private lastScan:{height:number;hash:string;at:number}|null=null;
   private readonly b:Required<ZalletBinding>;
   constructor(private readonly rpc:Rpc,binding:ZalletBinding){
-    if(!z.string().uuid().safeParse(binding.accountId).success||!/^utest1[a-z0-9]{20,1000}$/.test(binding.fundingAddress))throw new Error('Invalid Zallet binding');
-    this.b={reorgDepth:100,pageSize:100,maxTransactions:20000,sendTimeoutMs:180000,...binding};
+    this.b={network:'test',reorgDepth:100,pageSize:100,maxTransactions:20000,sendTimeoutMs:180000,...binding};
+    if(!z.string().uuid().safeParse(binding.accountId).success||!unifiedPattern(this.b.network).test(binding.fundingAddress))throw new Error('Invalid Zallet binding');
   }
-  static fromEnv(env:NodeJS.ProcessEnv,minConfirmations:number){
+  static fromEnv(env:NodeJS.ProcessEnv,minConfirmations:number,network:Network='test'){
     const options:ZalletRpcOptions={url:env.ZALLET_RPC_URL??'',user:env.ZALLET_RPC_USER??'',password:env.ZALLET_RPC_PASS??'',timeoutMs:15000,maxBytes:8_388_608};
-    return new ZalletWallet(new ZalletRpc(options,ZALLET_METHODS),{accountId:env.ZALLET_ACCOUNT_ID??'',fundingAddress:env.ZALLET_RECEIVE_ADDRESS??'',minConfirmations});
+    return new ZalletWallet(new ZalletRpc(options,ZALLET_METHODS),{accountId:env.ZALLET_ACCOUNT_ID??'',fundingAddress:env.ZALLET_RECEIVE_ADDRESS??'',minConfirmations,network});
   }
   private async status(){
     try{return walletStatus.parse(await this.rpc.call('getwalletstatus'));}catch(e){if(e instanceof ZalletRpcError)throw e;throw new ZalletRpcError('CONTRACT');}
@@ -116,7 +116,7 @@ export class ZalletWallet implements WalletAdapter{
   /** Fresh Orchard-only unified address per invoice; never creates accounts. */
   async newAddress(){
     const d=derived.parse(await this.rpc.call('z_getaddressforaccount',[this.b.accountId,['orchard']]));
-    if(d.receiver_types.length!==1||d.receiver_types[0]!=='orchard'||!/^utest1[a-z0-9]{20,1000}$/.test(d.address))throw new ZalletRpcError('CONTRACT');
+    if(d.receiver_types.length!==1||d.receiver_types[0]!=='orchard'||!unifiedPattern(this.b.network).test(d.address))throw new ZalletRpcError('CONTRACT');
     return d.address;
   }
 
@@ -129,7 +129,7 @@ export class ZalletWallet implements WalletAdapter{
   async send(to:string,zat:bigint,memo?:string,key?:string){
     if(!key)throw new PayoutNotSubmittedError('NO_IDEMPOTENCY_KEY');
     if(memo!==undefined)throw new PayoutNotSubmittedError('MEMO_UNSUPPORTED');
-    if(!SHIELDED_DESTINATION.test(to))throw new PayoutNotSubmittedError('UNSUPPORTED_DESTINATION');
+    if(!shieldedDestination(this.b.network).test(to))throw new PayoutNotSubmittedError('UNSUPPORTED_DESTINATION');
     if(zat<=0n||zat>2_100_000_000_000_000n)throw new PayoutNotSubmittedError('INVALID_AMOUNT');
     const prior=(await pool.query('SELECT * FROM zallet_submissions WHERE idempotency_key=$1',[key])).rows[0];
     if(prior){
