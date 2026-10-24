@@ -48,5 +48,16 @@ First-contact pins need independent trust. Client compromise/malicious client
 code and privileged premature key-envelope release bypass ordinary encrypted
 storage protection. Static keys have no Signal-like forward secrecy. Browser
 interoperability, independent crypto review, production key/custody/backup and
-fresh FX remain outstanding. No frontend, legal title, ZK/unlinkability,
+fresh FX remain outstanding. No legal title, ZK/unlinkability,
 NFT/domain/repository transfer or cross-chain custody is implemented.
+
+WEB APP (web/)
+Vite + React 19 + Tailwind v4 frontend: landing page, market browse/search,
+listing detail with private offers/counters and checkout, order page with
+payment details, in-browser SHA-256 verification, acceptance and disputes,
+and a seller studio (listings, offers, purchases, sales, payout, new listing).
+Verified locally: production build, typecheck, and a headless-browser journey
+against the real API/worker (signup → payout → listing with preview and
+encrypted file → buyer checkout → simulated mock payment → download, verify,
+accept → paid). Capsule (client-encrypted) listing creation and buyer key
+envelopes still go through the SDK/journey script, not the browser UI.

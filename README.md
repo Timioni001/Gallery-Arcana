@@ -1,8 +1,8 @@
-# Gallery Arcana backend v0.5
+# Gallery Arcana v0.5
 
 A Node.js 22+, TypeScript, Fastify and PostgreSQL marketplace backend. API and wallet workers run separately. Development payments use an explicitly labelled durable mock wallet. **Real Zcash, mainnet and production custody remain disabled.**
 
-The local workflow supports alias accounts, hashed passphrases, rotating/revocable sessions, seller-owned uploads and listing edits, public/unlisted discovery, private offers and counteroffers, atomic checkout, confirmation checks, held seller funds, verified encrypted-file delivery, explicit buyer acceptance, private disputes, Ed25519 attestations, receipts, refunds and payout reconciliation. No frontend is included.
+The local workflow supports alias accounts, hashed passphrases, rotating/revocable sessions, seller-owned uploads and listing edits, public/unlisted discovery, private offers and counteroffers, atomic checkout, confirmation checks, held seller funds, verified encrypted-file delivery, explicit buyer acceptance, private disputes, Ed25519 attestations, receipts, refunds and payout reconciliation. The web app lives in [`web/`](web/README.md).
 
 ## Start locally
 
@@ -25,6 +25,17 @@ npm run api                     # terminal B
 The API binds to loopback by default. `GET /api/health` reports process liveness; `GET /api/ready` checks schema, encryption/signing keys, worker heartbeat and payment-destination availability. All mutations require `X-Arcana-Action: 1`; browser mutations also enforce the configured origin and fetch-site checks. Session cookies are HttpOnly and SameSite=Strict, and Secure when `PUBLIC_ORIGIN` uses HTTPS.
 
 Copy `.env.worker.example` to `.env.worker` for worker-only options. The localhost payment simulator is disabled unless a strong `MOCK_SIMULATOR_TOKEN` is configured. It requires Bearer authentication and never submits blockchain transactions. Wallet spending credentials must not be placed in the API environment.
+
+## Web app
+
+`web/` is a Vite + React + Tailwind v4 frontend (shadcn/Base UI primitives) with the landing page, market, listing/offer/checkout, order delivery verification and the seller studio. With the API and worker running:
+
+```bash
+npm ci --prefix web
+npm run web:dev                 # http://localhost:5173, proxies /api and /previews to :8080
+```
+
+Without a reachable API the market shows clearly labelled, non-purchasable preview listings. See [web/README.md](web/README.md) for production serving.
 
 ## Validate
 
