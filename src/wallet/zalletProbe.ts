@@ -31,7 +31,7 @@ function contract<T>(fn:()=>T):T{try{return fn();}catch(error){if(error instance
  * Matching tips do not prove a complete/snapshot-consistent history or binary identity.
  */
 export async function probeZallet(rpc:Pick<ZalletReadOnlyRpc,'call'>,binding?:{accountId:string;address:string}){
-  if(binding&&!z.object({accountId:z.string().uuid(),address:z.string().regex(/^utest1[a-z0-9]{15,349}$/)}).safeParse(binding).success)
+  if(binding&&!z.object({accountId:z.string().uuid(),address:z.string().regex(/^u(test|regtest)1[a-z0-9]{15,349}$/)}).safeParse(binding).success)
     throw new ZalletProbeError('CONFIGURATION');
   const firstRaw=await rpc.call('getwalletstatus');
   const first=contract(()=>status.parse(firstRaw));

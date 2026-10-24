@@ -9,7 +9,7 @@ const schema=z.object({
   PORT:positiveInt(8080,65535),
   WORKER_PORT:positiveInt(8081,65535),
   PUBLIC_ORIGIN:z.string().url().default('http://localhost:8080'),
-  ZCASH_NETWORK:z.literal('test').default('test'),
+  ZCASH_NETWORK:z.enum(['test','regtest']).default('test'),
   WALLET_DRIVER:z.enum(['mock','zallet']).default('mock'),
   ZALLET_TESTNET_ACK:z.string().optional(),
   PRICE_SOURCE:z.enum(['fixed','market']).default('fixed'),
@@ -36,7 +36,9 @@ export function parseConfig(env:NodeJS.ProcessEnv){
   if(v.SESSION_DAYS>v.SESSION_ABSOLUTE_DAYS)throw new Error('Session idle lifetime exceeds absolute lifetime');
   // The live adapter is testnet-only and unverified until the gate in docs/ZALLET_GAP.md passes.
   if(v.WALLET_DRIVER==='zallet'&&v.ZALLET_TESTNET_ACK!=='unverified-testnet-only')throw new Error('WALLET_DRIVER=zallet requires ZALLET_TESTNET_ACK=unverified-testnet-only (testnet acceptance gate not yet passed)');
-  if(v.WALLET_DRIVER==='zallet'&&v.PRICE_SOURCE!=='market')throw new Error('WALLET_DRIVER=zallet requires PRICE_SOURCE=market; the fixed demo quote is mock-only');
+  if(v.ZCASH_NETWORK==='regtest'&&v.WALLET_DRIVER!=='zallet')throw new Error('ZCASH_NETWORK=regtest is only for verifying the Zallet adapter against a local regtest stack');
+  // Regtest coins have no market value, so only testnet needs a live price.
+  if(v.WALLET_DRIVER==='zallet'&&v.ZCASH_NETWORK==='test'&&v.PRICE_SOURCE!=='market')throw new Error('WALLET_DRIVER=zallet requires PRICE_SOURCE=market; the fixed demo quote is mock-only');
   return {host:v.API_HOST,workerPollMs:v.WORKER_POLL_MS,simulatorToken:v.MOCK_SIMULATOR_TOKEN,databaseUrl:v.DATABASE_URL,port:v.PORT,workerPort:v.WORKER_PORT,network:v.ZCASH_NETWORK,walletDriver:v.WALLET_DRIVER,
     minConfirmations:v.MIN_CONFIRMATIONS,priceSource:v.PRICE_SOURCE,priceMaxAgeSeconds:v.PRICE_MAX_AGE_SECONDS,rateMicroUsd:rate,publicOrigin:v.PUBLIC_ORIGIN,storageDir:v.STORAGE_DIR,
     sessionDays:v.SESSION_DAYS,sessionAbsoluteDays:v.SESSION_ABSOLUTE_DAYS,addressPoolTarget:30,

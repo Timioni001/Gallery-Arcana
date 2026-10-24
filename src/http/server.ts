@@ -91,7 +91,7 @@ export function buildServer(){
       validateAssetKey();attestationKeys();
       const db=await pool.query("SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version='013_fee_transparency.sql') AND EXISTS(SELECT 1 FROM worker_health WHERE name='payments' AND ready AND heartbeat_at>now()-interval '30 seconds') AND EXISTS(SELECT 1 FROM address_pool WHERE NOT claimed) AS ready");
       if(!db.rows[0].ready||!await issuerReady())return reply.status(503).send({ready:false});
-      return {ready:true,mode:config.walletDriver,network:'test'};
+      return {ready:true,mode:config.walletDriver,network:config.network};
     }catch{return reply.status(503).send({ready:false});}
   });
 
