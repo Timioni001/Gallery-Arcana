@@ -77,3 +77,14 @@ origin, seller-side buyer id/alias + capsule_ready on offers, conversation
 listing (integration-tested). Two Playwright journeys pass end to end in
 Chromium against the real API/worker (mock settlement). Live Zcash testnet
 remains blocked pending the operator runbook in docs/TESTNET_RUNBOOK.md.
+
+SETTLEMENT READINESS (v0.6)
+Zallet testnet adapter implemented behind explicit opt-in: snapshot scanning
+with tip-stability check, shallow-transaction re-reads, reorg/disappearance
+review, Orchard-only crediting, anomaly review, durable pre-submission
+records, raw-decimal z_sendmany, broadcast + output verification, no
+resubmission of ambiguous sends, operator requeue. Market USD/ZEC oracle
+(4 sources, median, >=2 within 2%, max age) required for live mode.
+Transparent fee: per-order snapshot, public /api/terms with append-only
+history, seller breakdown, bounded admin command. Verified with fake-RPC and
+DB integration tests only; real-binary testnet acceptance is still pending.

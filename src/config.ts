@@ -10,7 +10,10 @@ const schema=z.object({
   WORKER_PORT:positiveInt(8081,65535),
   PUBLIC_ORIGIN:z.string().url().default('http://localhost:8080'),
   ZCASH_NETWORK:z.literal('test').default('test'),
-  WALLET_DRIVER:z.literal('mock').default('mock'),
+  WALLET_DRIVER:z.enum(['mock','zallet']).default('mock'),
+  ZALLET_TESTNET_ACK:z.string().optional(),
+  PRICE_SOURCE:z.enum(['fixed','market']).default('fixed'),
+  PRICE_MAX_AGE_SECONDS:positiveInt(120,900),
   MIN_CONFIRMATIONS:positiveInt(2,1000),
   ZEC_USD_FIXED:z.string().regex(/^(?:0|[1-9][0-9]{0,6})(?:\.[0-9]{1,6})?$/).default('40'),
   STORAGE_DIR:z.string().min(1).default('./storage'),
@@ -31,8 +34,11 @@ export function parseConfig(env:NodeJS.ProcessEnv){
   const rate=BigInt(whole!)*1_000_000n+BigInt(fraction.padEnd(6,'0'));
   if(rate<=0n)throw new Error('ZEC_USD_FIXED must be positive');
   if(v.SESSION_DAYS>v.SESSION_ABSOLUTE_DAYS)throw new Error('Session idle lifetime exceeds absolute lifetime');
+  // The live adapter is testnet-only and unverified until the gate in docs/ZALLET_GAP.md passes.
+  if(v.WALLET_DRIVER==='zallet'&&v.ZALLET_TESTNET_ACK!=='unverified-testnet-only')throw new Error('WALLET_DRIVER=zallet requires ZALLET_TESTNET_ACK=unverified-testnet-only (testnet acceptance gate not yet passed)');
+  if(v.WALLET_DRIVER==='zallet'&&v.PRICE_SOURCE!=='market')throw new Error('WALLET_DRIVER=zallet requires PRICE_SOURCE=market; the fixed demo quote is mock-only');
   return {host:v.API_HOST,workerPollMs:v.WORKER_POLL_MS,simulatorToken:v.MOCK_SIMULATOR_TOKEN,databaseUrl:v.DATABASE_URL,port:v.PORT,workerPort:v.WORKER_PORT,network:v.ZCASH_NETWORK,walletDriver:v.WALLET_DRIVER,
-    minConfirmations:v.MIN_CONFIRMATIONS,rateMicroUsd:rate,publicOrigin:v.PUBLIC_ORIGIN,storageDir:v.STORAGE_DIR,
+    minConfirmations:v.MIN_CONFIRMATIONS,priceSource:v.PRICE_SOURCE,priceMaxAgeSeconds:v.PRICE_MAX_AGE_SECONDS,rateMicroUsd:rate,publicOrigin:v.PUBLIC_ORIGIN,storageDir:v.STORAGE_DIR,
     sessionDays:v.SESSION_DAYS,sessionAbsoluteDays:v.SESSION_ABSOLUTE_DAYS,addressPoolTarget:30,
     adminToken:v.ADMIN_TOKEN&&v.ADMIN_TOKEN.length>=32&&!/replace|change-me/i.test(v.ADMIN_TOKEN)?v.ADMIN_TOKEN:null};
 }

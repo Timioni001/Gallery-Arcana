@@ -109,6 +109,22 @@ The probe is read-only and its output is redacted. It checks sync, tip agreement
 2. Send two more fully shielded transfers to it: one exact and one with a memo string you choose.
 3. Re-run `npm run zallet:probe` after a few confirmations.
 
-## 6. Hand back
+## 6. Run the app in live testnet mode (unverified)
+
+Once the probe passes and the receive address is funded, add to `.env`:
+
+```bash
+WALLET_DRIVER=zallet
+ZALLET_TESTNET_ACK=unverified-testnet-only
+PRICE_SOURCE=market
+```
+
+Keep the `ZALLET_*` settings in `.env.worker`, and unlock the wallet with `walletpassphrase` before any payout is due. Then restart with `npm run dev`. The nav badge switches from MOCK, and checkout quotes use the live ZEC price.
+
+- **Buy:** buy something with a real testnet shielded wallet using the ZIP-321 request. The order funds after `MIN_CONFIRMATIONS`.
+- **Pay out:** accepting the order makes the worker pay the seller from the Zallet account with `FullPrivacy`.
+- **Check:** `npm run admin -- submissions` lists anything unresolved. Only after you have checked the wallet and chain yourself, `npm run admin -- requeue <payoutId> --confirmed-not-sent` releases a payout that definitely was not sent.
+
+## 7. Hand back
 
 Share the redacted probe output and the transaction ids (txids only, never keys, seeds or passwords). The live adapter is built and tested against these real responses. The gate checklist in ZALLET_GAP.md (discovery cursors, reorgs, payouts and fresh FX) is then worked through, and the app keeps showing **MOCK** until every item passes.

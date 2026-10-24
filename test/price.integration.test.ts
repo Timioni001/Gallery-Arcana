@@ -1,0 +1,24 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {pool} from '../src/db.ts';
+import {refreshQuote} from '../src/services/priceFeed.ts';
+import {marketOracle} from '../src/services/pricing.ts';
+import {parseConfig} from '../src/config.ts';
+import {usdCentsToZat} from '../src/lib/money.ts';
+const enabled=process.env.RUN_DB_TESTS==='1'&&process.env.ARCANA_ISOLATED_TEST_DB==='1';
+test('market oracle serves only fresh, agreed quotes',{skip:!enabled},async t=>{
+  t.after(()=>pool.end());
+  assert.throws(()=>parseConfig({...process.env,WALLET_DRIVER:'zallet',ZALLET_TESTNET_ACK:'unverified-testnet-only',PRICE_SOURCE:'fixed'}),/PRICE_SOURCE=market/);
+  await assert.rejects(marketOracle.rateMicroUsd(),{status:503},'no quote yet: checkout must pause');
+  const sources=[{name:'a',url:'x',extract:(b:string)=>b},{name:'b',url:'x',extract:(b:string)=>b},{name:'c',url:'x',extract:(b:string)=>b}];
+  const prices:Record<string,bigint|Error>={a:1_160_000_000n,b:1_162_000_000n,c:new Error('down')};
+  const fetcher=async(s:{name:string})=>{const p=prices[s.name]!;if(p instanceof Error)throw p;return p;};
+  assert.equal(await refreshQuote(sources,fetcher),1_161_000_000n,'median of the two healthy sources');
+  assert.equal(await marketOracle.rateMicroUsd(),1_161_000_000n);
+  assert.equal(usdCentsToZat(2500,1_161_000_000n),2_153_317n,'$25 at $1161/ZEC, rounded up to whole zatoshis');
+  prices.b=1_300_000_000n;
+  await assert.rejects(refreshQuote(sources,fetcher),/disagree/);
+  assert.equal((await pool.query('SELECT count(*)::int AS n FROM price_quotes')).rows[0].n,1,'divergent quotes are not stored');
+  await pool.query("UPDATE price_quotes SET fetched_at=now()-interval '10 minutes'");
+  await assert.rejects(marketOracle.rateMicroUsd(),{status:503},'stale quotes are refused');
+});
