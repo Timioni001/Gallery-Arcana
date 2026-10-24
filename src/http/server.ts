@@ -76,7 +76,7 @@ export function buildServer(){
     return reply.status(500).send({error:'Internal error'});
   });
   app.get('/',()=>({name:'Gallery Arcana API',version:'0.5.0',documentation:'README.md',frontend:false}));
-  app.get('/api/health',()=>({ok:true,mode:config.walletDriver,network:config.network}));
+  app.get('/api/health',()=>({ok:true,mode:config.walletDriver,network:config.network,origin:config.publicOrigin}));
   app.get('/api/ready',async(_req,reply)=>{
     try{
       validateAssetKey();attestationKeys();

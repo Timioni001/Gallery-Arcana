@@ -13,6 +13,9 @@ import { categoryLabel, sentence, shortDate, toCents, usd } from '@/lib/format'
 import { saveReceipt } from '@/lib/receipts'
 import { useSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
+import { useVault, VaultGate } from '@/components/vault'
+import { MessageThreadButton } from '@/components/message-thread'
+import { InvitationPanel } from '@/components/invitation-panel'
 
 const delivery = {
   download: { icon: Lock, text: 'Encrypted file, delivered after your payment confirms' },
@@ -37,6 +40,14 @@ export default function ListingPage() {
 
   const accepted = offers.find((o) => o.status === 'accepted')
   const open = offers.find((o) => ['open', 'countered'].includes(o.status))
+  const capsuleReady = offers.some((o) => o.capsule_ready && ['open', 'countered', 'accepted'].includes(o.status))
+  const vault = useVault()
+  const requestAtAsk = async () => {
+    if (!listing) return
+    setBusy(true)
+    try { await api.offer(id, listing.price_usd_cents); toast.success('Request sent. The seller seals your key next.'); setOffers((await api.offers()).filter((x) => x.listing_id === id && x.am_buyer)) }
+    catch (e) { toast.error((e as Error).message) } finally { setBusy(false) }
+  }
 
   const checkout = async (offerId?: string) => {
     if (!account) return nav(`/auth?next=/listing/${id}`)
@@ -106,6 +117,29 @@ export default function ListingPage() {
                 <Link to="/studio" className={cn(buttonVariants(), 'h-11 flex-1')}>Open studio</Link>
               </div>
             ) : (
+              capsule ? (
+                <div className="space-y-3">
+                  {account && <VaultGate vault={vault} purpose="buy a capsule (the seller seals the key to you)" />}
+                  {capsuleReady && buyable && (
+                    <Button className="h-11 w-full" disabled={busy} onClick={() => checkout(accepted?.id)}>
+                      <Lock className="size-4" />{accepted ? `Checkout · ${usd(accepted.counter_usd_cents ?? accepted.amount_usd_cents)}` : `Buy now · ${usd(listing.price_usd_cents)}`}
+                    </Button>
+                  )}
+                  {!capsuleReady && (open || accepted) && (
+                    <div className="rounded-xl border bg-surface p-4 text-[13px] text-fg/70">
+                      <p className="text-fg">Waiting for @{listing.seller_alias}</p>
+                      <p className="mt-1">They accept your request and seal the content key to your fingerprint. Checkout opens here as soon as the key is sealed.</p>
+                    </div>
+                  )}
+                  {!open && !accepted && (
+                    <div className="flex gap-3">
+                      <Button className="h-11 flex-1" disabled={!buyable || busy || (!!account && !vault.identity)} onClick={() => (account ? requestAtAsk() : nav(`/auth?next=/listing/${id}`))}>Request to buy</Button>
+                      <Button variant="outline" className="h-11 flex-1" disabled={!buyable || (!!account && !vault.identity)} onClick={() => (account ? setOfferOpen(true) : nav(`/auth?next=/listing/${id}`))}>Make an offer</Button>
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground">Capsules are sealed for one buyer. Your request lets the seller encrypt the content key to your keys. Neither the market nor anyone else can open it.</p>
+                </div>
+              ) : (
               <>
                 {accepted && automatic && buyable && (
                   <Button className="h-11 w-full" disabled={busy} onClick={() => checkout(accepted.id)}>Checkout at your accepted offer · {usd(accepted.counter_usd_cents ?? accepted.amount_usd_cents)}</Button>
@@ -115,11 +149,13 @@ export default function ListingPage() {
                   <Button variant="outline" className="h-11 flex-1" disabled={!buyable || !!open} onClick={() => (account ? setOfferOpen(true) : nav(`/auth?next=/listing/${id}`))}>Make an offer</Button>
                 </div>
                 {!automatic && <p className="text-xs text-muted-foreground">This item is delivered outside the app, so it can be negotiated here but can't be checked out automatically.</p>}
-                {capsule && <p className="text-xs text-muted-foreground">Capsule purchases need a buyer key envelope that the seller prepares before checkout. Make an offer first so the seller can prepare it.</p>}
               </>
+              )
             )}
           </div>
 
+          {listing.is_seller && listing.status === 'live' && <div className="mt-6"><InvitationPanel listing={listing} onChanged={() => void load()} /></div>}
+          {account && !listing.is_seller && listing.status === 'live' && <div className="mt-6"><MessageThreadButton listingId={listing.id} sellerAlias={listing.seller_alias ?? 'seller'} /></div>}
           {offers.length > 0 && (
             <div className="mt-8">
               <p className="text-xs uppercase tracking-[0.14em] text-fg/45">Your offers</p>

@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link, Navigate, useSearchParams } from 'react-router-dom'
-import { Plus } from 'lucide-react'
+import { KeyRound, Lock, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { PageShell, Notice } from '@/components/page-shell'
 import { ListingArt } from '@/components/listing-art'
@@ -10,9 +10,13 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { api, type Listing, type Offer, type OrderSummary } from '@/lib/api'
 import { sentence, shortDate, statusTone, toCents, usd } from '@/lib/format'
 import { useSession } from '@/lib/session'
+import { activePeerIdentity, sealKeyForBuyer } from '@/lib/vault'
+import { usePinConfirm, useVault, VaultPanel } from '@/components/vault'
+import { Messages } from '@/components/message-thread'
+import { Proofs } from '@/components/proofs'
 import { cn } from '@/lib/utils'
 
-const tabs = ['listings', 'offers', 'purchases', 'sales', 'settings'] as const
+const tabs = ['listings', 'offers', 'messages', 'purchases', 'sales', 'proofs', 'keys', 'settings'] as const
 type Tab = (typeof tabs)[number]
 
 function Empty({ children }: { children: ReactNode }) {
@@ -49,7 +53,25 @@ function Offers() {
   const [counter, setCounter] = useState<Record<string, string>>({})
   const load = () => api.offers().then(setRows).catch(() => setRows([]))
   useEffect(() => { void load() }, [])
+  const vault = useVault()
+  const pins = usePinConfirm()
+  const [sealing, setSealing] = useState('')
+  // Capsule sales need the content key sealed to this specific buyer before checkout.
+  const seal = async (o: Offer) => {
+    if (!vault.identity || !o.buyer_id) { toast.error('Set up your keys in Studio → Keys first'); return false }
+    setSealing(o.id)
+    try {
+      const buyer = await activePeerIdentity(o.buyer_id)
+      if (!buyer) throw new Error(`@${o.buyer_alias} has not created encryption keys yet`)
+      if (!(await pins.confirm(vault.identity.public.accountId, buyer, o.buyer_alias ?? 'buyer'))) return false
+      await sealKeyForBuyer(vault.identity, buyer, o.listing_id)
+      toast.success(`Key sealed for @${o.buyer_alias}. Only their keys can open it.`)
+      await load()
+      return true
+    } catch (e) { toast.error((e as Error).message); return false } finally { setSealing('') }
+  }
   const act = async (o: Offer, action: string) => {
+    if (action === 'accept' && o.crypto_mode === 'capsule-v1' && !o.capsule_ready && !(await seal(o))) return
     const counterUsdCents = action === 'counter' ? toCents(counter[o.id] ?? '') : undefined
     if (action === 'counter' && !counterUsdCents) return toast.error('Enter a counter amount')
     try { await api.actOnOffer(o.id, action, { counterUsdCents: counterUsdCents ?? undefined, expectedVersion: o.revision }); toast.success(sentence(action.replace('-', ' '))); await load() }
@@ -63,22 +85,28 @@ function Offers() {
         <div key={o.id} className="flex flex-wrap items-center gap-4 px-4 py-3.5">
           <div className="min-w-0 flex-1">
             <Link to={`/listing/${o.listing_id}`} className="truncate text-[14px] text-fg hover:underline">{o.listing_title}</Link>
-            <p className="text-[12px] text-muted-foreground">{o.am_seller ? 'Incoming' : 'Your offer'} · {shortDate(o.created_at)}</p>
+            <p className="text-[12px] text-muted-foreground">{o.am_seller ? `From @${o.buyer_alias}` : 'Your offer'} · {shortDate(o.created_at)}
+              {o.crypto_mode === 'capsule-v1' && <span className={cn('ml-2 inline-flex items-center gap-1', o.capsule_ready ? 'text-emerald-700' : 'text-signal')}><Lock className="size-3" />{o.capsule_ready ? 'Key sealed' : 'Key not sealed yet'}</span>}
+            </p>
           </div>
           <p className="font-mono text-[13px] text-fg">{usd(o.amount_usd_cents)}{o.counter_usd_cents && <span className="text-stone"> / {usd(o.counter_usd_cents)}</span>}</p>
           <span className={cn('w-20 text-[12px]', statusTone[o.status])}>{sentence(o.status)}</span>
           {o.am_seller && o.status === 'open' && (
             <div className="flex items-center gap-2">
-              <Button size="sm" onClick={() => act(o, 'accept')}>Accept</Button>
+              <Button size="sm" disabled={sealing === o.id} onClick={() => act(o, 'accept')}>{o.crypto_mode === 'capsule-v1' && !o.capsule_ready ? 'Seal key & accept' : 'Accept'}</Button>
               <Input className="h-7 w-24 font-mono text-xs" placeholder="Counter $" value={counter[o.id] ?? ''} onChange={(e) => setCounter({ ...counter, [o.id]: e.target.value })} />
               <Button size="sm" variant="outline" onClick={() => act(o, 'counter')}>Counter</Button>
               <Button size="sm" variant="ghost" onClick={() => act(o, 'decline')}>Decline</Button>
             </div>
           )}
+          {o.am_seller && o.crypto_mode === 'capsule-v1' && !o.capsule_ready && ['accepted', 'countered'].includes(o.status) && (
+            <Button size="sm" variant="outline" disabled={sealing === o.id} onClick={() => seal(o)}><KeyRound className="size-3.5" />Seal key</Button>
+          )}
           {o.am_buyer && o.status === 'countered' && <div className="flex gap-2"><Button size="sm" onClick={() => act(o, 'accept-counter')}>Accept counter</Button><Button size="sm" variant="ghost" onClick={() => act(o, 'decline-counter')}>Decline</Button></div>}
           {o.am_buyer && o.status === 'accepted' && <Link to={`/listing/${o.listing_id}`} className={buttonVariants({ size: 'sm' })}>Checkout</Link>}
         </div>
       ))}
+      {pins.dialog}
     </Rows>
   )
 }
@@ -150,6 +178,9 @@ export default function Studio() {
         {tab === 'purchases' && <Orders kind="purchases" />}
         {tab === 'sales' && <Orders kind="sales" />}
         {tab === 'settings' && <Settings />}
+        {tab === 'keys' && <VaultPanel />}
+        {tab === 'messages' && <Messages />}
+        {tab === 'proofs' && <Proofs />}
       </div>
     </PageShell>
   )

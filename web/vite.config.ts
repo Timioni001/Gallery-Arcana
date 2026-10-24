@@ -21,7 +21,14 @@ export default defineConfig(({ mode }) => {
   }
   return {
     plugins: [react(), tailwindcss()],
-    resolve: { alias: { '@': path.resolve(import.meta.dirname, './src') } },
+    resolve: {
+      alias: {
+        '@': path.resolve(import.meta.dirname, './src'),
+        // The audited client SDK is compiled from source so web and API share one implementation.
+        '@arcana/client-crypto': path.resolve(import.meta.dirname, '../packages/client-crypto/src/index.ts'),
+        '@hpke/core': path.resolve(import.meta.dirname, './node_modules/@hpke/core'),
+      },
+    },
     server: { proxy: { '/api': proxy, '/previews': proxy } },
   }
 })

@@ -1,6 +1,8 @@
 // Thin client for the Gallery Arcana JSON API (docs/API.md). Every mutation
 // carries X-Arcana-Action; the session lives in an HttpOnly cookie.
 
+import type { Envelope, PublicIdentity } from '@arcana/client-crypto'
+
 export type Category = 'digital' | 'collectible' | 'onchain' | 'other'
 export type Listing = {
   id: string
@@ -23,15 +25,21 @@ export type Account = { id: string; alias: string; hasPayout?: boolean }
 export type Offer = {
   id: string; listing_id: string; listing_title: string; am_buyer: boolean; am_seller: boolean
   amount_usd_cents: number; counter_usd_cents: number | null; status: string; created_at: string
-  delivery: string; revision: number
+  delivery: string; revision: number; crypto_mode?: string; buyer_id?: string | null; buyer_alias?: string | null; capsule_ready?: boolean
 }
+export type Conversation = {
+  id: string; listing_id: string; listing_title: string; am_buyer: boolean; buyer_id: string; seller_id: string
+  buyer_key_id: string; seller_key_id: string; counterpart_alias: string; sequence: number; expires_at: string; created_at: string
+}
+export type StoredMessage = { id: string; sequence: number; sender_id: string; envelope: Envelope; created_at: string }
+export type IdentityRecord = { public_identity: PublicIdentity; revision: number; created_at: string; revoked_at: string | null }
 export type OrderSummary = { id: string; listing_id: string; title: string; status: string; price_usd_cents: number; created_at: string; refund_status?: string }
 export type Payment = { paymentId?: string; address: string; memo: string; amountZat: string; amountZec: string; usdCents: number; uri: string; expiresAt?: string }
 export type Checkout = { orderId: string; payment: Payment; receiptCode: string }
 export type OrderStatus = {
   id: string; listing_id: string; title: string; price_usd_cents: number; status: string; expires_at: string
   received_zat: string; confirmations: number; file_sha256: string | null; funded_at: string | null
-  delivery_confirmed_at: string | null; disputed_at: string | null; downloadable: boolean; buyer_confirmed: boolean
+  delivery_confirmed_at: string | null; disputed_at: string | null; downloadable: boolean; buyer_confirmed: boolean; crypto_mode?: string
 }
 
 export class ApiError extends Error {
@@ -56,8 +64,8 @@ async function request<T>(method: string, path: string, body?: unknown, init: Re
   return (type.includes('json') ? res.json() : res.blob()) as Promise<T>
 }
 
-export const api = {
-  health: () => request<{ mode: string; network: string }>('GET', '/api/health'),
+const baseApi = {
+  health: () => request<{ mode: string; network: string; origin?: string }>('GET', '/api/health'),
   me: () => request<{ account: Account | null }>('GET', '/api/me'),
   signup: (alias: string, passphrase: string) => request<{ account: Account }>('POST', '/api/signup', { alias, passphrase }),
   login: (alias: string, passphrase: string) => request<{ account: Account }>('POST', '/api/login', { alias, passphrase }),
@@ -81,7 +89,7 @@ export const api = {
       headers: kind === 'previews' ? { 'X-Asset-Type': file.type } : { 'X-Asset-Filename': file.name },
     }),
 
-  offer: (listingId: string, amountUsdCents: number) => request<{ offerId: string }>('POST', `/api/listings/${listingId}/offers`, { amountUsdCents }),
+  offer: (listingId: string, amountUsdCents: number, invitation?: { id: string; capability: string }) => request<{ offerId: string }>('POST', `/api/listings/${listingId}/offers`, invitation ? { amountUsdCents, invitation } : { amountUsdCents }),
   offers: () => request<Offer[]>('GET', '/api/offers'),
   actOnOffer: (id: string, action: string, extra: { counterUsdCents?: number; expectedVersion?: number } = {}) =>
     request<unknown>('POST', `/api/offers/${id}/action`, { action, ...extra }),
@@ -108,5 +116,38 @@ export const api = {
   verifyProof: (proof: unknown) => request<{ valid: boolean }>('POST', '/api/proofs/verify', { proof }),
   dispute: (orderId: string, reason: string) => request<unknown>('POST', `/api/orders/${orderId}/dispute`, { reason }),
 }
+
+export const privateApi = {
+  identityHistory: (accountId: string) => request<IdentityRecord[]>('GET', `/api/encryption/identities/${accountId}`),
+  identityChallenge: (identity: PublicIdentity) => request<{ challengeId: string; statement: string; sealed: { enc: string; ciphertext: string } }>('POST', '/api/encryption/challenges', identity),
+  completeIdentity: (challengeId: string, answer: { secret: string; signature: string; previousSignature?: string }) =>
+    request<unknown>('POST', `/api/encryption/challenges/${challengeId}/complete`, answer),
+  resetIdentity: (passphrase: string) => request<unknown>('POST', '/api/encryption/reset', { passphrase, acknowledgeKeyLoss: true }),
+  uploadCapsule: (encoded: Uint8Array) => request<{ key: string; sha256: string; capsuleId: string }>('POST', '/api/capsules', new Blob([encoded.slice()], { type: 'application/octet-stream' })),
+  prepareCapsuleEnvelope: (listingId: string, buyerId: string, envelope: Envelope) => request<{ envelopeId: string }>('POST', `/api/listings/${listingId}/capsule-envelope`, { buyerId, envelope }),
+  keyEnvelope: (orderId: string, receiptCode: string) => request<{ envelope: Envelope }>('POST', `/api/orders/${orderId}/key-envelope`, { receiptCode }),
+  conversations: () => request<Conversation[]>('GET', '/api/conversations'),
+  openConversation: (listingId: string, invitation?: { id: string; capability: string }) =>
+    request<Conversation & { buyerIdentity: PublicIdentity; sellerIdentity: PublicIdentity }>('POST', '/api/conversations', invitation ? { listingId, invitation } : { listingId }),
+  messages: (id: string, after = 0) => request<StoredMessage[]>('GET', `/api/conversations/${id}/messages?after=${after}`),
+  postMessage: (id: string, body: { id: string; buyer: Envelope; seller: Envelope }) => request<{ sequence: number }>('POST', `/api/conversations/${id}/messages`, body),
+  closeConversation: (id: string) => request<unknown>('DELETE', `/api/conversations/${id}`),
+  createInvitation: (listingId: string, b: { buyerId?: string; priceUsdCents?: number; offerId?: string; hours?: number }) =>
+    request<{ invitationId?: string; id?: string; capability: string; expiresAt?: string; expires_at?: string }>('POST', `/api/listings/${listingId}/invitations`, b),
+  inspectInvitation: (id: string, capability: string) => request<Record<string, unknown> & { listing_id: string }>('POST', `/api/invitations/${id}/inspect`, { capability }),
+  redeemInvitation: (id: string, capability: string) => request<Checkout>('POST', `/api/invitations/${id}/redeem`, { capability }),
+  revokeInvitation: (id: string) => request<unknown>('DELETE', `/api/invitations/${id}`),
+  issuePassport: (b: { kind: 'completed_acquisition' | 'seller_deliveries'; orderId?: string; minimum?: number; discloseCount?: boolean; audience: string; hours?: number }) =>
+    request<Record<string, unknown>>('POST', '/api/passports', b),
+  verifyPassport: (proof: unknown, audience: string) => request<Record<string, unknown> & { valid: boolean }>('POST', '/api/passports/verify', { proof, audience }),
+  revokePassport: (id: string) => request<unknown>('DELETE', `/api/passports/${id}`),
+  controlChallenge: (b: { kind: 'dns' | 'github' | 'evm'; subject: string; chainId?: number }) => request<Record<string, unknown>>('POST', '/api/asset-control/challenges', b),
+  verifyControl: (id: string, signature?: string) => request<Record<string, unknown>>('POST', `/api/asset-control/challenges/${id}/verify`, signature ? { signature } : {}),
+  controlVerifications: () => request<Record<string, unknown>[]>('GET', '/api/asset-control/verifications'),
+  reviewer: (orderId: string) => request<{ reviewerIdentity: PublicIdentity }>('GET', `/api/orders/${orderId}/reviewer`),
+  evidence: (orderId: string) => request<{ id: string; submitter_id: string; envelope: Envelope; ciphertext_hash: string; expires_at: string }[]>('GET', `/api/orders/${orderId}/evidence`),
+  submitEvidence: (orderId: string, envelope: Envelope) => request<{ evidenceId: string; ciphertextSha256: string }>('POST', `/api/orders/${orderId}/evidence`, { consent: true, envelope }),
+}
+export const api = { ...baseApi, ...privateApi }
 
 export const previewUrl = (key: string | null) => (key ? `/previews/${encodeURIComponent(key)}` : null)
