@@ -20,10 +20,23 @@ Start the API and worker from the repository root first (`npm run worker`, `npm 
 | `/market` | Public listings with category, search and sort |
 | `/listing/:id` | Listing detail: buy, private offer, counter handling; seller pause/resume |
 | `/orders/:id` | Payment details (clearly marked MOCK in mock mode), live status, download with in-browser SHA-256 check, accept or dispute, fetch and verify the signed receipt |
-| `/studio` | Seller and buyer workspace: listings, offers, purchases, sales, payout address |
+| `/studio` | Workspace tabs: listings, offers (seal capsule keys), encrypted messages, purchases, sales, proofs (passports and asset control), keys (vault backup, restore and reset), settings |
 | `/studio/new` | New listing with a public preview and an encrypted private file |
 | `/observer` | Live probes made without a session, showing what an unrelated outsider can and can't read (for the demo) |
+| `/verify` | Public verification of receipts and Trade Passports, including the holder's nonce proof |
+| `/invite/:id#capability` | Private invitation: inspect, request a capsule key, redeem once |
+| `/review/:orderId` | Assigned reviewer decrypts consented dispute evidence |
 | `/auth` | Alias and passphrase login or signup |
+
+## Browser journeys
+
+With `npm run dev` running at the repository root:
+
+```bash
+npm run e2e        # capsule sale + E2EE chat + passport; invitation + dispute evidence + vault restore
+```
+
+They use the mock simulator token from `.env.worker` and clear the local `rate_limits` table first. They refuse to touch a non-localhost database. Set `ARCANA_WEB` if the app isn't on :5173.
 
 ## Production
 

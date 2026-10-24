@@ -1,19 +1,19 @@
-import { useEffect } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { Toaster } from '@/components/ui/sonner'
 import { SessionProvider } from '@/lib/session'
 import { VaultProvider } from '@/components/vault'
 import Landing from '@/pages/Landing'
-import Market from '@/pages/Market'
-import ListingPage from '@/pages/ListingPage'
-import Auth from '@/pages/Auth'
-import Studio from '@/pages/Studio'
-import NewListing from '@/pages/NewListing'
-import Order from '@/pages/Order'
-import Observer from '@/pages/Observer'
-import Verify from '@/pages/Verify'
-import InvitePage from '@/pages/Invite'
-import Review from '@/pages/Review'
+const Market = lazy(() => import('@/pages/Market'))
+const ListingPage = lazy(() => import('@/pages/ListingPage'))
+const Auth = lazy(() => import('@/pages/Auth'))
+const Studio = lazy(() => import('@/pages/Studio'))
+const NewListing = lazy(() => import('@/pages/NewListing'))
+const Order = lazy(() => import('@/pages/Order'))
+const Observer = lazy(() => import('@/pages/Observer'))
+const Verify = lazy(() => import('@/pages/Verify'))
+const InvitePage = lazy(() => import('@/pages/Invite'))
+const Review = lazy(() => import('@/pages/Review'))
 import { PageShell } from '@/components/page-shell'
 import { DotText } from '@/components/brand'
 
@@ -32,6 +32,7 @@ export default function App() {
       <SessionProvider>
         <VaultProvider>
         <ScrollManager />
+        <Suspense fallback={<div className="min-h-svh" />}>
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/market" element={<Market />} />
@@ -46,6 +47,7 @@ export default function App() {
           <Route path="/review/:orderId" element={<Review />} />
           <Route path="*" element={<PageShell><p className="dot-display py-32 text-center text-5xl text-fg"><DotText>404. Not here.</DotText></p></PageShell>} />
         </Routes>
+        </Suspense>
         <Toaster position="bottom-right" />
         </VaultProvider>
       </SessionProvider>

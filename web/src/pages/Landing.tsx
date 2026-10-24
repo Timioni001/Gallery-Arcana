@@ -248,8 +248,8 @@ function Privacy() {
 }
 
 const status = [
-  { icon: CircleDot, title: 'Working now', tone: 'text-emerald-700', items: ['Pseudonymous accounts and sessions', 'Listings, search, previews, public and unlisted', 'Private offers, counters and atomic checkout', 'Buyer-controlled release, disputes and signed receipts', 'Capsules, encrypted negotiation, invitations and passports (API and SDK)'] },
-  { icon: CircleDashed, title: 'In progress', tone: 'text-signal', items: ['Verified Zcash testnet payment and settlement', 'Capsule creation and decryption in the browser', 'Consent-based dispute evidence in the UI', 'More asset verification types'] },
+  { icon: CircleDot, title: 'Working now', tone: 'text-emerald-700', items: ['Pseudonymous accounts, listings, offers and atomic checkout', 'Capsules encrypted and decrypted in your browser', 'End-to-end encrypted negotiation with attachments', 'Private invitations, Trade Passports and public verification', 'Buyer-controlled release, consent-based dispute evidence and signed receipts'] },
+  { icon: CircleDashed, title: 'In progress', tone: 'text-signal', items: ['Verified Zcash testnet payment and settlement (Zebra + Zallet)', 'Fresh exchange-rate quotes for live settlement', 'More asset verification types', 'Independent review of the client cryptography'] },
   { icon: Circle, title: 'Not yet verified', tone: 'text-fg/45', items: ['Live Zcash settlement', 'Mainnet custody', 'Production key management', 'Actual external asset transfers', 'Independent review of client cryptography'] },
 ]
 

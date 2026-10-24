@@ -47,6 +47,16 @@ Version 0.5 extends the existing private-acquisitions backend. Version 0.4 combi
 - Source-pinned Zallet/Zebra investigation cohort, offline supported-response normalizer and bounded read-only RPC diagnostic with method allowlist, authentication, timeout/size/ID checks, account/receiver matching and stable-tip sample checks.
 - Real-wallet mode, mainnet and production fail closed. The read-only probe is not a scanner or acceptance gate substitute; genuine funded testnet integration remains blocked.
 
+## Web application (web/)
+
+- Vite + React client served same-origin with the API. Landing, market, listing, offer/counter, checkout, order, studio, observer, verify, invitation and reviewer pages.
+- Browser key vault in IndexedDB: identity generation and sealed-challenge registration, encrypted offline backup with a random 256-bit recovery key, restore on a new device, explicit reset. Private keys and capsule content keys never leave the browser.
+- Arcana Capsules created in the browser (chunked AES-GCM, ≤16 MB), ciphertext-only upload with digest cross-check, per-buyer HPKE key sealing by the seller after trust-on-first-use fingerprint confirmation, funded-envelope retrieval and local decryption/verification by the buyer.
+- End-to-end encrypted conversations with ≤32 KB attachments, client-side replay suppression, change warnings for counterparty keys and deletion.
+- One-time private invitations (capability carried in the URL fragment), Trade Passport issue/present/revoke, public receipt/passport verification, asset-control challenges (DNS, GitHub, EVM `personal_sign`), consent-based dispute evidence sealed to the assigned reviewer, reviewer decryption workspace.
+- Persistent mock/live settlement badge; `/observer` performs live unauthenticated probes to show what outsiders can read.
+- Browser journeys (`npm run e2e` in `web/`) drive two to four real browser contexts against the API and worker.
+
 ## Operations and automation
 
 - Node.js 22+, TypeScript, Fastify and PostgreSQL 16; separate API and wallet worker. Native Ubuntu/WSL PostgreSQL instructions; optional loopback-bound Docker database.
