@@ -46,7 +46,7 @@ const id=z.object({id:z.string().uuid()});
 const amount=z.number().int().min(50).max(100_000_000);
 
 export function buildServer(){
-  const app=Fastify({logger:false,trustProxy:false,bodyLimit:1024*1024});
+  const app=Fastify({logger:false,trustProxy:config.trustProxy,bodyLimit:1024*1024});
   app.addContentTypeParser('application/octet-stream',{parseAs:'buffer'},(_req,body,done)=>done(null,body));
   app.addHook('onRequest',async(req,reply)=>{
     reply.header('Referrer-Policy','no-referrer');

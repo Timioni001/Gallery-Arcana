@@ -3,9 +3,9 @@ name: Web checks
 on:
   push:
     branches: [main]
-    paths: ['web/**', '.github/workflows/web.yml']
+    paths: ['web/**', 'deploy/**', 'src/**', 'packages/**', 'package*.json', '.github/workflows/web.yml']
   pull_request:
-    paths: ['web/**', '.github/workflows/web.yml']
+    paths: ['web/**', 'deploy/**', 'src/**', 'packages/**', 'package*.json', '.github/workflows/web.yml']
 
 permissions:
   contents: read
@@ -27,3 +27,13 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run build
+
+  docker:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - run: docker build -f deploy/Dockerfile.app -t gallery-arcana-app:ci .
+      - run: docker build -f deploy/Dockerfile.web -t gallery-arcana-web:ci .
+      - run: touch deploy/.env deploy/.env.worker && docker compose -f deploy/docker-compose.yml config --quiet
+        env: {PUBLIC_ORIGIN: 'https://example.invalid', POSTGRES_PASSWORD: ci, CLOUDFLARE_TUNNEL_TOKEN: ci}

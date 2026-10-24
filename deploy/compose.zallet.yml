@@ -1,0 +1,14 @@
+# Live testnet only. Bridges the worker's loopback port to a Zallet RPC
+# published on the host (e.g. by the Z3 stack), so the adapter's
+# loopback-only transport rule still holds inside the worker container.
+#   docker compose -f docker-compose.yml -f compose.zallet.yml up -d
+# and set in .env.worker: ZALLET_RPC_URL=http://127.0.0.1:28232
+services:
+  worker:
+    extra_hosts: ["host.docker.internal:host-gateway"]
+  zallet-link:
+    image: alpine/socat:1.8.0.3
+    network_mode: "service:worker"
+    command: ["TCP-LISTEN:28232,bind=127.0.0.1,fork,reuseaddr", "TCP:host.docker.internal:${ZALLET_HOST_PORT:-28232}"]
+    depends_on: [worker]
+    restart: unless-stopped
