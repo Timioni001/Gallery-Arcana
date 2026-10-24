@@ -26,8 +26,8 @@ export function ConnectorHero() {
           <line x1="300" y1="90" x2="430" y2="90" /><line x1="770" y1="370" x2="900" y2="370" />
         </g>
         {[dot(30, 90, true), dot(250, 90), dot(430, 90), dot(770, 90), dot(1030, 90), dot(160, 370), dot(430, 370), dot(770, 370), dot(1160, 370, true)]}
-        {[pill(150, 90, 'Seller'), pill(940, 90, 'Capsule'), pill(90, 370, 'Offer'), pill(250, 370, 'Escrow', 'mint'),
-          pill(880, 370, 'Receipt'), pill(990, 370, 'Passport'), pill(1110, 90, 'Buyer key', 'faint')]}
+        {[pill(150, 90, 'Seller'), pill(940, 90, 'Buyer'), pill(90, 370, 'Offer'), pill(250, 370, 'Escrow', 'mint'),
+          pill(880, 370, 'Capsule'), pill(990, 370, 'Receipt'), pill(1110, 90, 'Observer', 'faint')]}
       </svg>
       <div className="absolute left-1/2 top-1/2 grid size-[170px] -translate-x-1/2 -translate-y-1/2 place-items-center rounded-[36px] bg-[oklch(0.88_0.01_80)] shadow-[inset_0_2px_0_oklch(1_0_0/60%),0_30px_60px_-30px_oklch(0.2_0.02_60/50%)] sm:size-[190px]">
         <div className="grid size-[124px] place-items-center rounded-[26px] bg-surface shadow-[inset_0_-2px_0_oklch(0.2_0.01_70/8%)] sm:size-[140px]">
@@ -35,9 +35,9 @@ export function ConnectorHero() {
         </div>
       </div>
       <h1 className="pointer-events-none absolute inset-x-0 top-1/2 hidden -translate-y-1/2 grid-cols-[1fr_230px_1fr] items-center text-fg sm:grid">
-        <span className="dot-display text-center text-[38px] leading-none md:text-[48px] lg:text-[62px]"><DotText>Seal. Sell.</DotText></span>
+        <span className="dot-display text-center text-[30px] leading-[1.05] md:text-[40px] lg:text-[52px]"><DotText>Discover.</DotText><br /><DotText>Negotiate.</DotText></span>
         <span />
-        <span className="dot-display text-center text-[38px] leading-none md:text-[48px] lg:text-[62px]"><DotText>Settle.</DotText></span>
+        <span className="dot-display text-center text-[30px] leading-[1.05] md:text-[40px] lg:text-[52px]"><DotText>Exchange.</DotText><br /><span className="text-stone"><DotText>Privately.</DotText></span></span>
       </h1>
     </div>
   )

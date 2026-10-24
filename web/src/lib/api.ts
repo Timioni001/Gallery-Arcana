@@ -104,6 +104,8 @@ export const api = {
   },
   confirmDelivery: (orderId: string, receiptCode: string, assetSha256: string) =>
     request<unknown>('POST', `/api/orders/${orderId}/confirm-delivery`, { receiptCode, assetSha256 }),
+  proof: (orderId: string, receiptCode: string) => request<Record<string, unknown>>('POST', `/api/orders/${orderId}/proof`, { receiptCode }),
+  verifyProof: (proof: unknown) => request<{ valid: boolean }>('POST', '/api/proofs/verify', { proof }),
   dispute: (orderId: string, reason: string) => request<unknown>('POST', `/api/orders/${orderId}/dispute`, { reason }),
 }
 

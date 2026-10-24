@@ -19,9 +19,10 @@ Start the API and worker from the repository root first (`npm run worker`, `npm 
 | `/` | Landing page |
 | `/market` | Public listings with category, search and sort |
 | `/listing/:id` | Listing detail: buy, private offer, counter handling; seller pause/resume |
-| `/orders/:id` | Payment details, live status, download with in-browser SHA-256 check, accept or dispute |
+| `/orders/:id` | Payment details (clearly marked MOCK in mock mode), live status, download with in-browser SHA-256 check, accept or dispute, fetch and verify the signed receipt |
 | `/studio` | Seller and buyer workspace: listings, offers, purchases, sales, payout address |
 | `/studio/new` | New listing with a public preview and an encrypted private file |
+| `/observer` | Live probes made without a session, showing what an unrelated outsider can and can't read (for the demo) |
 | `/auth` | Alias and passphrase login or signup |
 
 ## Production

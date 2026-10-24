@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils'
 
 const cats: { id: Category | 'all'; label: string }[] = [
   { id: 'all', label: 'All' }, { id: 'digital', label: 'Digital' }, { id: 'collectible', label: 'Collectibles' },
-  { id: 'onchain', label: 'On-chain' }, { id: 'other', label: 'Other' },
+  { id: 'onchain', label: 'On-chain' }, { id: 'other', label: 'Digital property' },
 ]
 type Sort = 'new' | 'low' | 'high'
 

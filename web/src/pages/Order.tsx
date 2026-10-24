@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useLocation, useParams } from 'react-router-dom'
-import { Check, Copy, Download, ShieldAlert } from 'lucide-react'
+import { BadgeCheck, Check, Copy, Download, FileSignature, ShieldAlert } from 'lucide-react'
 import { toast } from 'sonner'
 import { PageShell, Notice } from '@/components/page-shell'
 import { Button } from '@/components/ui/button'
@@ -45,6 +45,15 @@ export default function Order() {
   const [busy, setBusy] = useState(false)
   const [disputeOpen, setDisputeOpen] = useState(false)
   const [reason, setReason] = useState('')
+  const [proof, setProof] = useState<Record<string, unknown> | null>(null)
+  const [proofValid, setProofValid] = useState<boolean | null>(null)
+  const [mode, setMode] = useState<string>('')
+  useEffect(() => { api.health().then((h) => setMode(h.mode)).catch(() => {}) }, [])
+
+  const fetchProof = async () => {
+    try { const p = await api.proof(id, receipt); setProof(p); setProofValid((await api.verifyProof(p)).valid) }
+    catch (e) { toast.error((e as Error).message) }
+  }
 
   const load = useCallback(async () => {
     try {
@@ -119,7 +128,10 @@ export default function Order() {
         <section className="rounded-2xl border bg-card p-5 sm:p-6">
           {order.status === 'awaiting_payment' && payment ? (
             <>
-              <h2 className="text-lg text-fg">Send payment</h2>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-lg text-fg">Send payment</h2>
+                {mode === 'mock' && <span className="rounded-full bg-signal/10 px-2.5 py-0.5 font-mono text-[10.5px] text-signal">MOCK · no blockchain transaction</span>}
+              </div>
               <p className="mt-1 text-[13px] text-muted-foreground">Send exactly this amount, with the memo, from a testnet shielded wallet. This page updates by itself.</p>
               <div className="mt-5 space-y-2">
                 <Copyable label="Amount" value={`${payment.amountZec} ZEC`} />
@@ -128,6 +140,7 @@ export default function Order() {
                 <Copyable label="ZIP-321 URI" value={payment.uri} />
               </div>
               <p className="mt-4 text-[12px] text-fg/50">Received {received.toFixed(8)} ZEC · {order.confirmations} confirmations · expires {new Date(order.expires_at).toLocaleTimeString()}</p>
+              {mode === 'mock' && <p className="mt-2 font-mono text-[11px] text-fg/45">Local demo: <span className="select-all text-fg/70">npm run mock:pay -- {payment.memo}</span></p>}
             </>
           ) : ['funded', 'disputed', 'paid'].includes(order.status) ? (
             <>
@@ -146,12 +159,36 @@ export default function Order() {
                 </div>
               )}
               <button onClick={renew} className="mt-4 text-[12px] text-fg/50 hover:text-fg">Lost your code? Issue a new receipt code</button>
+              {order.status === 'paid' && (
+                <div className="mt-6 border-t pt-6">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="flex items-center gap-2 text-fg"><FileSignature className="size-4 text-signal" />Signed receipt</p>
+                    <Button size="sm" variant="outline" disabled={!receipt} onClick={fetchProof}>{proof ? 'Refresh' : 'Fetch & verify'}</Button>
+                  </div>
+                  <p className="mt-1 text-[12px] text-fg/55">An Ed25519 attestation of this acquisition. It proves a platform transaction, not legal title.</p>
+                  {proofValid !== null && (
+                    <p className={cn('mt-3 flex items-center gap-1.5 text-[13px]', proofValid ? 'text-emerald-700' : 'text-destructive')}>
+                      <BadgeCheck className="size-4" />{proofValid ? 'Signature valid against the published key' : 'Signature did not verify'}
+                    </p>
+                  )}
+                  {proof && <pre className="mt-3 max-h-56 overflow-auto rounded-xl bg-paper p-3 font-mono text-[10.5px] leading-relaxed text-fg/70">{JSON.stringify(proof, null, 2)}</pre>}
+                </div>
+              )}
             </>
           ) : (
             <p className="text-sm text-muted-foreground">This order is {sentence(order.status).toLowerCase()}. {order.status === 'expired' && 'Any late or partial funds can be reclaimed with your receipt code.'}</p>
           )}
         </section>
         <aside className="space-y-3 text-[13px]">
+          <div className="rounded-xl border bg-surface p-4">
+            <p className="font-mono text-[10.5px] uppercase tracking-wider text-fg/50">Who can see this order</p>
+            <ul className="mt-3 space-y-2 text-[12.5px] text-fg/70">
+              <li><b className="font-medium text-fg">You:</b> everything here, including the receipt code</li>
+              <li><b className="font-medium text-fg">Seller:</b> title, price and status, but not your identity or payment memo</li>
+              <li><b className="font-medium text-fg">Operator:</b> price, states and timestamps for settlement</li>
+              <li><b className="font-medium text-fg">Outsiders:</b> nothing. <Link to="/observer" className="text-signal">Check it yourself</Link></li>
+            </ul>
+          </div>
           {[
             ['Funds held', order.funded_at ? new Date(order.funded_at).toLocaleString() : '—'],
             ['Buyer accepted', order.delivery_confirmed_at ? new Date(order.delivery_confirmed_at).toLocaleString() : '—'],
