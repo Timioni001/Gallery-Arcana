@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { Toaster } from '@/components/ui/sonner'
 import { SessionProvider } from '@/lib/session'
+import { VaultProvider } from '@/components/vault'
 import Landing from '@/pages/Landing'
 import Market from '@/pages/Market'
 import ListingPage from '@/pages/ListingPage'
@@ -10,6 +11,9 @@ import Studio from '@/pages/Studio'
 import NewListing from '@/pages/NewListing'
 import Order from '@/pages/Order'
 import Observer from '@/pages/Observer'
+import Verify from '@/pages/Verify'
+import InvitePage from '@/pages/Invite'
+import Review from '@/pages/Review'
 import { PageShell } from '@/components/page-shell'
 import { DotText } from '@/components/brand'
 
@@ -26,6 +30,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <SessionProvider>
+        <VaultProvider>
         <ScrollManager />
         <Routes>
           <Route path="/" element={<Landing />} />
@@ -36,9 +41,13 @@ export default function App() {
           <Route path="/studio/new" element={<NewListing />} />
           <Route path="/orders/:id" element={<Order />} />
           <Route path="/observer" element={<Observer />} />
+          <Route path="/verify" element={<Verify />} />
+          <Route path="/invite/:id" element={<InvitePage />} />
+          <Route path="/review/:orderId" element={<Review />} />
           <Route path="*" element={<PageShell><p className="dot-display py-32 text-center text-5xl text-fg"><DotText>404. Not here.</DotText></p></PageShell>} />
         </Routes>
         <Toaster position="bottom-right" />
+        </VaultProvider>
       </SessionProvider>
     </BrowserRouter>
   )

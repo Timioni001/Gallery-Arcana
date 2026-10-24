@@ -28,6 +28,13 @@ export async function createConversation(buyerId:string,listingId:string,days:nu
  const buyer=await currentIdentity(buyerId,c),seller=await currentIdentity(listing.seller_id,c);
  const row=(await c.query('INSERT INTO conversations(listing_id,buyer_id,seller_id,buyer_key_id,seller_key_id,expires_at) VALUES($1,$2,$3,$4,$5,clock_timestamp()+make_interval(days=>$6)) RETURNING *',[listingId,buyerId,listing.seller_id,buyer.id,seller.id,days])).rows[0];return {...row,buyerIdentity:buyer.public_identity,sellerIdentity:seller.public_identity};
 });}
+/** Active conversations for either participant; the counterpart is shown only by alias. */
+export async function listConversations(accountId:string){
+ return (await pool.query(`SELECT c.id,c.listing_id,l.title AS listing_title,(c.buyer_id=$1) AS am_buyer,c.buyer_id,c.seller_id,c.buyer_key_id,c.seller_key_id,
+  CASE WHEN c.buyer_id=$1 THEN s.alias ELSE b.alias END AS counterpart_alias,c.sequence,c.expires_at,c.created_at
+  FROM conversations c JOIN listings l ON l.id=c.listing_id JOIN accounts b ON b.id=c.buyer_id JOIN accounts s ON s.id=c.seller_id
+  WHERE (c.buyer_id=$1 OR c.seller_id=$1) AND c.expires_at>now() AND c.closed_at IS NULL ORDER BY c.created_at DESC LIMIT 50`,[accountId])).rows;
+}
 async function member(accountId:string,id:string,db=pool){const row=(await db.query('SELECT * FROM conversations WHERE id=$1 AND (buyer_id=$2 OR seller_id=$2) AND expires_at>now() AND closed_at IS NULL',[id,accountId])).rows[0];if(!row)throw notFound();return row;}
 export async function postMessage(accountId:string,id:string,input:{id:string;buyer:unknown;seller:unknown}){return tx(async c=>{
  const conv=(await c.query('SELECT * FROM conversations WHERE id=$1 FOR UPDATE',[id])).rows[0];

@@ -12,6 +12,9 @@ import { api, type OrderStatus, type Payment } from '@/lib/api'
 import { sentence, statusTone, usd } from '@/lib/format'
 import { loadReceipt, saveReceipt } from '@/lib/receipts'
 import { cn } from '@/lib/utils'
+import { openPurchasedCapsule } from '@/lib/vault'
+import { Fingerprint, useVault, VaultGate } from '@/components/vault'
+import { EvidencePanel } from '@/components/evidence'
 
 const stages = ['awaiting_payment', 'funded', 'verified', 'paid'] as const
 
@@ -68,8 +71,33 @@ export default function Order() {
     return () => clearInterval(t)
   }, [order, load])
 
+  const vault = useVault()
+  const [steps, setSteps] = useState<string[]>([])
+  const [seller, setSeller] = useState<{ fingerprint: string; pin: string } | null>(null)
+  const capsule = order?.crypto_mode === 'capsule-v1'
+  const save = (blob: Blob, name: string) => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); URL.revokeObjectURL(a.href) }
+  const decrypt = async () => {
+    if (!order || !receipt || !vault.identity) return
+    setBusy(true); setSteps([])
+    const done = (s: string) => setSteps((x) => [...x, s])
+    try {
+      const { envelope } = await api.keyEnvelope(id, receipt); done('Released key envelope received')
+      const f = await api.download(order.listing_id, receipt)
+      const ciphertext = new Uint8Array(await f.blob.arrayBuffer())
+      const digest = await sha256Hex(f.blob)
+      if (order.file_sha256 && digest !== order.file_sha256.toLowerCase()) throw new Error('Ciphertext checksum mismatch. Do not accept; open a dispute.')
+      done('Ciphertext matches the SHA-256 snapshotted at checkout')
+      const opened = await openPurchasedCapsule(vault.identity, order.listing_id, envelope, ciphertext)
+      done("Envelope signature verified against the seller's published key")
+      done(`Decrypted locally · plaintext SHA-256 ${String(opened.metadata.sha256).slice(0, 16)}… verified`)
+      setSeller({ fingerprint: opened.seller.fingerprint, pin: opened.pin.status })
+      save(new Blob([opened.bytes.slice()], { type: String(opened.metadata.mime) }), String(opened.metadata.name))
+      setVerified(digest)
+    } catch (e) { setVerified(null); toast.error((e as Error).message || 'Decryption failed') } finally { setBusy(false) }
+  }
   const download = async () => {
     if (!order || !receipt) return toast.error('Enter your receipt code first')
+    if (capsule) return decrypt()
     setBusy(true)
     try {
       const f = await api.download(order.listing_id, receipt)
@@ -148,7 +176,14 @@ export default function Order() {
               <p className="mt-1 text-[13px] text-muted-foreground">Download the file. We hash it in your browser and compare the result with the SHA-256 recorded when you bought it.</p>
               <div className="mt-5 space-y-3">
                 <Input className="h-11 font-mono" placeholder="RCT-…" value={receipt} onChange={(e) => setReceipt(e.target.value.trim())} aria-label="Receipt code" />
-                <Button className="h-11 w-full" disabled={busy || !receipt} onClick={download}><Download className="size-4" />Download &amp; verify</Button>
+                {capsule && <VaultGate vault={vault} purpose="decrypt this capsule" />}
+                <Button className="h-11 w-full" disabled={busy || !receipt || (capsule && !vault.identity)} onClick={download}><Download className="size-4" />{capsule ? 'Decrypt locally & verify' : 'Download & verify'}</Button>
+                {steps.length > 0 && (
+                  <ol className="space-y-1.5 rounded-xl bg-paper p-3 text-[12.5px] text-fg/75">
+                    {steps.map((s) => <li key={s} className="flex gap-2"><Check className="mt-0.5 size-3.5 shrink-0 text-emerald-700" />{s}</li>)}
+                  </ol>
+                )}
+                {seller && <p className="text-[12px] text-fg/55">Seller key <Fingerprint value={seller.fingerprint} /> {seller.pin === 'changed' ? <b className="text-destructive">differs from the key you trusted before</b> : seller.pin === 'new' ? '(now pinned)' : '(matches your pin)'}</p>}
                 {order.file_sha256 && <Copyable label="Expected SHA-256" value={order.file_sha256} />}
                 {verified && <p className="flex items-center gap-2 text-[13px] text-emerald-700"><Check className="size-4" />Checksum matches</p>}
               </div>
@@ -159,6 +194,7 @@ export default function Order() {
                 </div>
               )}
               <button onClick={renew} className="mt-4 text-[12px] text-fg/50 hover:text-fg">Lost your code? Issue a new receipt code</button>
+              {order.status === 'disputed' && <EvidencePanel orderId={order.id} />}
               {order.status === 'paid' && (
                 <div className="mt-6 border-t pt-6">
                   <div className="flex flex-wrap items-center justify-between gap-3">

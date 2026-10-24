@@ -11,6 +11,8 @@ import { api, type Category } from '@/lib/api'
 import { toCents } from '@/lib/format'
 import { useSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
+import { linkCapsuleToListing, sealCapsule } from '@/lib/vault'
+import { useVault, VaultGate } from '@/components/vault'
 
 type Delivery = 'download' | 'manual' | 'external'
 type Visibility = 'public' | 'unlisted'
@@ -48,6 +50,9 @@ export default function NewListing() {
   const [preview, setPreview] = useState<File | null>(null)
   const [file, setFile] = useState<File | null>(null)
   const [busy, setBusy] = useState('')
+  const [protection, setProtection] = useState<'capsule' | 'server'>('capsule')
+  const vault = useVault()
+  const capsule = delivery === 'download' && protection === 'capsule'
 
   if (ready && !account) return <Navigate to="/auth?next=/studio/new" replace />
 
@@ -56,13 +61,17 @@ export default function NewListing() {
     const cents = toCents(price)
     if (!cents || cents < 50) return toast.error('Price must be at least $0.50')
     if (delivery === 'download' && !file) return toast.error('Attach the file buyers will receive')
+    if (capsule && !vault.identity) return toast.error('Create or restore your encryption keys first')
+    if (capsule && file && file.size > 16 * 1024 * 1024) return toast.error('Capsules are limited to 16 MB. Use server encryption for larger files.')
     try {
-      let previewKey: string | undefined, fileKey: string | undefined
+      let previewKey: string | undefined, fileKey: string | undefined, capsuleId: string | undefined
       if (preview) { setBusy('Cleaning preview metadata…'); previewKey = (await api.upload('previews', preview)).key }
-      if (file && delivery === 'download') { setBusy('Encrypting file…'); fileKey = (await api.upload('private', file)).key }
+      if (file && capsule && account) { setBusy('Encrypting in your browser…'); ({ key: fileKey, capsuleId } = await sealCapsule(account, file)) }
+      else if (file && delivery === 'download') { setBusy('Uploading for server encryption…'); fileKey = (await api.upload('private', file)).key }
       setBusy('Publishing…')
       const r = await api.createListing({ title, description: description || undefined, category, visibility, delivery, previewKey, fileKey, priceUsdCents: cents })
-      toast.success('Listing published')
+      if (capsuleId) await linkCapsuleToListing(capsuleId, r.listingId)
+      toast.success(capsuleId ? 'Capsule listed. Download a fresh vault backup from Studio → Keys.' : 'Listing published')
       nav(`/listing/${r.listingId}`)
     } catch (err) { toast.error((err as Error).message) } finally { setBusy('') }
   }
@@ -87,7 +96,17 @@ export default function NewListing() {
         </div>
         <div className="space-y-4">
           <Drop label="Public preview" hint="PNG, JPEG or WebP up to 5 MB. Metadata is stripped." icon={ImageUp} accept="image/png,image/jpeg,image/webp" file={preview} onFile={setPreview} />
-          {delivery === 'download' && <Drop label="Private file" hint="Up to 25 MB. Encrypted at rest and only released after funding." icon={Lock} file={file} onFile={setFile} />}
+          {delivery === 'download' && (
+            <div className="space-y-2">
+              <Label>Protection</Label>
+              <Choice value={protection} onChange={setProtection} options={[['capsule', 'Arcana Capsule'], ['server', 'Server-encrypted']]} />
+              <p className="text-[12px] text-muted-foreground">{protection === 'capsule'
+                ? 'Encrypted in this browser before upload. We store ciphertext only and never hold the key. You seal a key for each buyer. Up to 16 MB.'
+                : 'Encrypted at rest with a server-held key. Simpler, but the operator could decrypt it. Up to 25 MB.'}</p>
+            </div>
+          )}
+          {capsule && <VaultGate vault={vault} purpose="seal this file as a capsule" />}
+          {delivery === 'download' && <Drop label={capsule ? 'File to seal' : 'Private file'} hint={capsule ? 'It never leaves this browser unencrypted.' : 'Up to 25 MB. Only released after funding.'} icon={Lock} file={file} onFile={setFile} />}
           <Button type="submit" className="h-11 w-full" disabled={!!busy}>{busy || 'Publish listing'}</Button>
         </div>
       </form>
