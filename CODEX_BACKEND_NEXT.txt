@@ -1,0 +1,17 @@
+CODEX TASK: Gallery Arcana — backend-only engineering continuation
+
+Continue this existing repository; do not rewrite it from scratch. No website, landing page, design system or React UI. Preserve the established API shape and database schema unless migration is justified and versioned.
+
+Goal: a correctly functioning, privacy-first marketplace backend, with authenticated alias accounts, seller listings, confidential buyer/seller offers, digital file delivery, shielded Zcash payments, and auditable failures. Avoid complicated market mechanisms.
+
+Priority 1: run npm install, npm test and npm run typecheck; fix all failures without deleting tests. Set up a local Postgres database and add integration tests for signup, sessions, upload ownership, private offer permissions, checkout race, expiration, refund, download and unauthorized requests. Validate transaction boundaries and status transitions.
+
+Priority 2: treat real Zcash as a blocked integration until verified against a pinned Zallet/Zebra version. Read docs/ZALLET_GAP.md. Implement/test note matching using supported RPC, not a non-existent z_listreceivedbyaddress call. Require genuine fully shielded testnet transactions and safely match addresses, memos, amounts and confirmations. Prove wallet restart recovery, replay safety and payout reconciliation. Do not enable mainnet or production for unverified code.
+
+Priority 3: enforce end-to-end access boundaries with negative tests. No public purchase histories or offer exposure. Protect storage uploads against spoofed file types. Use strong password hashing, CSRF defences, session renewal, account-level limits, secrets management and minimal logged personal data. Add multi-instance rate limiting if deployment requires it.
+
+Priority 4: implement optional encryption-first negotiation messaging: client-owned keys and stored ciphertext only; never claim E2EE if the client/key verification is missing. No mandatory identity verification or paid gallery entrance.
+
+Priority 5: document every route, invariants, test results, and honest privacy limitations. Return a concise change summary with evidence from executed tests and unresolved blockers.
+
+Scope boundaries: NO UI work. No NFT cross-chain custody or alleged atomic escrow without a proven protocol. No token launch, no unnecessary social features, no mandatory entry fee, no founding-artist tier.
