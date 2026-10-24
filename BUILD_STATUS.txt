@@ -1,45 +1,52 @@
-GALLERY ARCANA — INTEGRATED PRIVATE ACQUISITIONS BACKEND v0.4
+GALLERY ARCANA — PRIVATE COMMERCE ENGINE v0.5
 
-This build integrates Gallery_Arcana_Private_Acquisitions_Backend_v0.4.zip
-with the existing hardened marketplace; it does not replace it with older code.
-Input archive SHA-256:
-93018a18307cfe879675692c064680c5b1ce7f17de30e7b6d757f4b7e74e0dde
+Implemented on the existing v0.4 backend, retaining its marketplace, encrypted
+legacy delivery, disputes, durable mock payments and recovery protections.
 
-AVAILABLE
-Alias accounts, secure sessions, seller listings/uploads, confidential offers,
-atomic checkout, durable verified MOCK payments, held funds, encrypted delivery,
-immutable SHA-256, explicit buyer acceptance, private disputes, audited operator
-refund/release, Ed25519 attestations, private receipts, payout reconciliation,
-reorganization freezes, crash recovery, versioned migrations, rate limits,
-privacy retention, health/readiness, native PostgreSQL instructions, and CI.
+NEW FUNCTIONALITY
+- Versioned browser-compatible client cryptography package; local chunked
+  AES-GCM capsules, encrypted metadata, pinned RFC 9180 HPKE buyer envelopes.
+- Encryption-key possession challenges, signed rotations, revision-ordered
+  history, encrypted offline recovery backups and explicit continuity resets.
+- Participant-only encrypted conversations and bounded attachments; financial
+  amounts/state remain backend-verifiable operator-visible metadata.
+- Prepositioned buyer keys before checkout; funding-gated authorized delivery,
+  local decryption, buyer acceptance and durable payout authorization.
+- One-time private invitations: hashed body-only capability, designated buyers,
+  fixed/negotiated price, expiry/revocation, atomic redemption.
+- Trade Passport v2: minimal consent-based facts, threshold counts, audience/
+  holder proofs, expiry/revocation, signing-key history/compromise handling.
+- Consent-based reviewer-only encrypted evidence and append-only application
+  decision records, preserving conflicting-release/refund protections.
+- Independent DNS/public-GitHub/EIP-191 point-in-time control challenges; no
+  legal ownership guarantee or external custody/transfer.
 
+VALIDATION
+v0.4 baseline passed before changes. Complete v0.5 tests passed on Node
+22.23.4 and 24.19.0 with PostgreSQL 16.15: 29 unit/security/RPC/crypto tests,
+47 integration scenarios (50 reported passes including parents), SDK browser
+ESM/type builds, compiled package consumption, full TypeScript checking,
+legacy and capsule HTTP journeys, worker crash/restart and migrations 001-010.
+No known production dependency vulnerability was reported by npm audit.
+GitHub Actions status inspection returned Forbidden; hosted success is not claimed.
+
+REAL ZCASH RELEASE GATE: BLOCKED
+No supported running Zallet RPC, synchronized compatible Zebra/indexer/wallet
+cohort, persistent funded testnet account or genuine transaction evidence.
+Probe returns UNAVAILABLE. Real wallets, mainnet and production remain disabled.
+No mock payment is represented as live settlement.
+
+CONTRACTS AND LIMITS
 Full inventory: docs/CAPABILITIES.md
+Protocol/client keys: docs/CRYPTO_PROTOCOL.md
 API: docs/API.md
-Acquisition behavior: docs/PRIVATE_ACQUISITIONS.md
-Setup/upgrade/recovery: docs/OPERATIONS.md
-Executed tests: docs/VALIDATION.md
-Privacy model: docs/THREAT_MODEL.md
-Real-wallet blockers: docs/ZALLET_GAP.md
+Audit/threats: docs/V05_AUDIT.md, docs/THREAT_MODEL.md
+Operations/tests: docs/OPERATIONS.md, docs/VALIDATION.md
+Live blockers: docs/ZALLET_GAP.md, docs/evidence/zcash-testnet-v05.json
 
-TESTED
-Node 22.23.4 and 24.19.0, PostgreSQL 16.15.
-25 unit/security/RPC tests; 37 PostgreSQL scenarios (39 reported passes
-including parents); full TypeScript checking. Real HTTP/worker crash/restart,
-mock demo, signature verification and upgrades exercised. No blockchain
-transaction is represented as real. Mainnet, real wallets and production fail
-closed. See validation documentation for exact results and limitations.
-
-RUN
-npm ci
-npm run keys                (once; refuses overwrite)
-npm run migrate             (fresh and existing databases)
-npm run assets:backfill      (legacy originals without digests)
-npm run worker              (terminal A)
-npm run api                 (terminal B)
-npm run test:all
-npm run demo:mock            (optional authenticated local simulator required)
-
-New orders become FUNDED on verified mock payment. No seller payout occurs
-until buyer acceptance or explicit operator release. Existing pre-upgrade
-orders retain prior terms. No frontend, E2EE negotiation, legal ownership
-proof, trustless escrow or verified external asset transfer is implemented.
+First-contact pins need independent trust. Client compromise/malicious client
+code and privileged premature key-envelope release bypass ordinary encrypted
+storage protection. Static keys have no Signal-like forward secrecy. Browser
+interoperability, independent crypto review, production key/custody/backup and
+fresh FX remain outstanding. No frontend, legal title, ZK/unlinkability,
+NFT/domain/repository transfer or cross-chain custody is implemented.

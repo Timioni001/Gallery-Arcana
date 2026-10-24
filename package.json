@@ -1,6 +1,6 @@
 {
   "name": "gallery-arcana-backend",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,17 +10,22 @@
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test test/*.test.ts",
     "test:integration": "node --env-file-if-exists=.env --import tsx scripts/test-integration.ts",
-    "test:all": "npm test && npm run test:integration && npm run typecheck",
+    "test:all": "npm run crypto:build && npm test && npm run test:integration && npm run typecheck",
     "payouts:reconcile": "node --env-file-if-exists=.env --env-file-if-exists=.env.worker --import tsx scripts/reconcile-payouts.ts",
     "zallet:probe": "node --env-file-if-exists=.env --env-file-if-exists=.env.worker --import tsx scripts/probe-zallet.ts",
     "keys": "node --import tsx scripts/generate-signing-key.ts",
     "assets:backfill": "node --env-file-if-exists=.env --import tsx scripts/backfill-asset-digests.ts",
-    "demo:mock": "node --env-file-if-exists=.env --env-file-if-exists=.env.worker --import tsx scripts/demo-mock.ts"
+    "demo:mock": "node --env-file-if-exists=.env --env-file-if-exists=.env.worker --import tsx scripts/demo-mock.ts",
+    "crypto:build": "npm run build --workspace=@gallery-arcana/client-crypto",
+    "journey:capsule": "node --env-file-if-exists=.env --env-file-if-exists=.env.worker --import tsx scripts/journey-capsule.ts"
   },
   "dependencies": {
+    "@hpke/core": "1.9.0",
+    "ethers": "6.17.0",
     "fastify": "^5.0.0",
     "pg": "^8.12.0",
     "sharp": "^0.35.5",
+    "undici": "7.30.1",
     "zod": "^4.6.7"
   },
   "devDependencies": {
@@ -31,5 +36,8 @@
   },
   "engines": {
     "node": ">=22"
-  }
+  },
+  "workspaces": [
+    "packages/*"
+  ]
 }

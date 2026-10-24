@@ -93,3 +93,23 @@ Configure the optional simulator as described above, then run `npm run demo:mock
 ## Dispute operation
 
 Admin dispute list/resolution require a strong `ADMIN_TOKEN`, direct loopback and `X-Admin-Token`, with the normal CSRF header on mutations. Keep all `/api/admin/*` routes out of external reverse-proxy routing; a proxy can make remote traffic appear loopback. Tokens provide shared operator authorization, not individual operator identity. Each successful release/refund has an immutable-kind/timestamp acquisition event, but there is no independent tamper-proof audit service. Review confidential reasons privately; release signs `operator_release`, refund queues all received funds. Concurrent/repeated decisions cannot allocate both ways. Payment-review orders require separate wallet reconciliation and cannot be resolved through this endpoint.
+
+## v0.5 upgrade and client package
+
+Stop old API/worker processes, preserve keys/backups, then run `npm ci`, `npm run crypto:build`, `npm run migrate`, and the existing legacy digest backfill. Migrations 008–010 add identities, ciphertext metadata/envelopes, conversations, reviewer evidence/append-only decisions, invitations, passport issuer history/revocation and independent control observations. Existing migrations and server-encrypted orders stay intact. New code must run against the latest schema; no real-wallet/mainnet flag is enabled by migration.
+
+The root npm workspace builds `@gallery-arcana/client-crypto@1.0.0` to browser ESM/declarations. `npm run journey:capsule` exercises the local encrypted-product/conversation purchase and passport journey through the same optional authenticated mock simulator as `demo:mock`. It creates local records and prints result flags only. Real-browser interoperability is not established by Node tests; require independent review before deployment.
+
+Use trusted-channel initial fingerprint comparison. Back up client identities with separate random recovery keys and retain old identities plus delivered key envelopes. The server cannot restore lost client keys. After rotation, create a new conversation; after recovery reset, counterparts must explicitly accept the new trust root. Purchased envelopes retain their original buyer key and routing association after financial cleanup.
+
+## Passport issuer rotation and compromise
+
+Run `npm run keys -- /secure/new-directory` to provision a separate pair without overwriting current material, then update `ATTESTATION_SIGNING_KEY_FILE`/`ATTESTATION_VERIFY_KEY_FILE` and restart the API. The API registers the new issuer and preserves public key history. Stop/revoke the compromised old issuer through the protected `/api/admin/passport-issuers/{keyId}/revoke` endpoint. A revoked current key makes readiness/new issuance/release fail closed until configured paths are rotated. Retain historical public keys independently. Offline signatures alone do not reveal revocation; counterparties need the online check plus fresh holder-possession nonce verification where appropriate. Existing v1 receipt proofs are historical and keep their legacy endpoint contract.
+
+## Reviewer consent and retention
+
+Assign a reviewer only on a disputed order. Participants must pin its public identity and submit selected encrypted evidence; an administrator cannot automatically obtain plaintext. Explicit reassignment (`replaceAssignment:true`) needs new participant encryption/consent and cannot revoke previously disclosed copies. Review evidence privately; the operator's release/refund remains an explicit custody decision. The decision hash list records submitted packages, not a certified review or legal finding. Hourly privacy cleanup removes expired evidence/conversations/invites/passports; run the worker and monitor cleanup failures. Purchased envelope routing/key history and append-only decisions have longer recovery/audit retention and are not anonymous.
+
+## External control verifier operations
+
+DNS TXT uses the host resolver. Public GitHub challenge retrieval uses only `raw.githubusercontent.com`, fixed main-branch paths, 4 KiB responses, five-second timeout and no redirects; inherited proxy and CA settings are preserved. A restricted environment must permit that hostname through its normal approved network configuration. No private repository credentials or OAuth scopes are requested. EVM EIP-191 signature control is local cryptographic verification and does not query chain state. Observation outages fail closed and do not establish asset control. See ASSET_CONTROL.md.

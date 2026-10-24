@@ -25,7 +25,7 @@ try{
         DATABASE_URL:target.toString(),RUN_DB_TESTS:'1',ARCANA_ISOLATED_TEST_DB:'1',NODE_ENV:'test',
         STORAGE_DIR:storage,ASSET_ENCRYPTION_KEY:randomBytes(32).toString('hex'),MIN_CONFIRMATIONS:'2',
         ATTESTATION_SIGNING_KEY_FILE:privatePath,ATTESTATION_VERIFY_KEY_FILE:publicPath,
-        PUBLIC_ORIGIN:'http://localhost:8080',ADMIN_TOKEN:file==='acquisitions.integration.test.ts'?randomBytes(32).toString('hex'):'',WALLET_DRIVER:'mock',ZCASH_NETWORK:'test'}});
+        PUBLIC_ORIGIN:'http://localhost:8080',ADMIN_TOKEN:['acquisitions.integration.test.ts','privacy.integration.test.ts'].includes(file)?randomBytes(32).toString('hex'):'',WALLET_DRIVER:'mock',ZCASH_NETWORK:'test'}});
       const result=await new Promise<number>((resolve,reject)=>{child.once('error',reject);child.once('exit',(code,signal)=>resolve(signal?1:code??1));});
       if(result)process.exitCode=result;
     }finally{await database?.end();if(created)await admin.query(`DROP DATABASE ${databaseName} WITH (FORCE)`);rmSync(storage,{recursive:true,force:true});}

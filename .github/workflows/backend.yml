@@ -48,3 +48,5 @@ jobs:
           npm run migrate
           npm run migrate
       - run: npm run test:all
+      - name: Consume compiled client SDK
+        run: node --input-type=module -e "const sdk=await import('@gallery-arcana/client-crypto'); const p=await sdk.encryptCapsule(new Uint8Array([1,2,3]),{name:'check.bin',mime:'application/octet-stream'}); const opened=await sdk.decryptCapsule(p.capsule,p.contentKey); if(opened.bytes.join(',')!=='1,2,3')process.exit(1);"

@@ -1,0 +1,177 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {randomBytes,generateKeyPairSync} from 'node:crypto';
+import {writeFileSync} from 'node:fs';
+import {join} from 'node:path';
+import {Wallet} from 'ethers';
+import {verifyControl,controlSubject} from '../src/services/assetControl.ts';
+import {pool} from '../src/db.ts';
+import {config} from '../src/config.ts';
+import {buildServer} from '../src/http/server.ts';
+import {DatabaseMockWallet} from '../src/wallet/databaseMock.ts';
+import {topUpAddressPool,scanOnce} from '../src/jobs/watcher.ts';
+import {runPayouts} from '../src/jobs/payouts.ts';
+import {privateBytes} from '../src/services/storage.ts';
+import {scrubOrders} from '../src/jobs/privacy.ts';
+import * as sdk from '../packages/client-crypto/src/index.ts';
+const enabled=process.env.RUN_DB_TESTS==='1'&&process.env.ARCANA_ISOLATED_TEST_DB==='1';
+test('v0.5 private commerce: client-only keys and authenticated funding-gated delivery',{skip:!enabled},async t=>{
+ const app=buildServer();await app.ready();t.after(async()=>{await app.close();await pool.end();});const wallet=new DatabaseMockWallet();let ip=2;
+ type Client={id:string;cookie:string;ip:string;identity:sdk.Identity};
+ const call=(method:any,url:string,body?:any,client?:Client,extra:Record<string,string>={})=>app.inject({method,url,payload:body,remoteAddress:client?.ip??'127.0.0.1',headers:{'x-arcana-action':'1',...(client?{cookie:client.cookie}:{}),...extra}});
+ const register=async(client:Client,identity:sdk.Identity,previous?:sdk.Identity)=>{
+  const challenge=await call('POST','/api/encryption/challenges',identity.public,client);assert.equal(challenge.statusCode,200,challenge.body);
+  const answer=await sdk.answerRegistration(identity,challenge.json(),previous);const done=await call('POST',`/api/encryption/challenges/${challenge.json().challengeId}/complete`,answer,client);assert.equal(done.statusCode,200,done.body);return {challenge:challenge.json(),answer};
+ };
+ const signup=async(prefix:string)=>{const address=`127.0.0.${ip++}`;const response=await app.inject({method:'POST',url:'/api/signup',remoteAddress:address,headers:{'x-arcana-action':'1'},payload:{alias:prefix+randomBytes(4).toString('hex'),passphrase:'private-commerce-passphrase'}});assert.equal(response.statusCode,200);const id=response.json().account.id;const client={id,cookie:String(response.headers['set-cookie']).split(';')[0]!,ip:address,identity:await sdk.generateIdentity(id,config.publicOrigin)};await register(client,client.identity);return client;};
+ const unauthenticatedCapsule=await app.inject({method:'POST',url:'/api/capsules?ignored=1',headers:{'x-arcana-action':'1','content-type':'text/xml'},payload:'untrusted body'});assert.equal(unauthenticatedCapsule.statusCode,401,'Capsule query strings must not bypass authentication before body parsing');
+ const seller=await signup('seller'),buyer=await signup('buyer'),outsider=await signup('outsider'),reviewer=await signup('reviewer');
+ assert.equal((await call('PUT','/api/me/payout',{address:'utest1mockpayout1234567890'},seller)).statusCode,200);
+ const plaintext=sdk.encode({secret:'Confidential commercial source code, not stored on the server'});
+ const product=await sdk.encryptCapsule(plaintext,{name:'confidential-source.json',mime:'application/json'});
+ const upload=await call('POST','/api/capsules',Buffer.from(sdk.encode(product.capsule)),seller,{'content-type':'application/octet-stream'});assert.equal(upload.statusCode,200,upload.body);const fileKey=upload.json().key,cipherSha=upload.json().sha256;
+ const listing=async()=>{await topUpAddressPool(wallet);const result=await call('POST','/api/listings',{title:'Private capsule product',visibility:'unlisted',fileKey,priceUsdCents:500},seller);assert.equal(result.statusCode,200,result.body);return result.json().listingId as string;};
+ const prepare=async(id:string,client=buyer)=>{const envelope=await sdk.capsuleKeyEnvelope(seller.identity,client.identity.public,client.identity.public.fingerprint,id,product.capsule,product.contentKey,new Date(Date.now()+7*86400000).toISOString());const response=await call('POST',`/api/listings/${id}/capsule-envelope`,{buyerId:client.id,envelope},seller);assert.equal(response.statusCode,200,response.body);return envelope;};
+ const checkout=async(id:string)=>{const response=await call('POST',`/api/listings/${id}/checkout`,{},buyer);assert.equal(response.statusCode,200,response.body);return response.json();};
+ const fund=async(order:any)=>{await wallet.simulatePayment(order.payment.address,BigInt(order.payment.amountZat),order.payment.memo,config.minConfirmations);await scanOnce(wallet);};
+ const getEnvelope=(order:any,client=buyer)=>call('POST',`/api/orders/${order.orderId}/key-envelope`,{receiptCode:order.receiptCode},client);
+ const download=(id:string,order:any,client=buyer)=>call('POST',`/api/files/${id}`,{receiptCode:order.receiptCode},client);
+ let completedOrder:any,completedListing:string;
+ await t.test('capsule checkout requires a prepositioned buyer key envelope; verified funding allows local-only decryption and acceptance',async()=>{
+  const id=await listing();assert.equal((await call('POST',`/api/listings/${id}/checkout`,{},buyer)).statusCode,409);
+  const conversation=(await call('POST','/api/conversations',{listingId:id},buyer)).json();
+  const message=await sdk.encryptConversation(buyer.identity,buyer.identity.public,seller.identity.public,{buyer:buyer.identity.public.fingerprint,seller:seller.identity.public.fingerprint},conversation.id,{text:'Please exchange the confidential product and selected license terms'},new Date(conversation.expires_at).toISOString());
+  assert.equal((await call('POST',`/api/conversations/${conversation.id}/messages`,message,buyer)).statusCode,200);
+  const deliveredMessage=(await call('GET',`/api/conversations/${conversation.id}/messages`,undefined,seller)).json()[0];assert.equal((await sdk.openConversation(seller.identity,buyer.identity.public,buyer.identity.public.fingerprint,conversation.id,deliveredMessage.envelope)).text,'Please exchange the confidential product and selected license terms');
+  await prepare(id);
+  const offered=await call('POST',`/api/listings/${id}/offers`,{amountUsdCents:400},buyer);assert.equal(offered.statusCode,200);await call('POST',`/api/offers/${offered.json().offerId}/action`,{action:'accept'},seller);
+  const reserved=await call('POST',`/api/listings/${id}/checkout`,{offerId:offered.json().offerId},buyer);assert.equal(reserved.statusCode,200,reserved.body);const order=reserved.json();
+  assert.equal((await getEnvelope(order)).statusCode,404);assert.equal((await getEnvelope(order,seller)).statusCode,404);assert.equal((await download(id,order)).statusCode,404);
+  await fund(order);await runPayouts(wallet);assert.equal((await pool.query('SELECT count(*)::int AS n FROM payouts WHERE ref_id=$1',[order.orderId])).rows[0].n,0);
+  await pool.query("UPDATE capsule_envelopes SET expires_at=now()-interval '1 second' WHERE id=(SELECT capsule_envelope_id FROM orders WHERE id=$1)",[order.orderId]);
+  assert.equal((await getEnvelope(order,outsider)).statusCode,404);const envelope=(await getEnvelope(order)).json().envelope;
+  const received=await download(id,order);assert.equal(received.statusCode,200);assert.equal(received.headers['x-arcana-asset-sha256'],cipherSha);
+  const capsule=JSON.parse(received.body);const opened=await sdk.openCapsule(buyer.identity,seller.identity.public,seller.identity.public.fingerprint,id,capsule,envelope);assert.deepEqual(opened.bytes,plaintext);assert.equal(opened.metadata.name,'confidential-source.json');
+  await assert.rejects(sdk.openCapsule(outsider.identity,seller.identity.public,seller.identity.public.fingerprint,id,capsule,envelope));
+  const persisted=JSON.stringify((await pool.query('SELECT envelope FROM capsule_envelopes')).rows);assert.equal(persisted.includes(sdk.b64(product.contentKey)),false);assert.equal(persisted.includes('commercial source'),false);assert.equal(privateBytes(fileKey)!.includes(Buffer.from(plaintext)),false);
+  const accepted=await call('POST',`/api/orders/${order.orderId}/confirm-delivery`,{receiptCode:order.receiptCode,assetSha256:cipherSha},buyer);assert.equal(accepted.statusCode,200,accepted.body);assert.equal((await call('POST','/api/proofs/verify',{proof:accepted.json().proof})).json().valid,true);
+  assert.equal((await pool.query('SELECT count(*)::int AS n FROM payouts WHERE ref_id=$1',[order.orderId])).rows[0].n,1);completedOrder=order;completedListing=id;
+ });
+ await t.test('conversations encrypt both participant copies, attachments and sender signatures; reject replay, injection and outsiders',async()=>{
+  const id=await listing(),created=await call('POST','/api/conversations',{listingId:id},buyer);assert.equal(created.statusCode,200,created.body);const conv=created.json();
+  const attachment=sdk.encode({private:'encrypted evidence attachment'}),payload={text:'A confidential counteroffer explanation',attachments:[{name:'private-note.json',bytes:sdk.b64(attachment),sha256:await sdk.digest(attachment)}]};
+  const message=await sdk.encryptConversation(buyer.identity,buyer.identity.public,seller.identity.public,{buyer:buyer.identity.public.fingerprint,seller:seller.identity.public.fingerprint},conv.id,payload,new Date(conv.expires_at).toISOString());
+  assert.equal((await call('POST',`/api/conversations/${conv.id}/messages`,message,outsider)).statusCode,404);
+  assert.equal((await call('POST',`/api/conversations/${conv.id}/messages`,message,buyer)).statusCode,200);
+  assert.equal((await call('POST',`/api/conversations/${conv.id}/messages`,message,buyer)).statusCode,409);
+  assert.equal((await call('GET',`/api/conversations/${conv.id}/messages`,undefined,outsider)).statusCode,404);
+  for(const client of [buyer,seller]){const messages=(await call('GET',`/api/conversations/${conv.id}/messages`,undefined,client)).json();const opened=sdk.decode(await sdk.openEnvelope(client.identity,buyer.identity.public,buyer.identity.public.fingerprint,messages[0].envelope,{purpose:'message',resourceId:conv.id}));assert.deepEqual(opened,payload);}
+  assert.equal(JSON.stringify((await pool.query('SELECT * FROM encrypted_messages')).rows).includes(payload.text),false);
+  const forged=structuredClone(message);forged.id=crypto.randomUUID();forged.buyer.context.nonce=forged.id;forged.seller.context.nonce=forged.id;assert.equal((await call('POST',`/api/conversations/${conv.id}/messages`,forged,buyer)).statusCode,401);
+  await pool.query("UPDATE conversations SET expires_at=now()-interval '1 second' WHERE id=$1",[conv.id]);assert.equal((await call('GET',`/api/conversations/${conv.id}/messages`,undefined,buyer)).statusCode,404);await scrubOrders();assert.equal((await pool.query('SELECT count(*)::int AS n FROM encrypted_messages WHERE conversation_id=$1',[conv.id])).rows[0].n,0);
+ });
+ await t.test('identity substitution and registration replay fail; signed rotation preserves inspectable continuity',async()=>{
+  const replacement=await sdk.generateIdentity(buyer.id,config.publicOrigin),challenge=await call('POST','/api/encryption/challenges',replacement.public,buyer);assert.equal(challenge.statusCode,200);
+  const answer=await sdk.answerRegistration(replacement,challenge.json());assert.equal((await call('POST',`/api/encryption/challenges/${challenge.json().challengeId}/complete`,answer,buyer)).statusCode,401);
+  answer.previousSignature=await sdk.signStatement(buyer.identity,sdk.registrationStatement(challenge.json().statement,answer.secret));assert.equal((await call('POST',`/api/encryption/challenges/${challenge.json().challengeId}/complete`,answer,buyer)).statusCode,200);
+  assert.equal((await call('POST',`/api/encryption/challenges/${challenge.json().challengeId}/complete`,answer,buyer)).statusCode,401);
+  const history=(await call('GET',`/api/encryption/identities/${buyer.id}`,undefined,buyer)).json();assert.equal(history.length,2);assert.equal(await sdk.verifyIdentityBinding(history[1].public_identity,history[1].binding,buyer.identity.public),true);
+  // Historical purchased envelopes remain usable with retained keys after rotation.
+  const existing=(await getEnvelope(completedOrder)).json().envelope;assert.deepEqual((await sdk.openCapsule(buyer.identity,seller.identity.public,seller.identity.public.fingerprint,completedListing,product.capsule,existing)).bytes,plaintext);
+  const original=buyer.identity;buyer.identity=replacement;
+  await pool.query("UPDATE encryption_identities SET created_at=clock_timestamp()+interval '1 day' WHERE id=$1",[original.public.keyId]);
+  const next=await sdk.generateIdentity(buyer.id,config.publicOrigin),latestChallenge=await call('POST','/api/encryption/challenges',next.public,buyer);assert.equal(latestChallenge.statusCode,200);
+  assert.equal(JSON.parse(latestChallenge.json().statement)[5],replacement.public.keyId,'Revision ordering must resist clock/transaction timestamp inversion');
+  const wrongContinuity=await sdk.answerRegistration(next,latestChallenge.json(),original);assert.equal((await call('POST',`/api/encryption/challenges/${latestChallenge.json().challengeId}/complete`,wrongContinuity,buyer)).statusCode,401);
+  const continuity=await sdk.answerRegistration(next,latestChallenge.json(),replacement);assert.equal((await call('POST',`/api/encryption/challenges/${latestChallenge.json().challengeId}/complete`,continuity,buyer)).statusCode,200);buyer.identity=next;
+  const changed=structuredClone(replacement.public);changed.accountId=seller.id;assert.equal((await call('POST','/api/encryption/challenges',changed,buyer)).statusCode,400);
+ });
+ await t.test('selected evidence is encrypted only to the designated reviewer; operator resolution records are append-only',async()=>{
+  const id=await listing();await prepare(id);const order=await checkout(id);await fund(order);
+  assert.equal((await call('POST',`/api/orders/${order.orderId}/dispute`,{reason:'Please review explicitly disclosed encrypted evidence'},buyer)).statusCode,200);
+  const assigned=await call('POST',`/api/admin/orders/${order.orderId}/reviewer`,{reviewerId:reviewer.id},undefined,{'x-admin-token':config.adminToken!});assert.equal(assigned.statusCode,200,assigned.body);
+  const context={origin:config.publicOrigin,purpose:'evidence' as const,resourceId:order.orderId,nonce:crypto.randomUUID(),senderAccountId:buyer.id,recipientAccountId:reviewer.id,expiresAt:new Date(Date.now()+86400000).toISOString()};
+  const selected=sdk.encode({selectedMessage:'Only this selected excerpt',attachments:[await sdk.attachment('note',sdk.encode('selected bytes'))]});
+  const envelope=await sdk.sealEnvelope(buyer.identity,reviewer.identity.public,reviewer.identity.public.fingerprint,context,selected);
+  const tampered=structuredClone(envelope);tampered.ciphertext=(tampered.ciphertext[0]==='A'?'B':'A')+tampered.ciphertext.slice(1);assert.equal((await call('POST',`/api/orders/${order.orderId}/evidence`,{consent:true,envelope:tampered},buyer)).statusCode,401);
+  const submit=await call('POST',`/api/orders/${order.orderId}/evidence`,{consent:true,envelope},buyer);assert.equal(submit.statusCode,200,submit.body);
+  assert.equal((await call('GET',`/api/orders/${order.orderId}/evidence`,undefined,seller)).statusCode,404);
+  assert.equal((await call('GET',`/api/orders/${order.orderId}/evidence`,undefined,undefined,{'x-admin-token':config.adminToken!})).statusCode,401);
+  const evidence=(await call('GET',`/api/orders/${order.orderId}/evidence`,undefined,reviewer)).json();assert.deepEqual(await sdk.openEnvelope(reviewer.identity,buyer.identity.public,buyer.identity.public.fingerprint,evidence[0].envelope,{purpose:'evidence',resourceId:order.orderId}),selected);
+  assert.equal(JSON.stringify((await pool.query('SELECT * FROM dispute_evidence')).rows).includes('Only this selected'),false);
+  const reassigned=await call('POST',`/api/admin/orders/${order.orderId}/reviewer`,{reviewerId:outsider.id,replaceAssignment:true},undefined,{'x-admin-token':config.adminToken!});assert.equal(reassigned.statusCode,200,reassigned.body);
+  assert.equal((await call('GET',`/api/orders/${order.orderId}/evidence`,undefined,reviewer)).statusCode,404);assert.equal((await call('GET',`/api/orders/${order.orderId}/evidence`,undefined,outsider)).json().length,0);
+  const newlyConsented=await sdk.sealEnvelope(buyer.identity,outsider.identity.public,outsider.identity.public.fingerprint,{...context,nonce:crypto.randomUUID(),recipientAccountId:outsider.id},selected);
+  assert.equal((await call('POST',`/api/orders/${order.orderId}/evidence`,{consent:true,envelope:newlyConsented},buyer)).statusCode,200);
+  const reassignedEvidence=(await call('GET',`/api/orders/${order.orderId}/evidence`,undefined,outsider)).json();assert.equal(reassignedEvidence.length,1);assert.deepEqual(await sdk.openEnvelope(outsider.identity,buyer.identity.public,buyer.identity.public.fingerprint,reassignedEvidence[0].envelope,{purpose:'evidence',resourceId:order.orderId}),selected);
+  const resolve=await call('POST',`/api/admin/orders/${order.orderId}/resolve`,{decision:'refund',refundAddress:'utest1mockrefund1234567890'},undefined,{'x-admin-token':config.adminToken!});assert.equal(resolve.statusCode,200,resolve.body);
+  await assert.rejects(pool.query("UPDATE dispute_decisions SET decision='release' WHERE order_id=$1",[order.orderId]));await assert.rejects(pool.query('DELETE FROM dispute_decisions WHERE order_id=$1',[order.orderId]));assert.equal((await pool.query('SELECT evidence_hashes FROM dispute_decisions WHERE order_id=$1',[order.orderId])).rows[0].evidence_hashes.length,2);
+ });
+ await t.test('single-use private invitations enforce designated buyers, immutable prices, expiry, revocation and atomic redemption',async()=>{
+  const id=await listing();await prepare(id);
+  const response=await call('POST',`/api/listings/${id}/invitations`,{buyerId:buyer.id,priceUsdCents:375,hours:24},seller);assert.equal(response.statusCode,200,response.body);const invite=response.json();
+  assert.equal((await call('GET',`/api/listings/${id}`,undefined,buyer)).statusCode,404);assert.equal((await call('GET',`/api/listings/${id}`,undefined,seller)).statusCode,200);
+  assert.equal((await call('POST',`/api/listings/${id}/checkout`,{},buyer)).statusCode,404);
+  assert.equal((await call('POST',`/api/listings/${id}/offers`,{amountUsdCents:300},buyer)).statusCode,404);assert.equal((await call('POST','/api/conversations',{listingId:id},buyer)).statusCode,404);
+  assert.equal((await call('POST',`/api/listings/${id}/offers`,{amountUsdCents:300,invitation:{id:invite.invitationId,capability:invite.capability}},buyer)).statusCode,200);
+  assert.equal((await call('POST','/api/conversations',{listingId:id,invitation:{id:invite.invitationId,capability:invite.capability}},buyer)).statusCode,200);
+  assert.equal((await call('POST',`/api/invitations/${invite.invitationId}/inspect`,{capability:invite.capability},outsider)).statusCode,404);
+  assert.equal((await call('POST',`/api/invitations/${invite.invitationId}/inspect`,{capability:'x'.repeat(43)},buyer)).statusCode,404);
+  assert.equal((await call('POST',`/api/invitations/${invite.invitationId}/inspect`,{capability:invite.capability},buyer)).statusCode,200);
+  const results=await Promise.all([call('POST',`/api/invitations/${invite.invitationId}/redeem`,{capability:invite.capability},buyer),call('POST',`/api/invitations/${invite.invitationId}/redeem`,{capability:invite.capability},buyer)]);
+  assert.equal(results.filter(r=>r.statusCode===200).length,1);assert.ok(results.some(r=>[404,409].includes(r.statusCode))); // loser may fail inspection or the later locked checkoutassert.equal(results.find(r=>r.statusCode===200)!.json().payment.usdCents,375);
+  const stored=(await pool.query('SELECT * FROM sale_invitations WHERE id=$1',[invite.invitationId])).rows[0];assert.equal(JSON.stringify(stored).includes(invite.capability),false);assert.ok(stored.redeemed_order_id);
+  const next=await listing();const expiring=(await call('POST',`/api/listings/${next}/invitations`,{},seller)).json();await pool.query("UPDATE sale_invitations SET expires_at=now()-interval '1 second' WHERE id=$1",[expiring.invitationId]);assert.equal((await call('POST',`/api/invitations/${expiring.invitationId}/redeem`,{capability:expiring.capability},buyer)).statusCode,404);
+  const revoked=(await call('POST',`/api/listings/${next}/invitations`,{},seller)).json();assert.equal((await call('DELETE',`/api/invitations/${revoked.invitationId}`,undefined,seller)).statusCode,200);assert.equal((await call('POST',`/api/invitations/${revoked.invitationId}/inspect`,{capability:revoked.capability},buyer)).statusCode,404);
+ });
+ await t.test('trade passports disclose selected historical facts, bind audience/holder, expire and revoke without publishing source transactions',async()=>{
+  const result=await call('POST','/api/passports',{kind:'completed_acquisition',orderId:completedOrder.orderId,audience:'private-counterparty'},buyer);assert.equal(result.statusCode,200,result.body);const passport=result.json();
+  for(const value of [completedOrder.orderId,completedListing,cipherSha,buyer.id,seller.id])assert.equal(JSON.stringify(passport).includes(value),false);
+  assert.equal(passport.claim.disclosedCount,undefined);
+  assert.equal((await call('POST','/api/passports/verify',{proof:passport,audience:'private-counterparty'})).json().valid,true);assert.equal((await call('POST','/api/passports/verify',{proof:passport,audience:'other'})).json().valid,false);
+  const nonce=sdk.b64(crypto.getRandomValues(new Uint8Array(32))),presentation=await sdk.passportPresentation(buyer.identity,passport,nonce);assert.equal(await sdk.verifyPassportPresentation(passport,nonce,presentation),true);assert.equal(await sdk.verifyPassportPresentation(passport,sdk.b64(crypto.getRandomValues(new Uint8Array(32))),presentation),false);
+  const tampered=structuredClone(passport);tampered.claim.minimum=10;assert.equal((await call('POST','/api/passports/verify',{proof:tampered,audience:'private-counterparty'})).json().valid,false);
+  assert.equal((await call('POST','/api/passports',{kind:'completed_acquisition',orderId:completedOrder.orderId,audience:'x'},outsider)).statusCode,404);
+  const count=await call('POST','/api/passports',{kind:'seller_deliveries',minimum:1,audience:'prospective-buyer'},seller);assert.equal(count.statusCode,200,count.body);assert.equal(count.json().claim.minimum,1);assert.equal(count.json().claim.disclosedCount,undefined);
+  assert.equal((await call('DELETE',`/api/passports/${passport.claim.id}`,undefined,outsider)).statusCode,404);assert.equal((await call('DELETE',`/api/passports/${passport.claim.id}`,undefined,buyer)).statusCode,200);assert.equal((await call('POST','/api/passports/verify',{proof:passport,audience:'private-counterparty'})).json().valid,false);
+  await pool.query("UPDATE trade_passports SET expires_at=now()-interval '1 second' WHERE id=$1",[count.json().claim.id]);assert.equal((await call('POST','/api/passports/verify',{proof:count.json(),audience:'prospective-buyer'})).json().valid,false);
+ });
+ await t.test('payment review revokes acquisition and seller-threshold passports and freezes capsule key delivery',async()=>{
+  const id=await listing();await prepare(id);const order=await checkout(id);await fund(order);assert.equal((await download(id,order)).statusCode,200);
+  assert.equal((await call('POST',`/api/orders/${order.orderId}/confirm-delivery`,{receiptCode:order.receiptCode,assetSha256:cipherSha},buyer)).statusCode,200);
+  const acquisition=(await call('POST','/api/passports',{kind:'completed_acquisition',orderId:order.orderId,audience:'review-test'},buyer)).json();
+  const aggregate=(await call('POST','/api/passports',{kind:'seller_deliveries',minimum:2,audience:'review-test'},seller)).json();assert.ok(acquisition.claim);assert.ok(aggregate.claim);
+  await pool.query('UPDATE mock_notes SET canonical=false WHERE address=$1',[order.payment.address]);await scanOnce(wallet);
+  assert.equal((await getEnvelope(order)).statusCode,404);for(const proof of [acquisition,aggregate])assert.equal((await call('POST','/api/passports/verify',{proof,audience:'review-test'})).json().valid,false);
+ });
+ await t.test('asset-control challenges prove EIP-191 key control and enforce nonce, expiry, recipient and fixed network targets',async()=>{
+  const wallet=Wallet.createRandom();const response=await call('POST','/api/asset-control/challenges',{kind:'evm',subject:wallet.address,chainId:1},seller);assert.equal(response.statusCode,200,response.body);const challenge=response.json(),signature=await wallet.signMessage(challenge.statement);
+  assert.equal((await call('POST',`/api/asset-control/challenges/${challenge.challengeId}/verify`,{signature},outsider)).statusCode,404);
+  assert.equal((await call('POST',`/api/asset-control/challenges/${challenge.challengeId}/verify`,{signature},seller)).statusCode,200);
+  assert.equal((await call('POST',`/api/asset-control/challenges/${challenge.challengeId}/verify`,{signature},seller)).statusCode,404);
+  const other=(await call('POST','/api/asset-control/challenges',{kind:'evm',subject:wallet.address},seller)).json();assert.equal((await call('POST',`/api/asset-control/challenges/${other.challengeId}/verify`,{signature},seller)).statusCode,409);
+  await pool.query("UPDATE asset_control_challenges SET expires_at=now()-interval '1 second' WHERE id=$1",[other.challengeId]);assert.equal((await call('POST',`/api/asset-control/challenges/${other.challengeId}/verify`,{signature:await wallet.signMessage(other.statement)},seller)).statusCode,404);
+  const dns=(await call('POST','/api/asset-control/challenges',{kind:'dns',subject:'controlled.example'},seller)).json();
+  const github=(await call('POST','/api/asset-control/challenges',{kind:'github',subject:'owner/repository'},seller)).json();
+  const transport={txt:async(name:string)=>{assert.equal(name,'_arcana-control.controlled.example');return [[dns.value]];},github:async(repo:string)=>{assert.equal(repo,'owner/repository');return github.value;}};
+  assert.equal((await verifyControl(seller.id,dns.challengeId,undefined,transport)).scope,'control-at-observation-time');assert.equal((await verifyControl(seller.id,github.challengeId,undefined,transport)).legalOwnership,false);
+  for(const [kind,value] of [['github','../../secret'],['github','https://attacker.invalid/repo'],['dns','127.0.0.1'],['dns','localhost'],['dns','a.internal']])assert.throws(()=>controlSubject(kind as any,value!));
+  assert.equal((await call('GET','/api/asset-control/verifications',undefined,outsider)).json().length,0);
+ });
+ await t.test('identity loss reset needs fresh passphrase and publishes an explicit continuity break',async()=>{
+  assert.equal((await call('POST','/api/encryption/reset',{passphrase:'wrong',acknowledgeKeyLoss:true},outsider)).statusCode,401);
+  const reset=await call('POST','/api/encryption/reset',{passphrase:'private-commerce-passphrase',acknowledgeKeyLoss:true},outsider);assert.equal(reset.statusCode,200);assert.equal(reset.json().continuityLost,true);
+  const next=await sdk.generateIdentity(outsider.id,config.publicOrigin);await register(outsider,next);const history=(await call('GET',`/api/encryption/identities/${outsider.id}`,undefined,outsider)).json();assert.equal(history[1].epoch,1);assert.equal(await sdk.verifyIdentityBinding(history[1].public_identity,history[1].binding),false);
+ });
+ await t.test('signing key history verifies old passports after rotation, and compromise revocation fails closed',async()=>{
+  const old=(await call('POST','/api/passports',{kind:'seller_deliveries',audience:'key-rotation'},seller)).json();assert.ok(old.claim);
+  const pair=generateKeyPairSync('ed25519'),privatePath=join(config.storageDir,'rotated-private.pem'),publicPath=join(config.storageDir,'rotated-public.pem');writeFileSync(privatePath,pair.privateKey.export({format:'pem',type:'pkcs8'}),{mode:0o600});writeFileSync(publicPath,pair.publicKey.export({format:'pem',type:'spki'}),{mode:0o600});
+  const previousPrivate=process.env.ATTESTATION_SIGNING_KEY_FILE,previousPublic=process.env.ATTESTATION_VERIFY_KEY_FILE;process.env.ATTESTATION_SIGNING_KEY_FILE=privatePath;process.env.ATTESTATION_VERIFY_KEY_FILE=publicPath;
+  try{const issued=await call('POST','/api/passports',{kind:'seller_deliveries',audience:'key-rotation'},seller);assert.equal(issued.statusCode,200,issued.body);assert.notEqual(issued.json().claim.keyId,old.claim.keyId);
+   assert.equal((await call('POST','/api/passports/verify',{proof:old,audience:'key-rotation'})).json().valid,true);const issuers=(await call('GET','/api/passports/issuers')).json();assert.equal(issuers.length,2);assert.equal(await sdk.verifyPassportSignature(old,issuers.find((key:any)=>key.id===old.claim.keyId).public_key,'key-rotation'),true);
+   assert.equal((await call('POST',`/api/admin/passport-issuers/${old.claim.keyId}/revoke`,{},undefined,{'x-admin-token':config.adminToken!})).statusCode,200);assert.equal((await call('POST','/api/passports/verify',{proof:old,audience:'key-rotation'})).json().valid,false);
+  }finally{process.env.ATTESTATION_SIGNING_KEY_FILE=previousPrivate;process.env.ATTESTATION_VERIFY_KEY_FILE=previousPublic;}
+  assert.equal((await call('POST','/api/passports',{kind:'seller_deliveries',audience:'compromised'},seller)).statusCode,409);
+ });
+
+});
