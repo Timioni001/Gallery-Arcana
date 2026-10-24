@@ -1,0 +1,83 @@
+# Local operation (Ubuntu / WSL)
+
+## Native PostgreSQL
+
+On Ubuntu 24.04/WSL with PostgreSQL 16 packages available:
+
+```bash
+sudo apt update
+sudo apt install postgresql-16 postgresql-contrib openssl
+sudo service postgresql start
+sudo -u postgres createuser --pwprompt --createdb arcana
+sudo -u postgres createdb --owner=arcana arcana
+```
+
+Enter a local development password at the prompt, then set `DATABASE_URL` in the ignored `.env` file to match it. The CREATEDB privilege is for isolated local testing; the application itself does not need it. A dedicated test administrator can instead be supplied through `TEST_DATABASE_ADMIN_URL` for the test command. Ubuntu versions without PostgreSQL 16 in their default repositories need the official PostgreSQL package repository or an existing PostgreSQL 16 server.
+
+Docker is an alternative, not a requirement:
+
+```bash
+docker compose up -d db
+```
+
+The included container binds Postgres to loopback and uses development-only credentials. Integration commands use PostgreSQL protocol connections and do not invoke Docker.
+
+## Install and configure
+
+```bash
+npm ci
+cp .env.example .env       # preserve an existing file
+openssl rand -hex 32       # securely put the generated value in ASSET_ENCRYPTION_KEY
+npm run migrate
+```
+
+Keep the encryption key stable and back it up securely together with storage. Losing it loses private originals. No setup script should regenerate an existing key. The API validates the key before listening. Files and directories use restrictive permissions. Original archive-format encrypted files remain readable; new files bind the storage key as GCM associated data.
+
+Use `chmod 600 .env` after creating it. `.env`, `.env.worker`, dependency directories and asset storage are ignored by Git. Never put secrets in command output, logs or source control. `PUBLIC_ORIGIN` must be an exact origin; remote HTTP is rejected. HTTPS origins enable Secure cookies. Keep `trustProxy` disabled unless a specific trusted proxy configuration is implemented and verified.
+
+## Separate processes
+
+```bash
+npm run worker            # terminal A; localhost worker port 8081
+npm run api               # terminal B; localhost API port 8080
+```
+
+Both load shared development settings from `.env`; only the worker additionally loads `.env.worker`. The public API imports no wallet adapter and rejects a nonempty `ZALLET_RPC_PASS`, `ZCASH_SPENDING_KEY` or `WALLET_SEED` in its environment. For future custody deployment, use separate OS/database identities and a dedicated secret store; current development processes share a database identity and are not a production isolation boundary.
+
+The worker holds an exclusive PostgreSQL advisory lock, schedules one payment cycle at a time, backs off failed cycles, and stores a heartbeat. Each process registers a new instance UUID after acquiring the lock; later heartbeat and shutdown updates require that UUID, preventing a draining predecessor from overwriting its replacement. Losing the lock connection drains the worker with exit code 1 and stops subsequent cycle stages. A cycle refreshes destinations, expires reservations, scans complete output snapshots and then handles payouts. Spending does not follow a failed scan. SIGINT/SIGTERM drain work and close listeners, database pools and worker locks. SIGKILL recovery uses persisted invoices, output observations and mock wallet state.
+
+Liveness: `GET /api/health`. Readiness: `GET /api/ready`, which returns 503 if the current schema/key, recent ready worker heartbeat or free destination is missing. The worker has loopback `/health` and `/ready`. Readiness proves the local mock workflow only, not Zcash synchronization.
+
+## Explicit mock simulator
+
+Copy `.env.worker.example` to `.env.worker`. Add a generated 32-byte hex `MOCK_SIMULATOR_TOKEN`; leaving it unset disables simulation. Submit an invoice's address, integer `zat` string and exact memo to `POST http://127.0.0.1:8081/dev/pay`, using `Authorization: Bearer <local simulator token>` and JSON content type. Responses explicitly say `mode: mock`. Confirmation values come from the configured mock threshold; they are not chain evidence. Never expose the worker port publicly.
+
+## Migrations and tests
+
+`npm run migrate` serializes changes with an advisory lock and applies the original baseline plus ordered `db/migrations/*.sql` in a transaction. Applied SQL checksums are immutable. An intact original unversioned schema is adopted, then upgraded; an incomplete baseline fails instead of guessing. Migration 004 adopts legacy mock destination records; historical notes lost by the original in-memory simulator cannot be reconstructed and are never fabricated. Back up non-disposable databases before upgrades. Add a new migration for further schema changes.
+
+Migration 005 fences worker heartbeat ownership and invalidates the old readiness record. Stop existing API/worker processes, run migrations, then start both processes on the upgraded code. Keep the current schema and application version together.
+
+```bash
+npm test
+npm run test:integration
+npm run typecheck
+```
+
+The integration runner creates an unpredictable `arcana_test_*` database and private temporary storage per file, applies migrations twice, runs the tests and drops only that database. It preserves child exit status. No Docker dependency is required. A CREATEDB failure requires a test-role grant or an appropriate `TEST_DATABASE_ADMIN_URL`; do not grant broad permissions to a deployed API account. Interrupted test runners can leave disposable `arcana_test_*` databases; verify ownership and that no test process is active before removing them.
+
+## Payout recovery and review
+
+```bash
+npm run payouts:reconcile
+```
+
+This worker-side command only records a found wallet submission whose destination and amount exactly match the durable payout UUID. It never resends `sending` payouts. A missing or unknown lookup remains unresolved: inspect wallet history independently before any manual recovery. `attempts` and privacy-safe failure codes remain auditable.
+
+The optional `/api/admin/payouts/stuck` endpoint is disabled without a strong `ADMIN_TOKEN` and only accepts loopback connections, using constant-time secret comparison. Prefer the reconciliation command; the endpoint cannot spend or modify state and omits destinations, memos and transaction IDs.
+
+Settled reorgs, changed confirmed totals or inconsistent output identities enter review. Queued payouts are cancelled, delivery is frozen for affected paid orders, and sending/sent payouts require reconciliation. There is deliberately no automatic "unfreeze" or ambiguous-send retry. These cases are a blocker to production custody until operator recovery is independently verified.
+
+## Real-wallet infrastructure diagnosis
+
+`npm run zallet:probe` performs supported read-only RPC checks through a loopback endpoint configured in `.env.worker`. It cannot generate addresses, create accounts, spend or enable real mode. See [ZALLET_GAP.md](ZALLET_GAP.md) for binding setup, exactly what is sampled and the live acceptance requirements. A passing probe is not a verified Zcash payment.

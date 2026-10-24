@@ -1,7 +1,6 @@
-import { readFileSync } from 'node:fs';
-import { pool } from '../src/db.ts';
-
-const sql = readFileSync(new URL('../db/schema.sql', import.meta.url), 'utf8');
-await pool.query(sql);
-console.log('schema applied');
-await pool.end();
+import {pool} from '../src/db.ts';
+import {migrate} from '../src/migrations.ts';
+import {log,errorCode} from '../src/lib/log.ts';
+try{await migrate(pool);console.log('Migrations applied; schema is current');}
+catch(error){log('migration_failed',{level:'error',code:errorCode(error)});process.exitCode=1;}
+finally{await pool.end();}
