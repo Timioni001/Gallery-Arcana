@@ -17,6 +17,8 @@
     "assets:backfill": "node --env-file-if-exists=.env --import tsx scripts/backfill-asset-digests.ts",
     "demo:mock": "node --env-file-if-exists=.env --env-file-if-exists=.env.worker --import tsx scripts/demo-mock.ts",
     "crypto:build": "npm run build --workspace=@gallery-arcana/client-crypto",
+    "web:dev": "npm run dev --prefix web",
+    "web:build": "npm run build --prefix web",
     "journey:capsule": "node --env-file-if-exists=.env --env-file-if-exists=.env.worker --import tsx scripts/journey-capsule.ts"
   },
   "dependencies": {
