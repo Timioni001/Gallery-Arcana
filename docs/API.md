@@ -9,7 +9,7 @@ Errors use `{error: string}` with 400 for input errors, 401 for missing authenti
 | Route | Contract |
 | --- | --- |
 | `GET /` | API name, version and documentation metadata. |
-| `GET /api/health` | Process liveness, `mode: mock`, `network: test`. No chain-readiness claim. |
+| `GET /api/health` | Process liveness, `mode: mock`, `network: test`, and `origin` (the exact `PUBLIC_ORIGIN` that client encryption identities must bind to). No chain-readiness claim. |
 | `GET /api/ready` | 200 only when migrations, encryption/signing keys, worker heartbeat and free destination pool are ready; otherwise 503. |
 | `GET /api/listings` | Live public listings. Optional `category=digital\|collectible\|onchain\|other`, literal title `q` (70 chars), `limit` 1–80 (default 40), `offset` 0–10000. Returns an array ordered by creation time and ID. |
 | `GET /api/listings/{id}` | Listing metadata by UUID; unlisted links are readable by anyone possessing the URL. Paused listings are visible only to their seller. |
@@ -49,7 +49,7 @@ Tokens are random 256-bit values, stored as hashes. Cookies are HttpOnly, SameSi
 | Route | Contract |
 | --- | --- |
 | `POST /api/listings/{id}/offers` | Buyer `{amountUsdCents}` (same integer price bounds). One active offer per buyer/listing. Returns `{offerId,revision}`. |
-| `GET /api/offers` | Only the account's buyer/seller offers; includes amount, counter, status and revision. No global history. |
+| `GET /api/offers` | Only the account's buyer/seller offers; includes amount, counter, status, revision and listing `crypto_mode`. For the seller only, `buyer_id`/`buyer_alias` identify the pseudonymous buyer so a capsule key can be sealed to them (null for the buyer). `capsule_ready` is true when a current, unexpired envelope exists between both parties' active keys for the listing revision. No global history. |
 | `POST /api/offers/{id}/action` | `{action,counterUsdCents?,expectedVersion?}`. Actions: `accept`, `decline`, `counter` for the seller; `withdraw`, `decline-counter`, `accept-counter` for the buyer. `counter` requires an amount. `accept-counter` requires the exact viewed `expectedVersion`; stale versions receive 409. Other actions may pass a version to guard their view. |
 
 Seller acceptance applies only to the original open offer. A seller cannot accept their own counter on the buyer's behalf. Product edits invalidate offers. Actions stop while a listing is reserved/sold. Prices are access-controlled plaintext, not E2EE.
@@ -105,6 +105,7 @@ All account routes below require the existing session and mutation CSRF headers.
 | `POST /api/listings/{id}/capsule-envelope` | Seller `{buyerId,envelope}`. Live capsule listing only; signed HPKE buyer envelope stored for the current revision, withheld from buyers before funding. |
 | `POST /api/orders/{id}/key-envelope` | Buyer session plus `{receiptCode}`. Funded/paid/disputed capsule order only; no payment-review/refund access. Returns the prepositioned envelope, including historical original-key envelopes after rotation. |
 | `POST /api/conversations` | Buyer `{listingId,days?:1..30,invitation?:{id,capability}}`. Creates fixed buyer/seller membership and identity roster; at most 25 active conversations per buyer. Invitation-only listings require the capability. |
+| `GET /api/conversations` | The caller's active (unexpired, undeleted) conversations as buyer or seller: ids, listing title, participant ids and pinned key ids, counterpart alias, sequence and expiry. Never message contents. |
 | `POST /api/conversations/{id}/messages` | Participant `{id,buyer:Envelope,seller:Envelope}`. Signed/encrypted copies, matched context/nonces/recipient keys, unique message UUID and sequence. At most 500 messages; plaintext ≤64 KiB through SDK. |
 | `GET /api/conversations/{id}/messages?after=0` | Participant only, unexpired conversation; returns only the caller's recipient envelope, max 100 messages ordered by sequence. |
 | `DELETE /api/conversations/{id}` | Either participant deletes server copies immediately. Downloaded copies/backups cannot be erased. |

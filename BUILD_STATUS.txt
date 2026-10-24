@@ -65,3 +65,15 @@ envelopes still go through the SDK/journey script, not the browser UI.
 
 Local Ubuntu/WSL: npm run setup:wsl once, then npm run dev (worker + API +
 web). npm run mock:pay -- <memo> funds a pending order via the simulator.
+
+BROWSER CLIENT (v0.6 web)
+Client-crypto SDK runs in the browser: IndexedDB key vault with sealed
+registration, encrypted backup/restore and reset; capsules encrypted locally
+and sealed per buyer after TOFU fingerprint confirmation; funded envelope
+release and local decryption; E2EE conversations with attachments; private
+invitations; Trade Passport issue/present + public /verify; asset-control
+challenges; consent-based reviewer evidence. Backend additions: health
+origin, seller-side buyer id/alias + capsule_ready on offers, conversation
+listing (integration-tested). Two Playwright journeys pass end to end in
+Chromium against the real API/worker (mock settlement). Live Zcash testnet
+remains blocked pending the operator runbook in docs/TESTNET_RUNBOOK.md.

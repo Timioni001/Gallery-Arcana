@@ -154,7 +154,7 @@ export default function ListingPage() {
             )}
           </div>
 
-          {listing.is_seller && listing.status === 'live' && <div className="mt-6"><InvitationPanel listing={listing} onChanged={() => void load()} /></div>}
+          {listing.is_seller && listing.status === 'live' && capsule && <div className="mt-6"><InvitationPanel listing={listing} onChanged={() => void load()} /></div>}
           {account && !listing.is_seller && listing.status === 'live' && <div className="mt-6"><MessageThreadButton listingId={listing.id} sellerAlias={listing.seller_alias ?? 'seller'} /></div>}
           {offers.length > 0 && (
             <div className="mt-8">

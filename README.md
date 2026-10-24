@@ -37,9 +37,11 @@ npm run dev          # worker + API + web together; open http://localhost:5173 f
 
 Clone inside the Linux filesystem (for example `~/code`), not under `/mnt/c`, so file watching and npm installs stay fast. To pay for a test order, copy the memo from the order page and run `npm run mock:pay -- <memo>`. This uses the local mock simulator and sends no blockchain transaction.
 
+Operator tasks such as disputes, reviewer assignment and resolution go through `npm run admin -- disputes | assign <orderId> <reviewerAlias> | resolve <orderId> release|refund`. The browser journeys run with `npm run e2e --prefix web` while `npm run dev` is up. For the three-party walkthrough, see [docs/DEMO.md](docs/DEMO.md). For live Zcash testnet preparation, see [docs/TESTNET_RUNBOOK.md](docs/TESTNET_RUNBOOK.md).
+
 ## Web app
 
-`web/` is a Vite + React + Tailwind v4 frontend (shadcn/Base UI primitives; warm paper, dot-matrix and isometric line-art design) with the landing page, market, listing/offer/checkout, order delivery verification and the seller studio. With the API and worker running:
+`web/` is a Vite + React + Tailwind v4 frontend that runs the client-crypto SDK in the browser: capsules are created and decrypted locally, negotiation is end-to-end encrypted, and it covers invitations, passports, asset control and dispute evidence (see [docs/BROWSER_CLIENT.md](docs/BROWSER_CLIENT.md)). It uses shadcn/Base UI primitives with a warm paper, dot-matrix and isometric line-art design. With the API and worker running:
 
 ```bash
 npm ci --prefix web
@@ -86,4 +88,4 @@ For the runnable local demonstration, configure the optional worker simulator cr
 
 Run `npm run journey:capsule` against configured loopback mock API/worker services to exercise encrypted negotiation → capsule purchase → local decryption → buyer acceptance → passport verification. This creates local verification records and does not send blockchain transactions. The original `npm run demo:mock` remains functional. The full automated suite runs both through actual HTTP processes plus isolated database tests.
 
-First-contact fingerprints must be compared out of band or pinned from an already trusted channel. Static recipient keys provide no Signal-style forward secrecy. Malicious client code, endpoint compromise and privileged early release of prepared envelopes are outside ordinary encrypted-storage protection. Production, browser-interoperability and independent protocol review remain outstanding. Real Zcash remains a separate **blocked release gate**, documented with [current evidence](docs/evidence/zcash-testnet-v05.json).
+First-contact fingerprints must be compared out of band or pinned from an already trusted channel. Static recipient keys provide no Signal-style forward secrecy. Malicious client code, endpoint compromise and privileged early release of prepared envelopes are outside ordinary encrypted-storage protection. Chromium browser journeys now pass; other browsers, production deployment and independent protocol review remain outstanding. Real Zcash remains a separate **blocked release gate**, documented with [current evidence](docs/evidence/zcash-testnet-v05.json).
