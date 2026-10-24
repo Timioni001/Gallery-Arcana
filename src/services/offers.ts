@@ -1,3 +1,4 @@
+import {invitationAccess} from './invitations.ts';
 import {pool,tx} from '../db.ts';
 import {bad,conflict,forbidden,notFound} from '../lib/errors.ts';
 import type {PoolClient} from 'pg';
@@ -8,10 +9,11 @@ async function lockOffer(c:PoolClient,id:string){
   const offer=(await c.query('SELECT * FROM offers WHERE id=$1 FOR UPDATE',[id])).rows[0];
   return {...offer,seller_id:item.seller_id,listing_status:item.status,current_revision:item.revision};
 }
-export async function makeOffer(buyerId:string,listingId:string,cents:number){
+export async function makeOffer(buyerId:string,listingId:string,cents:number,invitation?:{id:string;capability:string}){
   return tx(async c=>{
-    const item=(await c.query('SELECT seller_id,status,revision FROM listings WHERE id=$1 FOR UPDATE',[listingId])).rows[0];
+    const item=(await c.query('SELECT seller_id,status,revision,invitation_only FROM listings WHERE id=$1 FOR UPDATE',[listingId])).rows[0];
     if(!item)throw notFound();
+    if(item.invitation_only)await invitationAccess(c,listingId,buyerId,invitation);
     if(item.seller_id===buyerId)throw forbidden('You cannot make an offer on your own listing');
     if(item.status!=='live')throw conflict('This listing is not accepting offers');
     const {rows}=await c.query(`INSERT INTO offers(listing_id,buyer_id,amount_usd_cents,listing_revision) VALUES($1,$2,$3,$4)

@@ -1,4 +1,4 @@
-# Gallery Arcana backend v0.4
+# Gallery Arcana backend v0.5
 
 A Node.js 22+, TypeScript, Fastify and PostgreSQL marketplace backend. API and wallet workers run separately. Development payments use an explicitly labelled durable mock wallet. **Real Zcash, mainnet and production custody remain disabled.**
 
@@ -10,6 +10,7 @@ Use PostgreSQL 16, Node.js 22+ and npm. Native PostgreSQL on Ubuntu/WSL is suppo
 
 ```bash
 npm ci
+npm run crypto:build            # browser SDK ESM/declarations
 cp .env.example .env             # only if .env does not already exist
 # Set DATABASE_URL and a persistent ASSET_ENCRYPTION_KEY in .env.
 # Generate the key locally: openssl rand -hex 32
@@ -44,8 +45,8 @@ The integration runner requires a local role with CREATEDB, or `TEST_DATABASE_AD
 
 - **[Complete capability inventory](docs/CAPABILITIES.md)** covers everything currently available and its verification limits.
 - [API routes](docs/API.md), [domain invariants and audit repairs](docs/INVARIANTS.md), [threat model](docs/THREAT_MODEL.md), [operations](docs/OPERATIONS.md).
-- Offers are private through server access controls. The database/operator can read them; negotiation has no client encryption or E2EE claim.
-- Private originals use AES-256-GCM at rest with authenticated file identifiers. The API operator holds the decryption key. Public previews are decoded and re-encoded with metadata removed; they remain public.
+- Financial offers/counters remain operator-readable. Optional v1 encrypted conversations protect participant text/attachments using client keys; legacy records are explicitly plaintext. See [cryptography protocol](docs/CRYPTO_PROTOCOL.md).
+- Legacy originals use server-held AES-256-GCM at rest. New Arcana Capsules add local client encryption with buyer-specific HPKE key envelopes; the server does not receive their content keys. Public previews are decoded and re-encoded with metadata removed; they remain public.
 - Receipt codes authorize proof retrieval and eligible refunds. New linked acquisitions additionally require the buyer session for downloads. Legacy and retention-anonymized paid receipts preserve bearer redemption. Buyer receipt renewal invalidates the previous code.
 - Unlisted URLs hide listings from search, but anyone with the URL can view their metadata.
 - Rate limits are shared atomically through PostgreSQL. Limits do not make pseudonymous signup resistant to a distributed Sybil attack.
@@ -56,3 +57,11 @@ The integration runner requires a local role with CREATEDB, or `TEST_DATABASE_AD
 - This backend provides no external NFT custody, atomic cross-chain settlement, dispute mediation, malware scanning, production key vault or audited backup system.
 
 For the runnable local demonstration, configure the optional worker simulator credential and run `npm run demo:mock`. It creates local demo accounts/listings and prints verification flags without credentials or invoice secrets.
+
+## v0.5 private commerce
+
+[Client cryptography and recovery](docs/CRYPTO_PROTOCOL.md) provides versioned local chunked encryption, authenticated identities/rotation, pinned buyer envelopes, encrypted conversations/attachments and reviewer-only evidence. Single-use invitation capabilities support private capsule sales. Trade Passport v2 supports consent-based minimal facts, holder presentations, expiry, revocation and issuer-key history. Independent [asset-control observations](docs/ASSET_CONTROL.md) support DNS TXT, public GitHub challenge files and EIP-191 wallet signatures without custody.
+
+Run `npm run journey:capsule` against configured loopback mock API/worker services to exercise encrypted negotiation → capsule purchase → local decryption → buyer acceptance → passport verification. This creates local verification records and does not send blockchain transactions. The original `npm run demo:mock` remains functional. The full automated suite runs both through actual HTTP processes plus isolated database tests.
+
+First-contact fingerprints must be compared out of band or pinned from an already trusted channel. Static recipient keys provide no Signal-style forward secrecy. Malicious client code, endpoint compromise and privileged early release of prepared envelopes are outside ordinary encrypted-storage protection. Production, browser-interoperability and independent protocol review remain outstanding. Real Zcash remains a separate **blocked release gate**, documented with [current evidence](docs/evidence/zcash-testnet-v05.json).

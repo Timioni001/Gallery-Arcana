@@ -1,4 +1,6 @@
 import Fastify from 'fastify';
+import {issuerReady} from '../services/passports.ts';
+import {privateRoutes} from './privateRoutes.ts';
 import type {FastifyReply,FastifyRequest} from 'fastify';
 import {z} from 'zod';
 import {timingSafeEqual,createHash} from 'node:crypto';
@@ -54,7 +56,7 @@ export function buildServer(){
     reply.header('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'");
     if (config.publicOrigin.startsWith('https:')) reply.header('Strict-Transport-Security','max-age=31536000; includeSubDomains');
     if(!['/api/health','/api/ready'].includes(req.url.split('?')[0]!))await limit(req,'api',180,60_000);
-    if(req.url.startsWith('/api/assets/')&&req.method==='POST'){
+    if((req.routeOptions.url?.startsWith('/api/assets/')||req.routeOptions.url==='/api/capsules')&&req.method==='POST'){
       const who=await requireAccount(req);await limit(req,'uploads',40,60*60_000);await limitAccount(who.id,'uploads',40,60*60_000);
     }
     if(['POST','PUT','PATCH','DELETE'].includes(req.method)) {
@@ -73,13 +75,13 @@ export function buildServer(){
     log('api_error',{code:errorCode(err),level:'error'});
     return reply.status(500).send({error:'Internal error'});
   });
-  app.get('/',()=>({name:'Gallery Arcana API',version:'0.4.0',documentation:'README.md',frontend:false}));
+  app.get('/',()=>({name:'Gallery Arcana API',version:'0.5.0',documentation:'README.md',frontend:false}));
   app.get('/api/health',()=>({ok:true,mode:config.walletDriver,network:config.network}));
   app.get('/api/ready',async(_req,reply)=>{
     try{
       validateAssetKey();attestationKeys();
-      const db=await pool.query("SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version='007_acquisition_payout_terms.sql') AND EXISTS(SELECT 1 FROM worker_health WHERE name='payments' AND ready AND heartbeat_at>now()-interval '30 seconds') AND EXISTS(SELECT 1 FROM address_pool WHERE NOT claimed) AS ready");
-      if(!db.rows[0].ready)return reply.status(503).send({ready:false});
+      const db=await pool.query("SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version='010_asset_control.sql') AND EXISTS(SELECT 1 FROM worker_health WHERE name='payments' AND ready AND heartbeat_at>now()-interval '30 seconds') AND EXISTS(SELECT 1 FROM address_pool WHERE NOT claimed) AS ready");
+      if(!db.rows[0].ready||!await issuerReady())return reply.status(503).send({ready:false});
       return {ready:true,mode:'mock',network:'test'};
     }catch{return reply.status(503).send({ready:false});}
   });
@@ -157,7 +159,8 @@ export function buildServer(){
     await limit(req,'offer',30,60*60_000);
     const who=await requireAccount(req);
     await limitAccount(who.id,'offer',30,60*60_000);
-    return offers.makeOffer(who.id,id.parse(req.params).id,z.object({amountUsdCents:amount}).parse(req.body).amountUsdCents);
+    const body=z.object({amountUsdCents:amount,invitation:z.object({id:z.string().uuid(),capability:z.string().min(40).max(100)}).strict().optional()}).parse(req.body);
+    return offers.makeOffer(who.id,id.parse(req.params).id,body.amountUsdCents,body.invitation);
   });
   app.get('/api/offers',async req=>offers.offersFor((await requireAccount(req)).id));
   app.post('/api/offers/:id/action',async req=>{
@@ -218,5 +221,6 @@ export function buildServer(){
     const body=z.object({decision:z.enum(['release','refund']),refundAddress:z.string().max(350).optional()}).strict().parse(req.body);
     return acquisitions.resolveDispute(id.parse(req.params).id,body.decision,body.refundAddress);
   });
+  privateRoutes(app,{account:requireAccount,admin:requireAdmin,limit});
   return app;
 }

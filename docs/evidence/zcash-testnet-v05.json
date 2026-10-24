@@ -1,0 +1,34 @@
+{
+  "checked_at": "2026-10-24T12:57:35.377549+00:00",
+  "live_testnet_verified": false,
+  "wallet_driver_enabled": "mock",
+  "real_mode_enabled": false,
+  "mainnet_enabled": false,
+  "rpc_probe": {
+    "method": "getwalletstatus",
+    "result": "UNAVAILABLE",
+    "exit_code": 1
+  },
+  "binaries": {
+    "zallet": false,
+    "zallet-zebra": false,
+    "zebrad": false
+  },
+  "blockers": [
+    "No running supported Zallet RPC endpoint",
+    "No verified synchronized Zebra/indexer/wallet cohort",
+    "No persistent funded testnet account/credential binding",
+    "No genuine receive, payout, refund or restart evidence"
+  ],
+  "evidence_scope": "Source inspection and deterministic/synthetic tests only; no blockchain transaction is claimed.",
+  "official_pins_rechecked": {
+    "zallet": {
+      "tag": "v0.1.0-beta.3",
+      "commit": "987382f67e622915228686e9f956c6a9c9a7514c"
+    },
+    "zebra": {
+      "tag": "v6.2.3",
+      "peeled_commit": "7121c82ba6795a151523d5b308a19743f4a1ade7"
+    }
+  }
+}

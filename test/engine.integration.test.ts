@@ -307,7 +307,7 @@ test('isolated PostgreSQL marketplace and recovery acceptance', {skip:!enabled},
       await migrate(legacy);await migrate(legacy);
       assert.equal((await legacy.query("SELECT alias FROM accounts WHERE alias='legacy_alias'")).rows[0].alias,'legacy_alias');
       assert.equal((await legacy.query('SELECT address FROM mock_addresses WHERE address=$1',[address])).rows[0].address,address);
-      assert.equal((await legacy.query('SELECT count(*)::int AS n FROM schema_migrations')).rows[0].n,7);
+      assert.equal((await legacy.query('SELECT count(*)::int AS n FROM schema_migrations')).rows[0].n,10);
     }finally{await legacy.end();await pool.query('DROP SCHEMA legacy_upgrade CASCADE');}
   });
   await t.test('retention removes settled buyer/payment links and keeps private file redemption working',async()=>{
@@ -376,6 +376,9 @@ test('isolated PostgreSQL marketplace and recovery acceptance', {skip:!enabled},
       const demoOutput:string[]=[];demo.stdout!.on('data',b=>demoOutput.push(b.toString()));demo.stderr!.on('data',b=>demoOutput.push(b.toString()));children.push(demo);
       await exited(demo);assert.equal(demo.exitCode,0,demoOutput.join(''));assert.equal(JSON.parse(demoOutput.join('')).proofVerified,true);
       assert.equal(demoOutput.join('').includes(simulatorToken),false);
+      const capsuleJourney=spawn(process.execPath,['--import','tsx','scripts/journey-capsule.ts'],{env:{...process.env,PUBLIC_ORIGIN:base,WORKER_PORT:String(port),MOCK_SIMULATOR_TOKEN:simulatorToken},stdio:['ignore','pipe','pipe']});
+      const capsuleOutput:string[]=[];capsuleJourney.stdout!.on('data',b=>capsuleOutput.push(b.toString()));capsuleJourney.stderr!.on('data',b=>capsuleOutput.push(b.toString()));children.push(capsuleJourney);
+      await exited(capsuleJourney);assert.equal(capsuleJourney.exitCode,0,capsuleOutput.join(''));assert.equal(JSON.parse(capsuleOutput.join('')).clientDecryption,true);assert.equal(JSON.parse(capsuleOutput.join('')).passportVerified,true);assert.equal(capsuleOutput.join('').includes(simulatorToken),false);
       child.kill('SIGTERM');await exited(child);assert.equal(child.exitCode,0);assert.equal((await fetch(base+'/api/ready')).status,503);
       api.kill('SIGTERM');await exited(api);assert.equal(api.exitCode,0);
       assert.equal(logs.join('').includes(simulatorToken),false);assert.equal(logs.join('').includes(order.payment.memo),false);assert.equal(logs.join('').includes(buyerCookie),false);

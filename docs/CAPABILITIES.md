@@ -1,6 +1,6 @@
 # Gallery Arcana — complete available backend inventory
 
-Version 0.4 combines the original marketplace, the security/recovery work, and the private-acquisitions archive. There is no frontend. The working payment system is a deterministic durable mock; no real blockchain settlement is represented as verified.
+Version 0.5 extends the existing private-acquisitions backend. Version 0.4 combined the original marketplace, the security/recovery work, and the private-acquisitions archive. There is no frontend. The working payment system is a deterministic durable mock; no real blockchain settlement is represented as verified.
 
 ## Accounts and access
 
@@ -52,7 +52,7 @@ Version 0.4 combines the original marketplace, the security/recovery work, and t
 - Node.js 22+, TypeScript, Fastify and PostgreSQL 16; separate API and wallet worker. Native Ubuntu/WSL PostgreSQL instructions; optional loopback-bound Docker database.
 - Configuration/encryption/signing-key validation, no spending-secret bindings in the API, structured allowlisted logs, liveness/readiness endpoints and graceful shutdown.
 - Single worker advisory lock, owned heartbeat UUIDs, backoff, connection-loss failure exit, serialized cycles, privacy cleanup and durable recovery.
-- Transactional checksummed baseline/adoption/migrations 001–007; no direct schema replay on a populated database.
+- Transactional checksummed baseline/adoption/migrations 001–010; no direct schema replay on a populated database.
 - Unit/security/RPC-contract tests, isolated PostgreSQL integration databases and temporary storage, real HTTP API/worker acceptance with lock loss and SIGKILL recovery, and runnable mock demo including offline proof verification.
 - SHA-pinned GitHub CI actions, Node 22/24 matrix and PostgreSQL service. Local results are documented separately from hosted CI status.
 
@@ -64,4 +64,18 @@ Version 0.4 combines the original marketplace, the security/recovery work, and t
 
 ## Not available or not verified
 
-No live Zcash/testnet settlement, mainnet custody, live FX feed, production key vault/backup recovery, external security certification, individual operator authentication, proof revocation/key-history service, client-key/E2EE negotiation, malware scanning, legal ownership/licensing guarantees, NFT/domain/repository custody, cross-chain atomic transfer, auctions, platform token or frontend. A buyer confirmation/platform signature cannot provide those guarantees.
+No live Zcash/testnet settlement, mainnet custody, live FX feed, production key vault/backup recovery, independent protocol/security certification, individual operator authentication, key transparency/Signal-style forward secrecy, malware scanning, legal ownership/licensing guarantees, NFT/domain/repository custody, cross-chain atomic transfer, auctions, platform token or frontend. Browser ESM compiles and Node crypto journeys execute; real-browser interoperability is not yet demonstrated. A buyer confirmation/platform signature cannot provide those guarantees.
+
+## v0.5 additions — implemented and locally verified
+
+- Versioned browser-compatible client cryptography workspace: RFC 9180 HPKE, AES-GCM chunk order/length authentication, encrypted metadata, per-product random keys, encrypted identity backups, sender signatures, explicit peer pins and recovery epochs.
+- Encrypted possession-challenge identity registration; signed continuity rotations, revocation for new activity, monotonic identity revisions and explicit passphrase-confirmed continuity loss/reset.
+- Ciphertext-only capsule uploads and revision/buyer-bound prepositioned key envelopes. Checkout refuses absent/stale/revoked-key preparation; funding gates envelope retrieval. Existing server-encrypted products remain supported.
+- Participant-only encrypted conversations with signed dual-recipient copies, bounded encrypted attachments, replay-resistant UUIDs/sequences, controlled deletion and expiry. Financial amounts remain backend-verifiable plaintext metadata.
+- One-time private sales: opaque ID plus body-only hashed capability, designated recipient, fixed/accepted-offer price, expiration, revocation and atomic redemption through existing checkout. Public metadata access for invitation-only products is blocked.
+- Trade Passport v2: private issuance of completed-acquisition or seller-delivery threshold facts, opt-in exact counts, audience/holder binding, fresh-nonce holder presentations, online revocation, offline signature checking and issuer-key history/compromise handling. No public transaction-search endpoint or unlinkability/ZK claim.
+- Consent-based reviewer-only HPKE evidence, explicit reviewer replacement/re-encryption, package integrity/retention, immutable application-level decision records and existing exact-once refund/release protections.
+- Independent DNS/public-GitHub/EIP-191 control challenges with purpose/origin/account/subject/nonces, expiry and atomic consumption. DNS/GitHub fixtures are synthetic; wallet tests prove local signatures only. No transfers or legal ownership claims.
+- `npm run crypto:build` and `npm run journey:capsule`; the full HTTP/process test exercises the client-only-key journey while preserving the legacy demo. Full contracts and limits are in [CRYPTO_PROTOCOL.md](CRYPTO_PROTOCOL.md), [API.md](API.md) and [ASSET_CONTROL.md](ASSET_CONTROL.md).
+
+Purchased capsule routing metadata (recipient/sender key/account IDs and listing reference) is retained to permit old-key recovery after financial retention. Content remains encrypted, but cleanup is not complete transaction unlinking. Encrypted evidence/conversations expire; expired/closed invitations and passports are removed. Existing privacy/account metadata, counterparties and wallet operations remain visible to the operator as described in the threat model.

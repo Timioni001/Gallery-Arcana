@@ -90,3 +90,41 @@ A dispute refund returns the complete confirmed amount, including initial excess
 The separate worker exposes loopback `GET /health`, `GET /ready`, and optional `POST /dev/pay`. Simulation requires `MOCK_SIMULATOR_TOKEN` through Bearer authentication and `{address,zat:"integer",memo}`. It persists mock notes; it does not send Zcash. It does not accept buyer-provided transaction IDs or confirmations as blockchain proof.
 
 All API instances share PostgreSQL fixed-window rate limits keyed by hashes of IP/account/normalized-login buckets. Key mutation limits: listings 30/hour, uploads 40/hour, offers 30/hour, checkouts 12/hour; login 10/10min per IP and normalized alias; signup 6/hour per IP. Global limits additionally apply. Worker cleanup removes expired buckets.
+
+## v0.5 encrypted commerce contracts
+
+All account routes below require the existing session and mutation CSRF headers. Public exceptions are issuer history and signature verification. Binary fields are canonical base64url. Identity/envelope JSON schemas are strict and versioned; use the client SDK and [CRYPTO_PROTOCOL.md](CRYPTO_PROTOCOL.md) for exact canonical bytes, pins and recovery behavior. Never send private keys or plaintext content keys.
+
+| Route | Input / access / behavior |
+| --- | --- |
+| `POST /api/encryption/challenges` | Own `PublicIdentity` v1; returns `{challengeId,statement,sealed,expiresAt}`. Five-minute encrypted possession challenge; rotation is bound to the prior identity. |
+| `POST /api/encryption/challenges/{id}/complete` | `{secret,signature,previousSignature?}`. New-key proof plus prior signing key required for rotation; consumes the challenge. |
+| `GET /api/encryption/identities/{accountId}` | Authenticated known-account lookup, no global directory. Returns public identities, binding proofs, epoch/revision and revocation timestamps. Used challenge nonces in binding proofs are public verification material, not content keys. |
+| `POST /api/encryption/reset` | `{passphrase,acknowledgeKeyLoss:true}`. Fresh passphrase, account/IP limits. Revokes identities/passports and marks a continuity break; cannot recover old plaintext. |
+| `POST /api/capsules` | Octet-stream containing SDK-encoded Capsule v1, max 24 MiB encoded / 16 MiB plaintext. Authenticated seller identity; returns `{key,sha256,capsuleId,cryptoMode:"capsule-v1"}`. Metadata name/MIME/plaintext digest are encrypted. |
+| `POST /api/listings/{id}/capsule-envelope` | Seller `{buyerId,envelope}`. Live capsule listing only; signed HPKE buyer envelope stored for the current revision, withheld from buyers before funding. |
+| `POST /api/orders/{id}/key-envelope` | Buyer session plus `{receiptCode}`. Funded/paid/disputed capsule order only; no payment-review/refund access. Returns the prepositioned envelope, including historical original-key envelopes after rotation. |
+| `POST /api/conversations` | Buyer `{listingId,days?:1..30,invitation?:{id,capability}}`. Creates fixed buyer/seller membership and identity roster; at most 25 active conversations per buyer. Invitation-only listings require the capability. |
+| `POST /api/conversations/{id}/messages` | Participant `{id,buyer:Envelope,seller:Envelope}`. Signed/encrypted copies, matched context/nonces/recipient keys, unique message UUID and sequence. At most 500 messages; plaintext ≤64 KiB through SDK. |
+| `GET /api/conversations/{id}/messages?after=0` | Participant only, unexpired conversation; returns only the caller's recipient envelope, max 100 messages ordered by sequence. |
+| `DELETE /api/conversations/{id}` | Either participant deletes server copies immediately. Downloaded copies/backups cannot be erased. |
+| `POST /api/admin/orders/{id}/reviewer` | Loopback admin `{reviewerId,replaceAssignment?:false}`. Independent reviewer with active encryption identity; disputed order only. Explicit replacement requires newly consented/re-encrypted evidence. |
+| `GET /api/orders/{id}/reviewer` | Buyer, seller or assigned reviewer receives the public reviewer identity for explicit pinning. |
+| `POST /api/orders/{id}/evidence` | Buyer/seller `{consent:true,envelope}` with purpose `evidence` and reviewer recipient. Max 20 encrypted packages/order; package UUID replay protection; retention ≤30 days. |
+| `GET /api/orders/{id}/evidence` | Assigned reviewer account only, unexpired packages. An admin token alone grants no retrieval/decryption. |
+| `POST /api/listings/{id}/invitations` | Seller, live capsule only: `{buyerId?,priceUsdCents?,offerId?,hours?:1..168}`. Accepted `offerId` determines negotiated price/buyer; cannot combine with a conflicting buyer or price. Returns `{invitationId,capability,expiresAt}` once. |
+| `POST /api/invitations/{id}/inspect` | Authenticated `{capability}` and designated buyer if any. Returns private listing reference/title/price/deadline; rejects expired/revoked/redeemed/stale invitations. |
+| `POST /api/invitations/{id}/redeem` | Same authorization/body; normal checkout response. Locks listing and invitation, creates one order/invoice and consumes capability atomically. Capsule buyer envelope must already exist. |
+| `DELETE /api/invitations/{id}` | Seller revokes an unused invitation. Redeemed invitations cannot be revoked into reusable capabilities. |
+| `POST /api/passports` | Authenticated explicit sharing request: `{kind:"completed_acquisition"\|"seller_deliveries",orderId?,minimum?:1,discloseCount?:false,audience,hours?:1..168}`. Own buyer-confirmed acquisition or established seller threshold only. Returns private Ed25519 v2 proof bound to the current identity fingerprint. |
+| `POST /api/passports/verify` | Public `{proof,audience}`. Checks strict schema/signature, audience, expiry, proof revocation and issuer compromise. Returns `{valid,claim?,holderProofRequired?}`. Does not prove holder possession; use a relying-party nonce and SDK presentation helpers. |
+| `DELETE /api/passports/{id}` | Owner revokes their certificate. No public certificate listing/search endpoint exists. |
+| `GET /api/passports/issuers` | Public historical issuer IDs/SPKI PEMs/revocation timestamps. Does not publish transactions or users. |
+| `POST /api/admin/passport-issuers/{keyId}/revoke` | Strong loopback admin; revokes a compromised issuer and blocks its further issuance/release. Rotate configured keys before restarting normal operation. |
+| `POST /api/asset-control/challenges` | Authenticated `{kind:"dns"\|"github"\|"evm",subject,chainId?}`. Returns ten-minute domain-separated nonce statement. DNS: `_arcana-control.<domain>` TXT marker. GitHub: `.well-known/arcana-control.txt` on public `main`. EVM: EIP-191 personal-sign; chain IDs 1/137/42161/8453. |
+| `POST /api/asset-control/challenges/{id}/verify` | Owner `{signature?}`; checks live DNS/GitHub observation or recovered EVM signer. Max five attempts, single-use, expiry rechecked after observation. Returns private time-bounded control observation, never legal ownership or a transfer. |
+| `GET /api/asset-control/verifications` | Own private records only, no public inventory. Observations expire after 24 hours. |
+
+For invitation-only listings, ordinary public listing GET/search and direct checkout are denied; the seller retains owner access. Offers and conversation creation require `{invitation:{id,capability}}` in the body. Fixed invitation prices do not silently change after a later negotiation: issue a new accepted-offer invitation/revoke the old one when changing terms. Capability secrets belong in request bodies, never URLs/analytics/logs. Concurrent redemption losers may receive 404 at inspection or 409 at the locked listing state.
+
+`GET /api/orders/{id}` additionally exposes the buyer's `crypto_mode`. Existing delivery/acceptance routes remain: capsule downloads return encoded ciphertext, `X-Arcana-Asset-SHA256` and acceptance/proof hashes describe ciphertext, and local SDK decryption checks the private plaintext digest. Legacy server-encrypted products continue unchanged. Financial offer/counter amounts remain operator-visible; optional encrypted conversations do not conceal settlement metadata.

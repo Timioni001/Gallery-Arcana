@@ -17,7 +17,10 @@ let stopping=false,ready=false,timer:NodeJS.Timeout|undefined,inflight:Promise<v
 const guard=await pool.connect().catch(async()=>{log('worker_start_failed',{level:'error'});await pool.end();process.exit(1);});
 let locked=false;try{locked=(await guard.query('SELECT pg_try_advisory_lock(174428,5) AS locked')).rows[0].locked;}catch{log('worker_start_failed',{level:'error'});}
 if(!locked){log('worker_lock_unavailable',{level:'error'});guard.release();await pool.end();process.exit(1);}
-try{await registerWorker(guard,instanceId);}catch{log('worker_start_failed',{level:'error'});guard.release(true);await pool.end();process.exit(1);}
+try{
+  if(!(await guard.query("SELECT 1 FROM schema_migrations WHERE version='010_asset_control.sql'")).rowCount)throw new Error('Migrations required');
+  await registerWorker(guard,instanceId);
+}catch{log('worker_start_failed',{level:'error'});guard.release(true);await pool.end();process.exit(1);}
 const server=createServer(async(req,res)=>{
   res.setHeader('Content-Type','application/json');res.setHeader('Cache-Control','no-store');
   if(req.method==='GET'&&req.url==='/health'){res.end(JSON.stringify({ok:true,mode:'mock'}));return;}

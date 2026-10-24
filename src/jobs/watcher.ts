@@ -17,6 +17,8 @@ function attributed(notes:ReceivedNote[],address:string,memo:string){
   return [...unique.values()];
 }
 async function review(c:PoolClient,paymentId:string,orderId:string){
+  const seller=(await c.query('SELECT l.seller_id FROM listings l JOIN orders o ON o.listing_id=l.id WHERE o.id=$1',[orderId])).rows[0];
+  if(seller){await c.query('SELECT id FROM accounts WHERE id=$1 FOR UPDATE',[seller.seller_id]);await c.query("UPDATE trade_passports SET revoked_at=COALESCE(revoked_at,now()) WHERE source_order_id=$1 OR (account_id=$2 AND proof->'claim'->>'kind'='seller_deliveries')",[orderId,seller.seller_id]);}
   await c.query("UPDATE payments SET status='review' WHERE id=$1",[paymentId]);
   await c.query("UPDATE orders SET status=CASE WHEN status IN ('funded','disputed','paid') THEN 'payment_review' ELSE status END,refund_status='review' WHERE id=$1",[orderId]);
   await c.query("UPDATE payouts SET status='cancelled',failure_code='PAYMENT_REVIEW',updated_at=now() WHERE ref_id=$1 AND status='queued'",[orderId]);

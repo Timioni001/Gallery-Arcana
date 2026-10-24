@@ -52,3 +52,9 @@ Neither a Zallet nor a Zebra executable is available. No configured persistent a
 7. Run the full live testnet acceptance journey and retain real transaction/operation evidence privately. Mock unit/integration results cannot satisfy this gate.
 
 Mainnet and production custody require separate explicit authorization and security verification after these prerequisites.
+
+## v0.5 recheck — live release gate still blocked
+
+The official `zcash/zallet` tag list was re-read and the investigation pin `v0.1.0-beta.3` still resolves to `987382f67e622915228686e9f956c6a9c9a7514c`. Tagged official setup/RPC source remains the contract reference; no unsupported legacy methods were introduced. Current `npm run zallet:probe` returns exit 1 / redacted `UNAVAILABLE`. No `zallet`, `zallet-zebra` or `zebrad` executable, running supported RPC, persistent funded account or verified synchronized cohort is available. Machine-readable bounded evidence is [evidence/zcash-testnet-v05.json](evidence/zcash-testnet-v05.json).
+
+The new capsule/conversation/invitation/passport/evidence journeys use deterministic mock payment verification only. They cannot satisfy this release-critical live acceptance gate. Real-wallet mode remains unconditionally disabled; no real receive, payout, refund, blockchain reorganization or spending-credential isolation deployment has been verified. Source/RPC fixture success is not binary interoperability or chain evidence. Genuine funded testnet infrastructure and independent recovery/security acceptance are still required before enabling real testnet, followed by separate explicit approval for any mainnet/production custody.

@@ -5,6 +5,14 @@ export async function scrubOrders(){
   if(!Number.isSafeInteger(days)||days<1)throw new Error('Invalid retention setting');
   await pool.query('DELETE FROM sessions WHERE expires_at<=now() OR absolute_expires_at<=now()');
   await pool.query('DELETE FROM rate_limits WHERE reset_at<now()');
+  await pool.query('DELETE FROM identity_challenges WHERE expires_at<=now()');
+  await pool.query('DELETE FROM trade_passports WHERE expires_at<=now()');
+  await pool.query('DELETE FROM sale_invitations WHERE expires_at<=now() OR revoked_at IS NOT NULL OR EXISTS(SELECT 1 FROM orders WHERE id=redeemed_order_id AND scrubbed_at IS NOT NULL)');
+  await pool.query('DELETE FROM asset_control_verifications WHERE expires_at<=now()');
+  await pool.query('DELETE FROM asset_control_challenges c WHERE expires_at<=now() AND NOT EXISTS(SELECT 1 FROM asset_control_verifications v WHERE v.challenge_id=c.id)');
+  await pool.query('DELETE FROM capsule_envelopes e WHERE expires_at<=now() AND NOT EXISTS(SELECT 1 FROM orders WHERE capsule_envelope_id=e.id)');
+  await pool.query('DELETE FROM conversations WHERE expires_at<=now()');
+  await pool.query('DELETE FROM dispute_evidence WHERE expires_at<=now()');
   const due=(await pool.query(`SELECT id,listing_id FROM orders WHERE scrubbed_at IS NULL
     AND ((status='paid' AND paid_at<now()-make_interval(days=>$1)) OR
       (status='refund_queued' AND refund_status='sent' AND resolved_at<now()-make_interval(days=>$1)))
@@ -15,6 +23,8 @@ export async function scrubOrders(){
     const p=(await c.query('SELECT * FROM payments WHERE id=$1 FOR UPDATE',[o.payment_id])).rows[0];
     if(!p||!['confirmed','late'].includes(p.status)||!['none','sent'].includes(o.refund_status))return;
     if((await c.query("SELECT 1 FROM payouts WHERE ref_id=$1 AND status IN ('queued','sending','failed')",[o.id])).rows[0])return;
+    await c.query('DELETE FROM dispute_evidence WHERE order_id=$1',[o.id]);
+    await c.query('DELETE FROM dispute_reviewers WHERE order_id=$1',[o.id]);
     await c.query('DELETE FROM payment_notes WHERE payment_id=$1',[p.id]);
     await c.query('DELETE FROM mock_notes WHERE address=$1',[p.address]);
     // The durable mock submission ledger also holds destinations/transaction IDs.

@@ -6,6 +6,7 @@ import {hashCode} from '../lib/crypto.ts';
 import {canDownload,canBuyerConfirm,equalDigest,signTransfer,verifyTransfer,type TransferClaim} from '../lib/acquisition.ts';
 import {attestationKeys,publicVerificationKey} from './attestationKeys.ts';
 import {privateBytes} from './storage.ts';
+import {signingIssuer} from './passports.ts';
 import {looksShielded} from './gate.ts';
 
 async function lockedOrder(c:PoolClient,id:string){
@@ -26,6 +27,7 @@ async function complete(c:PoolClient,order:any,outcome:TransferClaim['outcome'])
   const amount=BigInt(order.seller_payout_zat);
   if(amount<0n||amount>BigInt(payment.expected_zat))throw conflict('Invalid checkout payout terms');
   const finalizedAt=(await c.query('SELECT clock_timestamp() AS time')).rows[0].time.toISOString();
+  await signingIssuer(c);
   const proof=signTransfer({version:1,orderId:order.id,listingId:order.listing_id,assetSha256:order.file_sha256,
     finalizedAt,outcome,paymentMode:'mock'},attestationKeys().privatePem);
   await c.query(`UPDATE orders SET status='paid',paid_at=$2::timestamptz,resolved_at=$2::timestamptz,delivery_confirmed_at=CASE WHEN $3='buyer_accepted' THEN $2::timestamptz ELSE NULL END,proof=$4 WHERE id=$1`,[order.id,finalizedAt,outcome,JSON.stringify(proof)]);
@@ -57,6 +59,8 @@ export async function resolveDispute(id:string,decision:'release'|'refund',refun
   if(decision==='refund'&&(!refundAddress||!looksShielded(refundAddress)))throw bad('A testnet refund address is required (mock validation only)');
   return tx(async c=>{
     const order=await lockedOrder(c,id);if(order.status!=='disputed')throw conflict('Not a disputed acquisition');
+    const hashes=(await c.query('SELECT ciphertext_hash FROM dispute_evidence WHERE order_id=$1 ORDER BY id',[id])).rows.map(r=>r.ciphertext_hash);
+    await c.query('INSERT INTO dispute_decisions(order_id,decision,evidence_hashes) VALUES($1,$2,$3)',[id,decision,JSON.stringify(hashes)]);
     if(decision==='release')return complete(c,order,'operator_release');
     const payment=await confirmedPayment(c,order);
     if(order.refund_status==='queued'||order.refund_status==='sent')throw conflict('Refund already submitted');
