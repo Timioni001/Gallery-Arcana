@@ -1,6 +1,6 @@
 const { chromium } = require('playwright');
 const fs = require('fs');
-const { SS, TOKEN, B, ROOT, launch, resetLocalRateLimits } = require('./env.cjs');
+const { SS, B, launch, resetLocalRateLimits, mockPay, admin } = require('./env.cjs');
 const step = (m) => console.log('✓', m);
 (async () => {
   await resetLocalRateLimits(); const b = await launch(chromium);
@@ -37,7 +37,7 @@ const step = (m) => console.log('✓', m);
   await U.goto(listingUrl); await U.click('button:has-text("Checkout")'); await U.waitForURL('**/orders/*');
   const orderId = U.url().split('/').pop();
   const pay = await U.evaluate(async (id) => (await fetch(`/api/orders/${id}/payment`)).json(), orderId);
-  await fetch('http://127.0.0.1:8081/dev/pay', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + TOKEN }, body: JSON.stringify({ address: pay.payment.address, zat: pay.payment.amountZat, memo: pay.payment.memo }) });
+  await mockPay(pay.payment);
   await U.waitForSelector('text=Decrypt locally', { timeout: 60000 }); step('order funded');
   const [dl] = await Promise.all([U.waitForEvent('download'), U.click('text=Decrypt locally & verify')]);
   const out = SS + '/decrypted-' + dl.suggestedFilename(); await dl.saveAs(out);

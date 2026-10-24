@@ -1,7 +1,6 @@
 const { chromium } = require('playwright');
-const { execSync } = require('child_process');
 const fs = require('fs');
-const { SS, TOKEN, B, ROOT, launch, resetLocalRateLimits } = require('./env.cjs');
+const { SS, B, launch, resetLocalRateLimits, mockPay, admin } = require('./env.cjs');
 const step = (m) => console.log('✓', m);
 (async () => {
   await resetLocalRateLimits(); const b = await launch(chromium);
@@ -22,7 +21,7 @@ const step = (m) => console.log('✓', m);
   await S.fill('input[placeholder^="Private price"]', '30'); await S.click('text=Create link'); await S.waitForSelector('input[value*="/invite/"]');
   const link = await S.locator('input[value*="/invite/"]').inputValue(); step('invitation link created: ' + link.replace(/#.*/, '#…'));
   // Outsider sees the listing gone from public market
-  const pub = await (await fetch('http://localhost:8080/api/listings?limit=80')).json();
+  const pub = await (await fetch(B + '/api/listings?limit=80')).json();
   if (pub.some((l) => l.title === 'Exclusive drop ' + sfx)) throw new Error('invitation-only listing still public'); step('listing hidden from public market');
   // Buyer redeems
   await signup(U, 'vip' + sfx); await U.goto(link); await U.waitForSelector('text=$30');
@@ -33,19 +32,19 @@ const step = (m) => console.log('✓', m);
   const again = await U.evaluate(async (l) => { const [id, cap] = l.split('/invite/')[1].split('#'); return (await fetch(`/api/invitations/${id}/inspect`, { method: 'POST', headers: { 'x-arcana-action': '1', 'content-type': 'application/json' }, body: JSON.stringify({ capability: cap }) })).status }, link);
   if (again !== 404) throw new Error('invitation reusable'); step('invitation is single-use (second inspect → 404)');
   const pay = await U.evaluate(async (id) => (await fetch(`/api/orders/${id}/payment`)).json(), orderId);
-  await fetch('http://127.0.0.1:8081/dev/pay', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + TOKEN }, body: JSON.stringify({ address: pay.payment.address, zat: pay.payment.amountZat, memo: pay.payment.memo }) });
+  await mockPay(pay.payment);
   await U.waitForSelector('text=Decrypt locally', { timeout: 60000 });
   // Dispute and reviewer evidence
   await U.click('button:has-text("Dispute")'); await U.fill('[role=dialog] textarea', 'File does not match the description given.'); await U.click('text=Open dispute'); await U.waitForSelector('text=Funds are frozen');
   step('buyer opened dispute; funds frozen');
   await signup(R, 'rev' + sfx); await keys(R);
-  execSync(`npm run admin -- assign ${orderId} rev${sfx}`, { cwd: ROOT, stdio: 'pipe' }); step('operator assigned independent reviewer');
+  admin(`assign ${orderId} rev${sfx}`); step('operator assigned independent reviewer');
   await U.reload(); await U.waitForSelector('text=Only the assigned reviewer');
   await U.fill('textarea[placeholder^="Describe"]', 'Expected PNG renders; received a text file.'); await U.check('input[type=checkbox]'); await U.click('text=Seal & send');
   await U.click('text=Trust this key'); await U.waitForSelector('text=sent · ciphertext'); step('buyer sealed evidence to reviewer with consent');
   await R.goto(B + '/review/' + orderId); await R.waitForSelector('text=Expected PNG renders; received a text file.'); step('reviewer decrypted evidence locally');
   await R.screenshot({ path: SS + '/review.png' });
-  const res = execSync(`npm run admin -- resolve ${orderId} release`, { cwd: ROOT }).toString(); step('operator released after review');
+  admin(`resolve ${orderId} release`); step('operator released after review');
   // Vault restore on a fresh browser
   const S2 = await mk(); await S2.goto(B + '/auth'); await S2.fill('#alias', 'inv' + sfx); await S2.fill('#pass', 'correct horse battery staple'); await S2.click('button[type=submit]'); await S2.waitForURL('**/studio');
   await S2.goto(B + '/studio?tab=keys'); await S2.waitForSelector('text=they are not in this browser');

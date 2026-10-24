@@ -9,3 +9,6 @@ dist/
 !.env.example
 !.env.worker.example
 .regtest-accounts.json
+deploy/.env
+deploy/.env.worker
+deploy/backups/

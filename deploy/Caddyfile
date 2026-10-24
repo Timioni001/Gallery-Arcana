@@ -1,0 +1,52 @@
+# Origin server behind Cloudflare Tunnel. TLS terminates at Cloudflare; this
+# listener is reachable only on the private Docker network (no published ports).
+{
+	admin off
+	auto_https off
+	servers {
+		# Only cloudflared may assert the visitor's address, via Cloudflare's header.
+		trusted_proxies static 172.30.0.11
+		client_ip_headers Cf-Connecting-Ip
+	}
+}
+
+:80 {
+	encode zstd gzip
+
+	# Operator endpoints are loopback-only in the API; never route them publicly.
+	@admin path /api/admin/*
+	respond @admin 404
+
+	handle /healthz {
+		respond "ok" 200
+	}
+
+	handle /api/* {
+		reverse_proxy api:8080 {
+			# Replace any client-supplied chain with the single verified client address.
+			header_up X-Forwarded-For {client_ip}
+			header_up -X-Real-Ip
+		}
+	}
+	handle /previews/* {
+		reverse_proxy api:8080 {
+			header_up X-Forwarded-For {client_ip}
+		}
+	}
+
+	handle {
+		root * /srv
+		@assets path /assets/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+		header -Server
+		header {
+			Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+			Referrer-Policy no-referrer
+			X-Content-Type-Options nosniff
+			Permissions-Policy "camera=(), microphone=(), geolocation=()"
+			Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		}
+		try_files {path} /index.html
+		file_server
+	}
+}

@@ -26,6 +26,10 @@ The API binds to loopback by default. `GET /api/health` reports process liveness
 
 Copy `.env.worker.example` to `.env.worker` for worker-only options. The localhost payment simulator is disabled unless a strong `MOCK_SIMULATOR_TOKEN` is configured. It requires Bearer authentication and never submits blockchain transactions. Wallet spending credentials must not be placed in the API environment.
 
+## Deploy (Cloudflare)
+
+`cd deploy && ./init.sh && docker compose up -d --build` runs the whole stack (PostgreSQL, API, worker, web, nightly backups, Cloudflare Tunnel). Everything restarts on its own and no inbound ports are opened. See [docs/DEPLOY_CLOUDFLARE.md](docs/DEPLOY_CLOUDFLARE.md).
+
 ## Ubuntu / WSL quick start
 
 From an Ubuntu (or WSL2) shell with Node.js 22+:

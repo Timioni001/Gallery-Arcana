@@ -13,6 +13,8 @@ const schema=z.object({
   WALLET_DRIVER:z.enum(['mock','zallet']).default('mock'),
   ZALLET_TESTNET_ACK:z.string().optional(),
   PRICE_SOURCE:z.enum(['fixed','market']).default('fixed'),
+  // Comma-separated IPs/CIDRs of the reverse proxy allowed to set X-Forwarded-For. Never 'true'.
+  TRUST_PROXY:z.string().regex(/^[0-9a-f.:/,]+$/i).optional(),
   PRICE_MAX_AGE_SECONDS:positiveInt(120,900),
   MIN_CONFIRMATIONS:positiveInt(2,1000),
   ZEC_USD_FIXED:z.string().regex(/^(?:0|[1-9][0-9]{0,6})(?:\.[0-9]{1,6})?$/).default('40'),
@@ -40,7 +42,7 @@ export function parseConfig(env:NodeJS.ProcessEnv){
   // Regtest coins have no market value, so only testnet needs a live price.
   if(v.WALLET_DRIVER==='zallet'&&v.ZCASH_NETWORK==='test'&&v.PRICE_SOURCE!=='market')throw new Error('WALLET_DRIVER=zallet requires PRICE_SOURCE=market; the fixed demo quote is mock-only');
   return {host:v.API_HOST,workerPollMs:v.WORKER_POLL_MS,simulatorToken:v.MOCK_SIMULATOR_TOKEN,databaseUrl:v.DATABASE_URL,port:v.PORT,workerPort:v.WORKER_PORT,network:v.ZCASH_NETWORK,walletDriver:v.WALLET_DRIVER,
-    minConfirmations:v.MIN_CONFIRMATIONS,priceSource:v.PRICE_SOURCE,priceMaxAgeSeconds:v.PRICE_MAX_AGE_SECONDS,rateMicroUsd:rate,publicOrigin:v.PUBLIC_ORIGIN,storageDir:v.STORAGE_DIR,
+    minConfirmations:v.MIN_CONFIRMATIONS,priceSource:v.PRICE_SOURCE,trustProxy:v.TRUST_PROXY??false,priceMaxAgeSeconds:v.PRICE_MAX_AGE_SECONDS,rateMicroUsd:rate,publicOrigin:v.PUBLIC_ORIGIN,storageDir:v.STORAGE_DIR,
     sessionDays:v.SESSION_DAYS,sessionAbsoluteDays:v.SESSION_ABSOLUTE_DAYS,addressPoolTarget:30,
     adminToken:v.ADMIN_TOKEN&&v.ADMIN_TOKEN.length>=32&&!/replace|change-me/i.test(v.ADMIN_TOKEN)?v.ADMIN_TOKEN:null};
 }
