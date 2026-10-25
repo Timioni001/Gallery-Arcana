@@ -10,7 +10,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "e2e": "node e2e/capsule.e2e.cjs && node e2e/private.e2e.cjs",
-    "build:demo": "tsc -b && vite build --mode demo"
+    "build:demo": "tsc -b && VITE_DEMO=1 vite build --mode demo"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
