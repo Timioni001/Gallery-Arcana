@@ -9,7 +9,7 @@ const cols = [
 
 export function SiteFooter() {
   return (
-    <footer className="mt-28 border-t bg-surface pb-16 sm:pb-0">
+    <footer className="mt-28 border-t bg-surface pb-24 sm:pb-0">
       <div className="mx-auto grid max-w-6xl gap-10 px-4 pt-14 sm:px-6 grid-cols-2 md:grid-cols-[1.4fr_repeat(3,1fr)]">
         <div className="col-span-2 max-w-xs md:col-span-1">
           <Logo />
