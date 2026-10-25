@@ -65,7 +65,7 @@ async function request<T>(method: string, path: string, body?: unknown, init: Re
 }
 
 const baseApi = {
-  health: () => request<{ mode: string; network: string; origin?: string }>('GET', '/api/health'),
+  health: () => request<{ mode: string; network: string; origin?: string; demoAutopaySeconds?: number | null }>('GET', '/api/health'),
   me: () => request<{ account: Account | null }>('GET', '/api/me'),
   signup: (alias: string, passphrase: string) => request<{ account: Account }>('POST', '/api/signup', { alias, passphrase }),
   login: (alias: string, passphrase: string) => request<{ account: Account }>('POST', '/api/login', { alias, passphrase }),
@@ -150,4 +150,6 @@ export const privateApi = {
 }
 export const api = { ...baseApi, ...privateApi }
 
-export const previewUrl = (key: string | null) => (key ? `/previews/${encodeURIComponent(key)}` : null)
+// The in-browser demo backend serves previews from memory instead of /previews.
+const demoPreview = (key: string) => (window as unknown as { __arcanaPreview?: (k: string) => string | null }).__arcanaPreview?.(key)
+export const previewUrl = (key: string | null) => (key ? demoPreview(key) ?? `/previews/${encodeURIComponent(key)}` : null)

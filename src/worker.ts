@@ -44,6 +44,7 @@ async function cycle(){
     // A failed quote refresh pauses new checkouts (stale price) but never blocks settlement.
     if(config.priceSource==='market'&&Date.now()-lastQuote>60_000){lastQuote=Date.now();await refreshQuote().catch(()=>{});}
     await topUpAddressPool(wallet);if(stopping)return;
+    if(config.demoAutopaySeconds&&wallet instanceof DatabaseMockWallet)await wallet.autopay(config.demoAutopaySeconds);
     await tx(c=>releaseExpired(c));if(stopping)return;
     await scanOnce(wallet);if(stopping)return;
     await runPayouts(wallet);if(stopping)return;

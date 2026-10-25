@@ -91,3 +91,28 @@ The stack was built and run end to end with a local stand-in for the tunnel:
 - **Operations:** mock payouts were sent, the first backup was written, the API and worker recovered after being killed, and the Zallet loopback bridge carried RPC traffic.
 
 The Cloudflare side (tunnel token and hostname) needs your account and wasn't exercised.
+
+## Static demo on Cloudflare Pages (no server)
+
+This option needs no server and no machine left on. The demo build (`npm run build:demo` in `web/`) runs the marketplace entirely in the visitor's browser:
+
+- A simulated API stores data in that browser's IndexedDB.
+- Sample sellers accept offers, seal capsule keys and reply to messages automatically.
+- Every payment is simulated a few seconds after checkout.
+- The client cryptography is real: capsule encryption and decryption, sealed key envelopes, end-to-end encrypted chat, and signed receipts and passports (signed with a demo key held in the browser).
+- A banner and the nav badge state that it is a demo, and the banner offers **Reset demo**.
+
+Each visitor gets their own private copy. Visitors don't share data with each other.
+
+**Cloudflare dashboard → Workers & Pages → Create → Pages → Connect to Git**, pick this repository, then set:
+
+| Setting | Value |
+| --- | --- |
+| Production branch | `ccr-ba774958-2lfu3x` (or `main` after merging) |
+| Framework preset | None |
+| Root directory | `web` |
+| Build command | `npm ci && npm run build:demo` |
+| Build output directory | `dist` |
+| Environment variable | `NODE_VERSION` = `22` |
+
+Click **Save and Deploy**. After a couple of minutes the site is at `https://<project>.pages.dev`, and you can attach your own domain under **Custom domains**. `web/public/_redirects` handles page routing and `web/public/_headers` sets the security headers. Every push to the branch redeploys automatically.

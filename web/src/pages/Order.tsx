@@ -51,7 +51,8 @@ export default function Order() {
   const [proof, setProof] = useState<Record<string, unknown> | null>(null)
   const [proofValid, setProofValid] = useState<boolean | null>(null)
   const [mode, setMode] = useState<string>('')
-  useEffect(() => { api.health().then((h) => setMode(h.mode)).catch(() => {}) }, [])
+  const [autopay, setAutopay] = useState<number | null>(null)
+  useEffect(() => { api.health().then((h) => { setMode(h.mode); setAutopay(h.demoAutopaySeconds ?? null) }).catch(() => {}) }, [])
 
   const fetchProof = async () => {
     try { const p = await api.proof(id, receipt); setProof(p); setProofValid((await api.verifyProof(p)).valid) }
@@ -158,7 +159,7 @@ export default function Order() {
             <>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="text-lg text-fg">Send payment</h2>
-                {mode === 'mock' && <span className="rounded-full bg-signal/10 px-2.5 py-0.5 font-mono text-[10.5px] text-signal">MOCK · no blockchain transaction</span>}
+                {(mode === 'mock' || mode === 'demo') && <span className="rounded-full bg-signal/10 px-2.5 py-0.5 font-mono text-[10.5px] text-signal">MOCK · no blockchain transaction</span>}
               </div>
               <p className="mt-1 text-[13px] text-muted-foreground">Send exactly this amount, with the memo, from a testnet shielded wallet. This page updates by itself.</p>
               <div className="mt-5 space-y-2">
@@ -168,7 +169,8 @@ export default function Order() {
                 <Copyable label="ZIP-321 URI" value={payment.uri} />
               </div>
               <p className="mt-4 text-[12px] text-fg/50">Received {received.toFixed(8)} ZEC · {order.confirmations} confirmations · expires {new Date(order.expires_at).toLocaleTimeString()}</p>
-              {mode === 'mock' && <p className="mt-2 font-mono text-[11px] text-fg/45">Local demo: <span className="select-all text-fg/70">npm run mock:pay -- {payment.memo}</span></p>}
+              {(mode === 'mock' || mode === 'demo') && autopay && <p className="mt-3 rounded-lg bg-signal/10 px-3 py-2 text-[12.5px] text-fg">Demo mode: this payment is simulated automatically within about {autopay + 10} seconds. No real ZEC is involved.</p>}
+              {mode === 'mock' && !autopay && <p className="mt-2 font-mono text-[11px] text-fg/45">Local demo: <span className="select-all text-fg/70">npm run mock:pay -- {payment.memo}</span></p>}
             </>
           ) : ['funded', 'disputed', 'paid'].includes(order.status) ? (
             <>
