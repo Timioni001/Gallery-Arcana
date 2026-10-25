@@ -19,7 +19,7 @@ Gallery Arcana lets people buy and sell digital property without exposing who th
 
 - **Shielded payments.** Buyers pay in shielded ZEC to a fresh address for every invoice.
 - **Encrypted delivery.** Files are encrypted in the seller's browser before upload. Each buyer gets their own sealed key and decrypts locally.
-- **Buyer-controlled release.** The seller's payout stays on hold until the buyer checks the file's fingerprint and approves.
+- **Escrow with deadlines.** The seller's payout is held while the buyer checks the file's fingerprint. Accepting releases it, a dispute freezes it, and after 72 hours with neither it releases automatically.
 
 > [!IMPORTANT]
 > This is a testnet project. Real Zcash, mainnet and production custody are **disabled**. The hosted site is a demo that runs entirely in the visitor's browser with simulated payments.
@@ -58,7 +58,8 @@ Gallery Arcana lets people buy and sell digital property without exposing who th
 | **Capsules** | Files are encrypted in the browser in authenticated chunks. Each buyer gets an HPKE key envelope, and the server never receives the content key. |
 | **Negotiation** | Private offers and counteroffers, plus end-to-end encrypted chat and attachments. |
 | **Checkout** | Atomic reservation and an exact integer-zatoshi invoice with a ZIP-321 payment request. The worker confirms, expires and handles under- and overpayments. |
-| **Settlement** | Funds are held until the buyer approves, then the payout is queued, sent and reconciled. Payouts are never blindly retried. |
+| **Escrow** | Funds are held for a 72-hour review window. Buyer acceptance releases them early; silence releases them automatically; a dispute freezes them until a reviewer releases or refunds (14-day decision deadline). See [Terms](https://gallery-arcana.timioni1490.workers.dev/terms#escrow). |
+| **Settlement** | Payouts are queued, sent and reconciled, and never blindly retried. |
 | **Auctions** | Sealed-bid, second-price rounds. Other bidders see only how many bids there are. |
 | **Proofs** | Ed25519-signed receipts, plus Trade Passport v2 with minimal facts, expiry and revocation. |
 | **Disputes** | Evidence is encrypted to the reviewer. Operators can assign a reviewer and release or refund. |
@@ -102,7 +103,7 @@ stateDiagram-v2
     [*] --> awaiting_payment: checkout
     awaiting_payment --> expired: invoice times out
     awaiting_payment --> funded: payment confirmed
-    funded --> paid: buyer approves → payout sent
+    funded --> paid: buyer approves, or 72h review window ends
     funded --> disputed: buyer opens dispute
     disputed --> paid: reviewer releases
     disputed --> refund_due: reviewer refunds

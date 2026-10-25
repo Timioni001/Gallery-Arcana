@@ -10,7 +10,7 @@ Errors use `{error: string}` with 400 for input errors, 401 for missing authenti
 | --- | --- |
 | `GET /` | API name, version and documentation metadata. |
 | `GET /api/health` | Process liveness, `mode: mock`, `network: test`, and `origin` (the exact `PUBLIC_ORIGIN` that client encryption identities must bind to). No chain-readiness claim. |
-| `GET /api/terms` | Public trading terms: current `platformFeeBps` (completed sales only; refunds pay nothing), append-only `feeHistory`, settlement mode/network, `minConfirmations`, and the price source with its maximum age (latest market quote, or the fixed demo rate). |
+| `GET /api/terms` | Public trading terms: current `platformFeeBps` (completed sales only; refunds pay nothing), append-only `feeHistory`, settlement mode/network, `escrow` (`reviewHours`, `disputeDecisionDays`, plain-language rule), `minConfirmations`, and the price source with its maximum age (latest market quote, or the fixed demo rate). |
 | `GET /api/ready` | 200 only when migrations, encryption/signing keys, worker heartbeat and free destination pool are ready; otherwise 503. |
 | `GET /api/listings` | Live public listings. Optional `category=digital\|collectible\|onchain\|other`, literal title `q` (70 chars), `limit` 1–80 (default 40), `offset` 0–10000. Returns an array ordered by creation time and ID. |
 | `GET /api/listings/{id}` | Listing metadata by UUID; unlisted links are readable by anyone possessing the URL. Paused listings are visible only to their seller. |
@@ -75,14 +75,14 @@ Statuses: `awaiting_payment`, `funded`, `disputed`, `paid`, `expired`, `refund_d
 | Route | Contract |
 | --- | --- |
 | `POST /api/orders/{id}/confirm-delivery` | Buyer `{receiptCode,assetSha256}`; exact digest, prior authenticated file preparation, and funded state required. Signs a minimal Ed25519 claim, marks paid and queues proceeds atomically. Replays/stale state receive 409. |
-| `POST /api/orders/{id}/dispute` | Buyer `{reason}` (trimmed 10–2000 chars), funded state only. Returns disputed/on-hold; reason is private operator-readable plaintext. |
+| `POST /api/orders/{id}/dispute` | Buyer `{reason}` (trimmed 10–2000 chars), funded state only and before the order's `release_after`. Returns disputed/on-hold with `decisionDueInDays`; reason is private operator-readable plaintext. |
 | `POST /api/orders/{id}/proof` | Bearer `{receiptCode}`; returns the stored proof only for a paid acquisition. No public order lookup or fabricated legacy proof. |
 | `GET /api/proofs/public-key` | `{algorithm:"Ed25519",publicKey}` in PEM form. |
 | `POST /api/proofs/verify` | `{proof}` → `{valid}`; strict schema/signature check against the current public key, no order lookup. |
 | `GET /api/admin/disputes` | Strong admin token and direct loopback; private unresolved dispute queue. |
 | `POST /api/admin/orders/{id}/resolve` | Same gate; `{decision:"release"}` or `{decision:"refund",refundAddress}`. Disputed state and confirmed funds required; one audited disposition. |
 
-A dispute refund returns the complete confirmed amount, including initial excess, and blocks further file delivery. Refund state becomes sent after reconciliation; order status remains `refund_queued` with `refund_status:"sent"`. An operator release is distinguished from buyer acceptance in the proof. No automatic timeout release or payment-review bypass exists. Proofs attest platform statements, not legal ownership or live blockchain settlement. See [PRIVATE_ACQUISITIONS.md](PRIVATE_ACQUISITIONS.md).
+A dispute refund returns the complete confirmed amount, including initial excess, and blocks further file delivery. Refund state becomes sent after reconciliation; order status remains `refund_queued` with `refund_status:"sent"`. Proof outcomes distinguish `buyer_accepted`, `operator_release` and `auto_release` (review window closed without acceptance or dispute). Order views include `release_after` and `dispute_due_at`. Disputed and payment-review orders are never released automatically. Proofs attest platform statements, not legal ownership or live blockchain settlement. See [PRIVATE_ACQUISITIONS.md](PRIVATE_ACQUISITIONS.md).
 
 ## Local operational interfaces
 

@@ -3,7 +3,7 @@ import {z} from 'zod';
 
 const claimSchema=z.object({version:z.literal(1),orderId:z.string().uuid(),listingId:z.string().uuid(),
   assetSha256:z.string().regex(/^[a-f0-9]{64}$/),finalizedAt:z.iso.datetime(),
-  outcome:z.enum(['buyer_accepted','operator_release']),paymentMode:z.enum(['mock','testnet'])}).strict();
+  outcome:z.enum(['buyer_accepted','operator_release','auto_release']),paymentMode:z.enum(['mock','testnet'])}).strict();
 const proofSchema=z.object({claim:claimSchema,algorithm:z.literal('Ed25519'),signature:z.string().regex(/^[A-Za-z0-9_-]{86}$/)}).strict();
 export type TransferClaim=z.infer<typeof claimSchema>;
 export type TransferProof=z.infer<typeof proofSchema>;
