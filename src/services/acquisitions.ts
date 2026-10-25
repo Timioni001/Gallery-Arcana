@@ -8,6 +8,8 @@ import {attestationKeys,publicVerificationKey} from './attestationKeys.ts';
 import {privateBytes} from './storage.ts';
 import {signingIssuer} from './passports.ts';
 import {looksShielded} from './gate.ts';
+import {config} from '../config.ts';
+import {log,errorCode} from '../lib/log.ts';
 
 async function lockedOrder(c:PoolClient,id:string){
   const ref=(await c.query('SELECT listing_id FROM orders WHERE id=$1',[id])).rows[0];if(!ref)throw notFound();
@@ -49,10 +51,11 @@ export async function disputeDelivery(buyerId:string,id:string,reason:string){
   return tx(async c=>{
     const order=await lockedOrder(c,id);if(order.buyer_id!==buyerId)throw notFound();
     if(order.acquisition_version!==1||order.status!=='funded')throw conflict('Only funded, unreleased acquisitions can be disputed');
+    if(order.release_after&&(await c.query('SELECT $1::timestamptz<=clock_timestamp() AS passed',[order.release_after])).rows[0].passed)throw conflict('The review window has closed; this order is being released to the seller');
     await confirmedPayment(c,order);
-    await c.query("UPDATE orders SET status='disputed',disputed_at=now(),dispute_reason=$2 WHERE id=$1",[id,reason.trim()]);
+    await c.query("UPDATE orders SET status='disputed',disputed_at=now(),dispute_due_at=now()+make_interval(days=>$3),dispute_reason=$2 WHERE id=$1",[id,reason.trim(),config.escrowDisputeDays]);
     await c.query("INSERT INTO acquisition_events(order_id,kind) VALUES($1,'buyer_disputed')",[id]);
-    return {status:'disputed',sellerPayout:'on_hold'};
+    return {status:'disputed',sellerPayout:'on_hold',decisionDueInDays:config.escrowDisputeDays};
   });
 }
 export async function resolveDispute(id:string,decision:'release'|'refund',refundAddress?:string){
@@ -69,6 +72,21 @@ export async function resolveDispute(id:string,decision:'release'|'refund',refun
     await c.query("INSERT INTO acquisition_events(order_id,kind) VALUES($1,'operator_refund')",[id]);
     return {status:'refund_queued'};
   });
+}
+/** Releases funded acquisitions whose review window closed with no acceptance or dispute. */
+export async function releaseDue(limit=50){
+  const ids=(await pool.query("SELECT id FROM orders WHERE status='funded' AND acquisition_version=1 AND release_after<=now() ORDER BY release_after,id LIMIT $1",[limit])).rows;
+  let released=0;
+  for(const {id} of ids){
+    // Re-checked under the row lock: an acceptance or dispute may have landed in between.
+    const done=await tx(async c=>{
+      const order=await lockedOrder(c,id);
+      if(order.status!=='funded'||!order.release_after||!(await c.query('SELECT $1::timestamptz<=clock_timestamp() AS due',[order.release_after])).rows[0].due)return false;
+      await complete(c,order,'auto_release');return true;
+    }).catch(error=>{log('escrow_release_failed',{code:errorCode(error),level:'error'});return false;});
+    if(done)released++;
+  }
+  return released;
 }
 export async function downloadAsset(accountId:string|undefined,listingId:string,receipt:string){
   return tx(async c=>{
@@ -90,5 +108,5 @@ export async function getAcquisitionProof(receipt:string,id:string){
 }
 export function verifySignedTransfer(proof:unknown){return verifyTransfer(proof,publicVerificationKey());}
 export async function adminDisputes(){
-  return (await pool.query("SELECT id,listing_id,disputed_at,dispute_reason,status,file_first_accessed_at FROM orders WHERE status='disputed' ORDER BY disputed_at,id LIMIT 100")).rows;
+  return (await pool.query("SELECT id,listing_id,disputed_at,dispute_due_at,(dispute_due_at<now()) AS overdue,dispute_reason,status,file_first_accessed_at FROM orders WHERE status='disputed' ORDER BY dispute_due_at NULLS FIRST,id LIMIT 100")).rows;
 }

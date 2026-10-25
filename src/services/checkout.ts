@@ -1,5 +1,6 @@
 import type {PoolClient} from 'pg';
 import {pool,setting,tx} from '../db.ts';
+import {config} from '../config.ts';
 import {bad,conflict,forbidden,notFound} from '../lib/errors.ts';
 import {hashCode,newCode,sha256} from '../lib/crypto.ts';
 import {looksShielded} from './gate.ts';
@@ -60,7 +61,7 @@ export async function checkout(buyerId:string,listingId:string,offerId?:string,i
   return {...order,receiptCode};
 }
 export async function orderStatus(accountId:string,orderId:string){
-  const row=(await pool.query(`SELECT o.id,o.listing_id,o.title,o.price_usd_cents,o.status,o.expires_at,o.paid_at,o.refund_status,o.refund_zat,o.acquisition_version,o.crypto_mode,o.file_sha256,o.funded_at,o.file_first_accessed_at,o.delivery_confirmed_at,o.disputed_at,
+  const row=(await pool.query(`SELECT o.id,o.listing_id,o.title,o.price_usd_cents,o.status,o.expires_at,o.paid_at,o.refund_status,o.refund_zat,o.acquisition_version,o.crypto_mode,o.file_sha256,o.funded_at,o.file_first_accessed_at,o.delivery_confirmed_at,o.disputed_at,o.release_after,o.dispute_due_at,
     COALESCE(p.received_zat,0)::text AS received_zat,COALESCE(p.confirmations,0) AS confirmations,
     'download' AS delivery,(o.status='paid') AS delivered,(o.status IN ('funded','paid','disputed')) AS downloadable,(o.delivery_confirmed_at IS NOT NULL) AS buyer_confirmed FROM orders o LEFT JOIN payments p ON p.id=o.payment_id WHERE o.id=$1 AND o.buyer_id=$2`,[orderId,accountId])).rows[0];
   if(!row)throw notFound();return row;
@@ -77,7 +78,7 @@ export async function myOrders(accountId:string){
   return (await pool.query('SELECT id,listing_id,title,status,price_usd_cents,created_at,refund_status FROM orders WHERE buyer_id=$1 ORDER BY created_at DESC,id DESC LIMIT 100',[accountId])).rows;
 }
 export async function sales(accountId:string){
-  return (await pool.query(`SELECT o.id,o.listing_id,o.title,o.status,o.price_usd_cents,o.created_at,o.funded_at,o.file_first_accessed_at,o.delivery_confirmed_at,o.disputed_at,
+  return (await pool.query(`SELECT o.id,o.listing_id,o.title,o.status,o.price_usd_cents,o.created_at,o.funded_at,o.file_first_accessed_at,o.delivery_confirmed_at,o.disputed_at,o.release_after,o.dispute_due_at,
     o.platform_fee_bps,p.expected_zat::text AS price_zat,o.seller_payout_zat::text AS seller_payout_zat,(p.expected_zat-o.seller_payout_zat)::text AS platform_fee_zat
     FROM orders o JOIN listings l ON l.id=o.listing_id LEFT JOIN payments p ON p.id=o.payment_id
     WHERE l.seller_id=$1 ORDER BY o.created_at DESC,o.id DESC LIMIT 100`,[accountId])).rows;
@@ -106,7 +107,8 @@ export async function settlePurchase(c:PoolClient,p:PaymentRow,late:boolean){
     return;
   }
   const excess=received-expected;
-  await c.query("UPDATE orders SET status=$4,paid_at=CASE WHEN $4='paid' THEN now() ELSE NULL END,funded_at=now(),refund_zat=$2,refund_status=$3 WHERE id=$1",[order.id,excess.toString(),excess>0n?'due':'none',order.acquisition_version===1?'funded':'paid']);
+  await c.query(`UPDATE orders SET status=$4,paid_at=CASE WHEN $4='paid' THEN now() ELSE NULL END,funded_at=now(),refund_zat=$2,refund_status=$3,
+    release_after=CASE WHEN $4='funded' THEN now()+make_interval(hours=>$5) END WHERE id=$1`,[order.id,excess.toString(),excess>0n?'due':'none',order.acquisition_version===1?'funded':'paid',config.escrowReviewHours]);
   await c.query("UPDATE listings SET status='sold',updated_at=now() WHERE id=$1",[item.id]);
   await c.query(`UPDATE offers SET status=CASE WHEN id=$2 THEN 'completed' ELSE 'declined' END,revision=revision+1,updated_at=now()
     WHERE listing_id=$1 AND status IN ('open','countered','accepted')`,[item.id,order.offer_id]);

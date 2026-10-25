@@ -89,6 +89,8 @@ export function buildServer(){
     const history=(await pool.query('SELECT fee_bps,effective_at FROM fee_history ORDER BY effective_at DESC,id DESC LIMIT 20')).rows;
     const quote=config.priceSource==='market'?(await pool.query('SELECT rate_micro_usd::text AS rate_micro_usd,fetched_at FROM price_quotes ORDER BY fetched_at DESC LIMIT 1')).rows[0]??null:null;
     return {platformFeeBps:fee,feeAppliesTo:'completed sales only; refunds and cancelled orders pay no fee',feeHistory:history,
+      escrow:{reviewHours:config.escrowReviewHours,disputeDecisionDays:config.escrowDisputeDays,
+        rule:'Funds are held after payment. They go to the seller when the buyer accepts, or automatically when the review window closes with no dispute. A dispute pauses release until a reviewer releases or refunds in full.'},
       settlement:config.walletDriver,network:config.network,minConfirmations:config.minConfirmations,
       price:{source:config.priceSource,maxAgeSeconds:config.priceMaxAgeSeconds,...(config.priceSource==='fixed'?{rateMicroUsd:config.rateMicroUsd.toString()}:{latest:quote})},
       neverSold:['identity disclosure','user transaction data']};
