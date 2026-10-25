@@ -10,11 +10,11 @@ import { cn } from '@/lib/utils'
 const links = [
   { to: '/market', label: 'Market' },
   { to: '/auctions', label: 'Auctions' },
-  { to: '/#collection', label: 'Collection' },
+  { to: '/#collection', label: 'Collection', menuOnly: true },
   { to: '/#how', label: 'How it works' },
   { to: '/#privacy', label: 'Privacy' },
   { to: '/#selling', label: 'Selling' },
-  { to: '/observer', label: 'Observer view' },
+  { to: '/observer', label: 'Observer view', menuOnly: true },
 ]
 
 export function SiteNav() {
@@ -26,8 +26,8 @@ export function SiteNav() {
     <header className="sticky top-0 z-40 w-full border-b bg-paper/85 backdrop-blur-xl">
       <div className="mx-auto grid h-16 max-w-6xl grid-cols-[1fr_auto_1fr] items-center px-4 sm:px-6">
         <nav className="hidden items-center gap-5 text-[13px] text-fg/75 lg:flex">
-          {links.map((l) => (
-            <NavLink key={l.to} to={l.to} className={({ isActive }) => cn('transition-colors hover:text-fg', isActive && !l.to.includes('#') && 'text-fg')}>{l.label}</NavLink>
+          {links.filter((l) => !l.menuOnly).map((l) => (
+            <NavLink key={l.to} to={l.to} className={({ isActive }) => cn('whitespace-nowrap transition-colors hover:text-fg', isActive && !l.to.includes('#') && 'text-fg')}>{l.label}</NavLink>
           ))}
         </nav>
         <button className="-ml-2 grid size-10 place-items-center justify-self-start text-fg lg:hidden" onClick={() => setOpen((o) => !o)} aria-label="Menu" aria-expanded={open}>

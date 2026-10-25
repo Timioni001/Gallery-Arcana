@@ -1,97 +1,287 @@
-# Gallery Arcana v0.5
+<div align="center">
 
-A Node.js 22+, TypeScript, Fastify and PostgreSQL marketplace backend. API and wallet workers run separately. Development payments use an explicitly labelled durable mock wallet. **Real Zcash, mainnet and production custody remain disabled.**
+# Gallery Arcana
 
-The local workflow supports alias accounts, hashed passphrases, rotating/revocable sessions, seller-owned uploads and listing edits, public/unlisted discovery, private offers and counteroffers, atomic checkout, confirmation checks, held seller funds, verified encrypted-file delivery, explicit buyer acceptance, private disputes, Ed25519 attestations, receipts, refunds and payout reconciliation. The web app lives in [`web/`](web/README.md).
+**A private market for digital assets. Discover, negotiate and exchange, paid in shielded Zcash.**
 
-## Start locally
+[Live demo](https://gallery-arcana.timioni1490.workers.dev) · [How it works](#how-a-sale-works) · [Run it](#running-requirements) · [Docs](#documentation)
 
-Use PostgreSQL 16, Node.js 22+ and npm. Native PostgreSQL on Ubuntu/WSL is supported; Docker is optional. Full native setup, key handling and separate service instructions are in [docs/OPERATIONS.md](docs/OPERATIONS.md).
+![Node 22+](https://img.shields.io/badge/node-22%2B-141414?style=flat-square)
+![PostgreSQL 16](https://img.shields.io/badge/postgresql-16-141414?style=flat-square)
+![Zcash testnet](https://img.shields.io/badge/zcash-testnet%20only-F4B728?style=flat-square)
+![Version 0.5](https://img.shields.io/badge/version-0.5-e4572e?style=flat-square)
+
+![Gallery Arcana home page](docs/assets/hero.png)
+
+</div>
+
+Gallery Arcana lets people buy and sell digital property without exposing who they are, what they paid or what changed hands:
+
+- **Shielded payments.** Buyers pay in shielded ZEC to a fresh address for every invoice.
+- **Encrypted delivery.** Files are encrypted in the seller's browser before upload. Each buyer gets their own sealed key and decrypts locally.
+- **Buyer-controlled release.** The seller's payout stays on hold until the buyer checks the file's fingerprint and approves.
+
+> [!IMPORTANT]
+> This is a testnet project. Real Zcash, mainnet and production custody are **disabled**. The hosted site is a demo that runs entirely in the visitor's browser with simulated payments.
+
+## Contents
+
+- [Screenshots](#screenshots)
+- [Features](#features)
+- [How a sale works](#how-a-sale-works)
+- [Privacy model](#privacy-model)
+- [Architecture](#architecture)
+- [Running requirements](#running-requirements)
+- [Quick start](#quick-start)
+- [Deploy](#deploy)
+- [Testing](#testing)
+- [Project layout](#project-layout)
+- [Limitations](#limitations)
+- [Documentation](#documentation)
+
+## Screenshots
+
+<table>
+<tr><td colspan="2"><img src="docs/assets/mobile.png" alt="Phone views: home, market, auctions and the artwork viewer"></td></tr>
+<tr><td width="50%"><img src="docs/assets/market.png" alt="Market"><br><sub><b>Market.</b> Public listings only. Buyers and offers are never shown.</sub></td>
+<td width="50%"><img src="docs/assets/auctions.png" alt="Sealed-bid auctions"><br><sub><b>Auctions.</b> Sealed bids, second-price settlement.</sub></td></tr>
+<tr><td><img src="docs/assets/zcash.png" alt="Powered by Zcash section"><br><sub><b>Powered by Zcash.</b> Shielded settlement on the Orchard pool.</sub></td>
+<td><img src="docs/assets/collection.png" alt="Arcana Fragments collection"><br><sub><b>Arcana Fragments.</b> 15 generative works sold as encrypted capsules.</sub></td></tr>
+</table>
+
+## Features
+
+| Area | What you get |
+| --- | --- |
+| **Accounts** | Alias and passphrase only, with no email or ID. Passphrases are hashed. Sessions rotate and can be revoked. |
+| **Listings** | Digital goods, collectibles, onchain assets and digital property. Listings can be public or unlisted, and public previews have their metadata stripped. |
+| **Capsules** | Files are encrypted in the browser in authenticated chunks. Each buyer gets an HPKE key envelope, and the server never receives the content key. |
+| **Negotiation** | Private offers and counteroffers, plus end-to-end encrypted chat and attachments. |
+| **Checkout** | Atomic reservation and an exact integer-zatoshi invoice with a ZIP-321 payment request. The worker confirms, expires and handles under- and overpayments. |
+| **Settlement** | Funds are held until the buyer approves, then the payout is queued, sent and reconciled. Payouts are never blindly retried. |
+| **Auctions** | Sealed-bid, second-price rounds. Other bidders see only how many bids there are. |
+| **Proofs** | Ed25519-signed receipts, plus Trade Passport v2 with minimal facts, expiry and revocation. |
+| **Disputes** | Evidence is encrypted to the reviewer. Operators can assign a reviewer and release or refund. |
+| **Asset control** | Ownership checks without custody: DNS TXT records, GitHub challenge files and EIP-191 wallet signatures. |
+| **Fees** | 0–15% on completed sales only. Each order keeps the fee it was created with, and the fee history is public at `GET /api/terms`. |
+| **Waitlist** | Stored in Cloudflare KV on the demo and in PostgreSQL on the full stack. |
+
+## How a sale works
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor S as Seller
+    participant B as Seller's browser
+    participant A as Arcana API
+    participant W as Wallet worker
+    participant Z as Zcash (shielded)
+    actor U as Buyer
+
+    S->>B: Choose file
+    B->>B: Encrypt locally (chunked AEAD)
+    B->>A: Upload ciphertext + public preview
+    U->>A: Offer / checkout
+    A-->>U: Fresh shielded address + memo (ZIP-321)
+    U->>Z: Pay in shielded ZEC
+    W->>Z: Watch for memo, count confirmations
+    W->>A: Order funded
+    S->>A: Seal content key to buyer (HPKE)
+    U->>A: Download ciphertext + key envelope
+    U->>U: Decrypt locally, check SHA-256
+    U->>A: Approve (signs Ed25519 receipt)
+    A->>W: Release payout
+    W->>Z: Pay seller
+```
+
+### Order lifecycle
+
+```mermaid
+stateDiagram-v2
+    direction LR
+    [*] --> awaiting_payment: checkout
+    awaiting_payment --> expired: invoice times out
+    awaiting_payment --> funded: payment confirmed
+    funded --> paid: buyer approves → payout sent
+    funded --> disputed: buyer opens dispute
+    disputed --> paid: reviewer releases
+    disputed --> refund_due: reviewer refunds
+    refund_due --> refund_queued
+    paid --> [*]
+    refund_queued --> [*]
+    expired --> [*]
+```
+
+## Privacy model
+
+![Who can see what in a Gallery Arcana sale](docs/assets/privacy-matrix.png)
+
+Shielding protects the payment details on chain. It does not hide application metadata from the marketplace operator, or transfers of assets on other chains. Financial offers can be read by the operator. Chat and capsule contents cannot. See the [threat model](docs/THREAT_MODEL.md) and [cryptography protocol](docs/CRYPTO_PROTOCOL.md).
+
+## Architecture
+
+```mermaid
+flowchart LR
+    subgraph Browser
+      UI[React app<br/>Vite + Tailwind]
+      SDK[client-crypto SDK<br/>HPKE · AES-GCM · ECDSA]
+      Vault[(IndexedDB<br/>key vault)]
+      UI --- SDK --- Vault
+    end
+    subgraph Server["Docker Compose stack"]
+      Caddy[Caddy<br/>web + /api proxy]
+      API[Fastify API]
+      Worker[Wallet worker<br/>settlement · payouts]
+      DB[(PostgreSQL 16)]
+      Caddy --> API --> DB
+      Worker --> DB
+    end
+    CF[Cloudflare<br/>Tunnel · DNS · TLS]
+    Wallet[Zallet + Zebra<br/>testnet / regtest]
+    UI -->|HTTPS| CF --> Caddy
+    Worker -->|loopback RPC| Wallet
+```
+
+The API and the wallet worker are separate processes. Wallet credentials exist only in `.env.worker`, which only the worker receives. The wallet sits behind a `WalletAdapter` interface with two drivers: a database-backed **mock** wallet for development, and a **Zallet** driver for testnet and regtest. The Zallet driver requires explicit acknowledgement before it runs.
+
+![Codebase composition](docs/assets/codebase.png)
+
+## Running requirements
+
+| You want to… | You need | Notes |
+| --- | --- | --- |
+| **Try the demo** | Any modern browser | Open the [live demo](https://gallery-arcana.timioni1490.workers.dev). Nothing to install, and your data stays in your browser. |
+| **Build the demo yourself** | Node.js 22+, npm 10+ | `cd web && npm ci && npm run build:demo`. Output goes to `web/dist`. |
+| **Run the full stack locally** | Node.js 22+, npm, PostgreSQL 16, OpenSSL | Works on Linux, macOS and WSL2. Docker is optional, for the database only. |
+| **Self-host the full stack** | Docker with Compose v2.24+, a Cloudflare account and domain | 2 vCPU, 4 GB RAM and 40 GB disk is plenty in mock or testnet mode. No inbound ports are needed. |
+| **Live Zcash testnet** | Everything above plus the Z3 stack (Zebra + Zallet) | Needs much more disk and sync time. See the [testnet runbook](docs/TESTNET_RUNBOOK.md). Regtest is the light alternative: [REGTEST.md](docs/REGTEST.md). |
+
+Default ports: API `8080` (loopback only), web dev server `5173`, PostgreSQL `5432`.
+
+## Quick start
+
+### Option A: Ubuntu / WSL2 (one command)
+
+Clone inside the Linux filesystem (for example `~/code`), not under `/mnt/c`.
+
+```bash
+npm run setup:wsl   # installs/starts PostgreSQL, creates role + DB, .env files, keys, migrations, web deps
+npm run dev         # worker + API + web together → http://localhost:5173
+```
+
+To pay a test invoice, copy the memo from the order page and run `npm run mock:pay -- <memo>`. No blockchain transaction is sent.
+
+### Option B: step by step
 
 ```bash
 npm ci
-npm run crypto:build            # browser SDK ESM/declarations
-cp .env.example .env             # only if .env does not already exist
-# Set DATABASE_URL and a persistent ASSET_ENCRYPTION_KEY in .env.
-# Generate the key locally: openssl rand -hex 32
-# Optional database alternative: docker compose up -d db
-npm run keys                    # once: creates ignored signing keys; refuses overwrite
-npm run migrate                 # checksummed, transactional and repeatable
-npm run assets:backfill          # needed for existing originals without fingerprints
-npm run worker                  # terminal A
-npm run api                     # terminal B
+npm run crypto:build              # browser SDK (ESM + declarations)
+cp .env.example .env              # set DATABASE_URL and ASSET_ENCRYPTION_KEY
+openssl rand -hex 32              # → paste as ASSET_ENCRYPTION_KEY, keep a copy offline
+cp .env.worker.example .env.worker
+npm run keys                      # once: creates signing keys, refuses to overwrite
+npm run migrate                   # checksummed, transactional, repeatable
+npm run worker                    # terminal A
+npm run api                       # terminal B
+npm ci --prefix web && npm run web:dev   # terminal C → http://localhost:5173
 ```
 
-The API binds to loopback by default. `GET /api/health` reports process liveness; `GET /api/ready` checks schema, encryption/signing keys, worker heartbeat and payment-destination availability. All mutations require `X-Arcana-Action: 1`; browser mutations also enforce the configured origin and fetch-site checks. Session cookies are HttpOnly and SameSite=Strict, and Secure when `PUBLIC_ORIGIN` uses HTTPS.
+`GET /api/health` reports liveness. `GET /api/ready` checks the schema, keys, worker heartbeat and payment destination.
 
-Copy `.env.worker.example` to `.env.worker` for worker-only options. The localhost payment simulator is disabled unless a strong `MOCK_SIMULATOR_TOKEN` is configured. It requires Bearer authentication and never submits blockchain transactions. Wallet spending credentials must not be placed in the API environment.
+### Useful commands
 
-## Deploy (Cloudflare)
+| Command | What it does |
+| --- | --- |
+| `npm run admin -- disputes` | List open disputes. Related commands: `assign <orderId> <alias>` and `resolve <orderId> release\|refund`. |
+| `npm run admin -- set-fee <bps>` | Set the platform fee (0–1500 bps). |
+| `npm run admin -- waitlist` | Export waitlist sign-ups. |
+| `npm run demo:mock` | Seed demo accounts and listings, then print verification flags. |
+| `npm run journey:capsule` | Run an end-to-end encrypted capsule sale against the running services. |
+| `npm run zallet:probe` | Read-only diagnosis of Zallet RPC contracts. It can't spend. |
+| `npm run regtest -- setup\|fund\|journey` | Full purchase and payout with real Zebra and Zallet on regtest. |
 
-`cd deploy && ./init.sh && docker compose up -d --build` runs the whole stack (PostgreSQL, API, worker, web, nightly backups, Cloudflare Tunnel). Everything restarts on its own and no inbound ports are opened. See [docs/DEPLOY_CLOUDFLARE.md](docs/DEPLOY_CLOUDFLARE.md).
+## Deploy
 
-## Ubuntu / WSL quick start
+**Static demo on Cloudflare Workers.** This needs no server. Connect the repository in Workers & Pages and set these fields:
 
-From an Ubuntu (or WSL2) shell with Node.js 22+:
+| Field | Value |
+| --- | --- |
+| Path (root directory) | `web` |
+| Build command | `npm ci && npm run build:demo` |
+| Deploy command | `npx wrangler deploy` |
+| Build variable | `NODE_VERSION` = `22` |
+
+**Full stack behind a Cloudflare Tunnel:**
 
 ```bash
-npm run setup:wsl    # installs/starts PostgreSQL, creates role+DB, .env files, keys, migrations, web deps
-npm run dev          # worker + API + web together; open http://localhost:5173 from Windows
+cd deploy && ./init.sh && docker compose up -d --build
 ```
 
-Clone inside the Linux filesystem (for example `~/code`), not under `/mnt/c`, so file watching and npm installs stay fast. To pay for a test order, copy the memo from the order page and run `npm run mock:pay -- <memo>`. This uses the local mock simulator and sends no blockchain transaction.
+This runs PostgreSQL, migrations, the API, the worker, the web server, nightly backups and the tunnel. Everything restarts on its own. Full guide: [DEPLOY_CLOUDFLARE.md](docs/DEPLOY_CLOUDFLARE.md).
 
-Operator tasks such as disputes, reviewer assignment and resolution go through `npm run admin -- disputes | assign <orderId> <reviewerAlias> | resolve <orderId> release|refund`. The browser journeys run with `npm run e2e --prefix web` while `npm run dev` is up. For the three-party walkthrough, see [docs/DEMO.md](docs/DEMO.md). For live Zcash testnet preparation, see [docs/TESTNET_RUNBOOK.md](docs/TESTNET_RUNBOOK.md).
-
-**Live testnet adapter (unverified):** `WALLET_DRIVER=zallet` runs the Zallet adapter (snapshot scanning, reorg handling, non-resubmitting payouts) with worker-fetched market prices. It is testnet-only and requires explicit acknowledgement until the gate in [docs/ZALLET_GAP.md](docs/ZALLET_GAP.md) passes. **Fees:** the platform fee (`npm run admin -- set-fee <bps>`, 0–15%) applies to completed sales only. It is snapshotted per order and published with its history at `GET /api/terms`.
-
-## Web app
-
-`web/` is a Vite + React + Tailwind v4 frontend that runs the client-crypto SDK in the browser: capsules are created and decrypted locally, negotiation is end-to-end encrypted, and it covers invitations, passports, asset control and dispute evidence (see [docs/BROWSER_CLIENT.md](docs/BROWSER_CLIENT.md)). It uses shadcn/Base UI primitives with a warm paper, dot-matrix and isometric line-art design. With the API and worker running:
+## Testing
 
 ```bash
-npm ci --prefix web
-npm run web:dev                 # http://localhost:5173, proxies /api and /previews to :8080
-```
-
-Without a reachable API the market shows clearly labelled, non-purchasable preview listings. See [web/README.md](web/README.md) for production serving.
-
-## Validate
-
-```bash
-npm test                        # unit/security/RPC-contract tests; DB suites explicitly skipped here
-npm run test:integration         # creates, migrates and drops a separate PostgreSQL DB per test file
+npm test                    # unit, security and RPC-contract tests
+npm run test:integration    # a fresh PostgreSQL database per test file, dropped afterwards
 npm run typecheck
-# Or: npm run test:all
+npm run test:all            # all of the above
+npm run e2e --prefix web    # Chromium journeys (with npm run dev up)
 ```
 
-New checkouts reach `funded` after verified mock payment. Seller payout stays on hold until the buyer downloads, verifies SHA-256 and explicitly confirms, or a loopback operator resolves a dispute. See [private acquisitions](docs/PRIVATE_ACQUISITIONS.md). Existing orders keep their original settlement behavior.
+The integration suite covers this journey from end to end:
 
-The integration runner requires a local role with CREATEDB, or `TEST_DATABASE_ADMIN_URL` for a dedicated test role. It never truncates the application database. Tests cover the signup → private offer → acceptance → checkout → verified mock payment → file inspection → buyer acceptance → signed receipt journey; authorization, concurrent checkout, expiry, partial/excess/late payments, output replay, reorganizations, worker crash/restart and payout reconciliation. See [docs/VALIDATION.md](docs/VALIDATION.md) for executed results and limits.
+1. signup
+2. private offer
+3. checkout
+4. verified payment
+5. local decryption
+6. buyer approval
+7. signed receipt
 
-`npm run zallet:probe` diagnoses supported read-only wallet RPC contracts using optional `.env.worker` bindings. It cannot spend or enable real payments. Its bounded sample does not satisfy live testnet acceptance; see [docs/ZALLET_GAP.md](docs/ZALLET_GAP.md).
+It also covers authorization, concurrent checkout, expiry, partial, late and excess payments, output replay, chain reorganizations, worker crash and restart, and payout reconciliation. Executed results are in [VALIDATION.md](docs/VALIDATION.md).
 
-## Contracts and limitations
+## Project layout
 
-- **[Complete capability inventory](docs/CAPABILITIES.md)** covers everything currently available and its verification limits.
-- [API routes](docs/API.md), [domain invariants and audit repairs](docs/INVARIANTS.md), [threat model](docs/THREAT_MODEL.md), [operations](docs/OPERATIONS.md).
-- Financial offers/counters remain operator-readable. Optional v1 encrypted conversations protect participant text/attachments using client keys; legacy records are explicitly plaintext. See [cryptography protocol](docs/CRYPTO_PROTOCOL.md).
-- Legacy originals use server-held AES-256-GCM at rest. New Arcana Capsules add local client encryption with buyer-specific HPKE key envelopes; the server does not receive their content keys. Public previews are decoded and re-encoded with metadata removed; they remain public.
-- Receipt codes authorize proof retrieval and eligible refunds. New linked acquisitions additionally require the buyer session for downloads. Legacy and retention-anonymized paid receipts preserve bearer redemption. Buyer receipt renewal invalidates the previous code.
-- Unlisted URLs hide listings from search, but anyone with the URL can view their metadata.
-- Rate limits are shared atomically through PostgreSQL. Limits do not make pseudonymous signup resistant to a distributed Sybil attack.
-- Demo exchange rates are fixed and parsed entirely with integer arithmetic. They are unsuitable for accepting real funds.
-- SHA-256 proves file consistency; Ed25519 proves a historical platform claim, without proving legal ownership or real onchain settlement.
-- Reorganized settled payments and deposits arriving after settlement are frozen for manual review. Uncertain payouts are reconciled by durable submission ID and never blindly retried.
-- Real wallet status is **blocked**: source/RPC-contract inspection is not live-chain validation. [docs/ZALLET_GAP.md](docs/ZALLET_GAP.md) records pinned investigation versions, exact blockers and the separate live-testnet acceptance gate.
-- This backend provides no external NFT custody, atomic cross-chain settlement, dispute mediation, malware scanning, production key vault or audited backup system.
+```
+src/                     Fastify API, wallet worker, settlement, wallet adapters
+packages/client-crypto/  Browser crypto SDK (capsules, envelopes, identities)
+web/                     React app, in-browser demo server, Cloudflare Worker
+  src/demo/              Simulated API for the static demo (IndexedDB)
+  worker/                Worker entry: static assets + POST /api/waitlist (KV)
+db/                      schema.sql + numbered migrations
+scripts/                 setup, migrations, admin console, regtest, journeys
+deploy/                  Docker Compose, Caddy, Cloudflare Tunnel, backups
+docs/                    Protocol, threat model, operations, runbooks
+test/                    Unit and integration suites
+```
 
-For the runnable local demonstration, configure the optional worker simulator credential and run `npm run demo:mock`. It creates local demo accounts/listings and prints verification flags without credentials or invoice secrets.
+## Limitations
 
-## v0.5 private commerce
+- **Real Zcash is a blocked release gate.** The Zallet adapter is testnet-only and unverified until the gate in [ZALLET_GAP.md](docs/ZALLET_GAP.md) passes.
+- **No forward secrecy.** First-contact key fingerprints should be compared out of band, and static recipient keys provide no forward secrecy.
+- **Out of scope:** malicious client code and a compromised device.
+- **Proofs have limits.** SHA-256 proves the file is consistent and Ed25519 proves a platform claim. Neither proves legal ownership.
+- **Not provided:** NFT custody, cross-chain atomic settlement, malware scanning or a production key vault.
+- **Browser coverage.** The browser journeys pass on Chromium. Other browsers and an independent protocol review are still outstanding.
 
-[Client cryptography and recovery](docs/CRYPTO_PROTOCOL.md) provides versioned local chunked encryption, authenticated identities/rotation, pinned buyer envelopes, encrypted conversations/attachments and reviewer-only evidence. Single-use invitation capabilities support private capsule sales. Trade Passport v2 supports consent-based minimal facts, holder presentations, expiry, revocation and issuer-key history. Independent [asset-control observations](docs/ASSET_CONTROL.md) support DNS TXT, public GitHub challenge files and EIP-191 wallet signatures without custody.
+The full list is in [CAPABILITIES.md](docs/CAPABILITIES.md) and [THREAT_MODEL.md](docs/THREAT_MODEL.md).
 
-Run `npm run journey:capsule` against configured loopback mock API/worker services to exercise encrypted negotiation → capsule purchase → local decryption → buyer acceptance → passport verification. This creates local verification records and does not send blockchain transactions. The original `npm run demo:mock` remains functional. The full automated suite runs both through actual HTTP processes plus isolated database tests.
+## Documentation
 
-First-contact fingerprints must be compared out of band or pinned from an already trusted channel. Static recipient keys provide no Signal-style forward secrecy. Malicious client code, endpoint compromise and privileged early release of prepared envelopes are outside ordinary encrypted-storage protection. Chromium browser journeys now pass; other browsers, production deployment and independent protocol review remain outstanding. Real Zcash remains a separate **blocked release gate**, documented with [current evidence](docs/evidence/zcash-testnet-v05.json).
+| Topic | Doc |
+| --- | --- |
+| API routes | [API.md](docs/API.md) |
+| Cryptography protocol | [CRYPTO_PROTOCOL.md](docs/CRYPTO_PROTOCOL.md) |
+| Browser client | [BROWSER_CLIENT.md](docs/BROWSER_CLIENT.md) |
+| Threat model | [THREAT_MODEL.md](docs/THREAT_MODEL.md) |
+| Domain invariants | [INVARIANTS.md](docs/INVARIANTS.md) |
+| Private acquisitions | [PRIVATE_ACQUISITIONS.md](docs/PRIVATE_ACQUISITIONS.md) |
+| Asset control | [ASSET_CONTROL.md](docs/ASSET_CONTROL.md) |
+| Operations and backups | [OPERATIONS.md](docs/OPERATIONS.md) |
+| Cloudflare deploy | [DEPLOY_CLOUDFLARE.md](docs/DEPLOY_CLOUDFLARE.md) |
+| Testnet / regtest | [TESTNET_RUNBOOK.md](docs/TESTNET_RUNBOOK.md) · [REGTEST.md](docs/REGTEST.md) |
+| Three-party walkthrough | [DEMO.md](docs/DEMO.md) |
+| Validation results | [VALIDATION.md](docs/VALIDATION.md) |
+
+<div align="center"><sub>Lawful digital commerce only · Testnet · Not a custodian</sub></div>
