@@ -115,7 +115,7 @@ Each visitor gets their own private copy. Visitors don't share data with each ot
 | Build output directory | `dist` |
 | Environment variable | `NODE_VERSION` = `22` |
 
-Click **Save and Deploy**. After a couple of minutes the site is at `https://<project>.pages.dev`, and you can attach your own domain under **Custom domains**. `web/public/_redirects` handles page routing and `web/public/_headers` sets the security headers. Every push to the branch redeploys automatically.
+Click **Save and Deploy**. After a couple of minutes the site is at `https://<project>.pages.dev`, and you can attach your own domain under **Custom domains**. Page routing falls back to `index.html` automatically, and `web/public/_headers` sets the security headers. Every push to the branch redeploys automatically.
 
 ### Cloudflare Workers (newer "Import a repository" flow)
 
