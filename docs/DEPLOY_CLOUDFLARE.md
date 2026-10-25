@@ -116,3 +116,18 @@ Each visitor gets their own private copy. Visitors don't share data with each ot
 | Environment variable | `NODE_VERSION` = `22` |
 
 Click **Save and Deploy**. After a couple of minutes the site is at `https://<project>.pages.dev`, and you can attach your own domain under **Custom domains**. `web/public/_redirects` handles page routing and `web/public/_headers` sets the security headers. Every push to the branch redeploys automatically.
+
+### Cloudflare Workers (newer "Import a repository" flow)
+
+`web/wrangler.jsonc` deploys the same static demo as a Worker. `web/worker/index.ts` serves the app and handles `POST /api/waitlist`, and on the first deploy Wrangler creates the `WAITLIST` KV namespace automatically.
+
+| Field | Value |
+| --- | --- |
+| Project name | `gallery-arcana` |
+| Build command | `npm ci && npm run build:demo` |
+| Deploy command | `npx wrangler deploy` |
+| Advanced settings → Path (root directory) | `web` |
+| Advanced settings → Build variable | `NODE_VERSION` = `22` |
+| Production branch | `ccr-ba774958-2lfu3x` (or `main` after merging) |
+
+To read the waitlist, go to Storage & Databases → KV → the `WAITLIST` namespace. Each key is `waitlist:<sha256 of email>` and its value is `{ email, role, at }`. On the Docker backend, use `npm run admin -- waitlist`.

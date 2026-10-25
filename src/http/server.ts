@@ -77,6 +77,13 @@ export function buildServer(){
   });
   app.get('/',()=>({name:'Gallery Arcana API',version:'0.5.0',documentation:'README.md',frontend:false}));
   app.get('/api/health',()=>({ok:true,mode:config.walletDriver,network:config.network,origin:config.publicOrigin,demoAutopaySeconds:config.demoAutopaySeconds}));
+  app.post('/api/waitlist',async req=>{
+    await limit(req,'waitlist',10,60*60_000);
+    const body=z.object({email:z.string().trim().toLowerCase().max(254).email(),role:z.enum(['collector','creator','both']).default('collector'),website:z.string().max(200).optional()}).parse(req.body);
+    // Honeypot and existing entries get the same answer, so the form cannot test who signed up.
+    if(!body.website)await pool.query('INSERT INTO waitlist(email,role) VALUES($1,$2) ON CONFLICT(email) DO NOTHING',[body.email,body.role]);
+    return {ok:true};
+  });
   app.get('/api/terms',async()=>{
     const fee=await setting<number>('platform_cut_bps');
     const history=(await pool.query('SELECT fee_bps,effective_at FROM fee_history ORDER BY effective_at DESC,id DESC LIMIT 20')).rows;
@@ -89,7 +96,7 @@ export function buildServer(){
   app.get('/api/ready',async(_req,reply)=>{
     try{
       validateAssetKey();attestationKeys();
-      const db=await pool.query("SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version='013_fee_transparency.sql') AND EXISTS(SELECT 1 FROM worker_health WHERE name='payments' AND ready AND heartbeat_at>now()-interval '30 seconds') AND EXISTS(SELECT 1 FROM address_pool WHERE NOT claimed) AS ready");
+      const db=await pool.query("SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version='014_waitlist.sql') AND EXISTS(SELECT 1 FROM worker_health WHERE name='payments' AND ready AND heartbeat_at>now()-interval '30 seconds') AND EXISTS(SELECT 1 FROM address_pool WHERE NOT claimed) AS ready");
       if(!db.rows[0].ready||!await issuerReady())return reply.status(503).send({ready:false});
       return {ready:true,mode:config.walletDriver,network:config.network};
     }catch{return reply.status(503).send({ready:false});}

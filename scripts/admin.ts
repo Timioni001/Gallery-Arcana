@@ -29,12 +29,13 @@ try{
   await tx(async c=>{await c.query("UPDATE settings SET value=$1::jsonb WHERE key='platform_cut_bps'",[JSON.stringify(bps)]);await c.query('INSERT INTO fee_history(fee_bps) VALUES($1)',[bps]);});
   console.log(`Platform fee set to ${bps/100}% for new checkouts. Existing orders keep the rate they were checked out under.`);
  }
+ else if(cmd==='waitlist')console.table((await pool.query('SELECT email,role,created_at FROM waitlist ORDER BY created_at DESC')).rows);
  else if(cmd==='submissions')console.table((await pool.query("SELECT idempotency_key AS payout_id,state,operation_id,txids,error_code,updated_at FROM zallet_submissions WHERE state<>'sent' ORDER BY updated_at")).rows);
  else if(cmd==='requeue'&&args[0]&&args[1]==='--confirmed-not-sent'){
   // Clearing a submission is an operator assertion that no transaction for it exists on chain or in the wallet.
   const r=await pool.query("WITH s AS (DELETE FROM zallet_submissions WHERE idempotency_key=$1 AND state<>'sent' RETURNING 1) UPDATE payouts SET status='queued',failure_code='OPERATOR_REQUEUED',updated_at=now() WHERE id=$1::uuid AND status='sending' RETURNING id",[args[0]]);
   console.log(r.rowCount?'Requeued.':'Nothing to requeue (unknown id, already sent, or not in sending state).');
  }
- else{console.error('Usage: npm run admin -- disputes | assign <orderId> <reviewerAlias> [--replace] | resolve <orderId> release|refund [refundAddress] | stuck-payouts | set-fee <bps> | submissions | requeue <payoutId> --confirmed-not-sent');process.exitCode=1;}
+ else{console.error('Usage: npm run admin -- disputes | assign <orderId> <reviewerAlias> [--replace] | resolve <orderId> release|refund [refundAddress] | stuck-payouts | waitlist | set-fee <bps> | submissions | requeue <payoutId> --confirmed-not-sent');process.exitCode=1;}
 }catch(e){console.error((e as Error).message);process.exitCode=1;}
 finally{await pool.end();}

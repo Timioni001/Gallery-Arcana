@@ -4,10 +4,13 @@ import { ArrowUpRight, Check, Circle, CircleDashed, CircleDot, Plus, X } from 'l
 import { SiteNav } from '@/components/site-nav'
 import { SiteFooter } from '@/components/site-footer'
 import { ConnectorHero } from '@/components/connector-hero'
-import { Halftone, padlock, reach, sphere, type Shape } from '@/components/halftone'
+import { Halftone, padlock, sphere, type Shape } from '@/components/halftone'
 import { IsoVault } from '@/components/iso-vault'
 import { DotText } from '@/components/brand'
 import { cn } from '@/lib/utils'
+import { FragmentsGallery } from '@/components/fragments-gallery'
+import { PoweredByZcash } from '@/components/powered-by-zcash'
+import { Waitlist } from '@/components/waitlist'
 
 /** Black pill with a signal-orange dot tile, the primary call to action. */
 function DotButton({ to, children, light = false }: { to: string; children: ReactNode; light?: boolean }) {
@@ -53,10 +56,11 @@ function Hero() {
         <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-signal">A private market for digital assets</p>
         <p className="mt-3 text-[15px] text-fg/70">Buy, sell and exchange digital property without exposing who you are, what you paid or what changed hands. You pay in shielded ZEC, delivery arrives encrypted, and the seller is paid only when you approve.</p>
         <div className="mt-7 flex flex-wrap justify-center gap-3">
-          <DotButton to="/market">Explore the market</DotButton>
-          <Link to="/auth?mode=signup" className="inline-flex items-center rounded-xl border bg-surface px-4 text-[13px] font-medium text-fg hover:bg-secondary">Create a pseudonym</Link>
+          <a href="#waitlist" className="inline-flex items-center gap-2 rounded-xl bg-signal px-6 py-3 text-[15px] font-medium text-surface shadow-[0_10px_30px_-10px_oklch(0.645_0.19_38/.8)] transition hover:brightness-110">Join the waitlist →</a>
+          <DotButton to="/market">Explore the demo market</DotButton>
         </div>
-        <p className="mt-6 text-[13px] italic text-fg/50">“Private commerce should be as simple as ordinary online shopping.”</p>
+        <p className="mt-6 inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.16em] text-fg/55"><span className="text-[14px] text-fg">ⓩ</span> Powered by Zcash · shielded settlement</p>
+        <p className="mt-3 text-[13px] italic text-fg/50">“Private commerce should be as simple as ordinary online shopping.”</p>
       </div>
     </section>
   )
@@ -341,30 +345,14 @@ function Faq() {
   )
 }
 
-function Cta() {
-  return (
-    <section className="mx-auto max-w-6xl px-4 pt-28 sm:px-6">
-      <div className="relative overflow-hidden rounded-3xl bg-fg px-6 py-16 text-center sm:py-20">
-        <div className="absolute inset-x-0 bottom-0 h-1/2 opacity-25"><Halftone shape={reach} step={8} seed={3} erode={0.5} className="text-surface" /></div>
-        <div className="relative">
-          <p className="dot-display text-[30px] leading-none text-surface sm:text-[48px]"><DotText>Privacy by default.</DotText></p>
-          <p className="mx-auto mt-4 max-w-md text-sm text-surface/65">Digital property can change hands without the trade, the people involved or the contents becoming public information.</p>
-          <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Link to="/studio/new" className="rounded-xl bg-signal px-5 py-2.5 text-[13px] font-medium text-surface">Start selling</Link>
-            <Link to="/market" className="rounded-xl bg-surface px-5 py-2.5 text-[13px] font-medium text-fg">Browse the market</Link>
-          </div>
-        </div>
-      </div>
-    </section>
-  )
-}
-
 export default function Landing() {
   return (
     <>
       <SiteNav />
       <Hero />
       <ProofStrip />
+      <FragmentsGallery />
+      <PoweredByZcash />
       <Markets />
       <Exchange />
       <Capsules />
@@ -372,8 +360,8 @@ export default function Landing() {
       <Privacy />
       <Selling />
       <Status />
+      <Waitlist />
       <Faq />
-      <Cta />
       <SiteFooter />
     </>
   )

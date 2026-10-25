@@ -22,7 +22,7 @@ export function ListingArt({ listing, className }: { listing: Pick<Listing, 'id'
   const src = previewUrl(listing.preview_key)
   const h = hash(listing.id + listing.title)
   const shape = useMemo(() => plates[h % plates.length](h), [h])
-  if (src) return <img src={src} alt="" loading="lazy" className={cn('size-full object-cover', className)} />
+  if (src) return <img src={src} alt="" loading="lazy" className={cn('size-full bg-white object-contain', className)} />
   return (
     <div className={cn('relative size-full bg-surface', className)}>
       <Halftone shape={shape} step={6} seed={h} erode={0.4} square={h % 3 === 0} />
