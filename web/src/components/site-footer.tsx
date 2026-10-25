@@ -7,6 +7,11 @@ const cols = [
   { title: 'Protocol', links: [['Protected exchange', '/#how'], ['Privacy guarantees', '/#privacy'], ['Observer view', '/observer'], ['Build status', '/#status'], ['FAQ', '/#faq']] },
 ]
 
+async function resetDemo() {
+  if (!confirm('Clear every account, listing and key stored in this browser?')) return
+  await (await import('@/demo/server')).resetDemo()
+}
+
 export function SiteFooter() {
   return (
     <footer className="mt-28 border-t bg-surface pb-24 sm:pb-0">
@@ -27,7 +32,10 @@ export function SiteFooter() {
       <div aria-hidden className="mt-12 select-none overflow-hidden border-t px-4 pt-6">
         <p className="dot-display text-center text-[19vw] leading-[0.82] text-fg [mask-image:linear-gradient(to_bottom,black_40%,transparent_95%)]">Arcana</p>
       </div>
-      <p className="mx-auto max-w-6xl px-4 pb-6 pt-2 font-mono text-[11px] text-fg/45 sm:px-6">Testnet only · mock payments · not a custodian</p>
+      <p className="mx-auto max-w-6xl px-4 pb-6 pt-2 font-mono text-[11px] text-fg/45 sm:px-6">
+        Testnet only · mock payments · not a custodian
+        {import.meta.env.VITE_DEMO === '1' && <> · <button onClick={resetDemo} className="underline hover:text-fg">Reset my data</button></>}
+      </p>
     </footer>
   )
 }
