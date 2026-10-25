@@ -24,8 +24,12 @@ export async function makeOffer(buyerId:string,listingId:string,cents:number,inv
 }
 export async function offersFor(accountId:string){
   return (await pool.query(`SELECT o.id,o.listing_id,l.title AS listing_title,(o.buyer_id=$1) AS am_buyer,(l.seller_id=$1) AS am_seller,
-    o.amount_usd_cents,o.counter_usd_cents,o.status,o.created_at,l.delivery,o.revision,o.listing_revision
-    FROM offers o JOIN listings l ON l.id=o.listing_id WHERE o.buyer_id=$1 OR l.seller_id=$1 ORDER BY o.created_at DESC,o.id DESC LIMIT 100`,[accountId])).rows;
+    o.amount_usd_cents,o.counter_usd_cents,o.status,o.created_at,l.delivery,o.revision,o.listing_revision,l.crypto_mode,
+    CASE WHEN l.seller_id=$1 THEN o.buyer_id END AS buyer_id,CASE WHEN l.seller_id=$1 THEN b.alias END AS buyer_alias,
+    (l.crypto_mode='capsule-v1' AND EXISTS(SELECT 1 FROM capsule_envelopes e JOIN encryption_identities k ON k.id=e.recipient_key_id AND k.revoked_at IS NULL
+      JOIN encryption_identities s ON s.id=e.sender_key_id AND s.revoked_at IS NULL
+      WHERE e.listing_id=o.listing_id AND e.buyer_id=o.buyer_id AND e.listing_revision=l.revision AND e.expires_at>now()+interval '1 hour')) AS capsule_ready
+    FROM offers o JOIN listings l ON l.id=o.listing_id JOIN accounts b ON b.id=o.buyer_id WHERE o.buyer_id=$1 OR l.seller_id=$1 ORDER BY o.created_at DESC,o.id DESC LIMIT 100`,[accountId])).rows;
 }
 export async function actOnOffer(accountId:string,offerId:string,action:'accept'|'counter'|'decline'|'withdraw'|'decline-counter',counterCents?:number,expectedVersion?:number){
   return tx(async c=>{

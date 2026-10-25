@@ -1,6 +1,6 @@
-import {randomUUID} from 'node:crypto';
 import {z} from 'zod';
 import {parseZalletTransaction} from './zalletNotes.ts';
+import {ZalletRpc,type ZalletRpcOptions} from './zalletRpc.ts';
 
 const methods=z.enum(['getwalletstatus','z_getaccount','z_listunifiedreceivers','z_listtransactions','z_viewtransaction']);
 type ReadMethod=z.infer<typeof methods>;
@@ -8,49 +8,13 @@ type Failure='CONFIGURATION'|'UNAVAILABLE'|'PROTOCOL'|'RESPONSE_LIMIT'|'RPC_REJE
 export class ZalletProbeError extends Error{
   constructor(readonly code:Failure){super(`Read-only Zallet probe failed: ${code}`);}
 }
-const rpcConfig=z.object({
-  url:z.string().url(),user:z.string().max(256).default(''),password:z.string().max(4096).default(''),
-  timeoutMs:z.number().int().min(10).max(30000).default(5000),
-  maxBytes:z.number().int().min(256).max(4_194_304).default(1_048_576),
-});
-
 /** Diagnostic transport only. No spend, address generation, account creation or retries. */
 export class ZalletReadOnlyRpc{
-  private readonly options:z.infer<typeof rpcConfig>;
-  constructor(options:z.input<typeof rpcConfig>){
-    const parsed=rpcConfig.safeParse(options);
-    if(!parsed.success)throw new ZalletProbeError('CONFIGURATION');
-    const url=new URL(parsed.data.url);
-    if(!['http:','https:'].includes(url.protocol)||!['127.0.0.1','localhost','[::1]'].includes(url.hostname)||url.username||url.password||url.search||url.hash)
-      throw new ZalletProbeError('CONFIGURATION');
-    if(!!parsed.data.user!==!!parsed.data.password)throw new ZalletProbeError('CONFIGURATION');
-    this.options=parsed.data;
-  }
+  private readonly rpc:ZalletRpc;
+  constructor(options:ZalletRpcOptions){this.rpc=new ZalletRpc(options,methods.options,code=>new ZalletProbeError(code));}
   async call(method:ReadMethod,params:unknown[]=[]):Promise<unknown>{
     if(!methods.safeParse(method).success)throw new ZalletProbeError('CONFIGURATION');
-    const id=randomUUID();let response:Response;
-    try{
-      response=await fetch(this.options.url,{method:'POST',redirect:'error',signal:AbortSignal.timeout(this.options.timeoutMs),
-        headers:{'content-type':'application/json',...(this.options.user?{authorization:`Basic ${Buffer.from(`${this.options.user}:${this.options.password}`).toString('base64')}`}:{})},
-        body:JSON.stringify({jsonrpc:'2.0',id,method,params})});
-    }catch{throw new ZalletProbeError('UNAVAILABLE');}
-    if(!response.ok){await response.body?.cancel();throw new ZalletProbeError('RPC_REJECTED');}
-    const reader=response.body?.getReader();if(!reader)throw new ZalletProbeError('PROTOCOL');
-    const chunks:Uint8Array[]=[];let size=0;
-    try{
-      for(;;){const {done,value}=await reader.read();if(done)break;
-        size+=value.byteLength;
-        if(size>this.options.maxBytes){await reader.cancel();throw new ZalletProbeError('RESPONSE_LIMIT');}
-        chunks.push(value);
-      }
-    }catch(error){if(error instanceof ZalletProbeError)throw error;throw new ZalletProbeError('UNAVAILABLE');}
-    finally{reader.releaseLock();}
-    let result:any;
-    try{result=JSON.parse(Buffer.concat(chunks).toString('utf8'));}catch{throw new ZalletProbeError('PROTOCOL');}
-    if(!result||typeof result!=='object'||Array.isArray(result)||result.jsonrpc!=='2.0'||result.id!==id)throw new ZalletProbeError('PROTOCOL');
-    if(Object.hasOwn(result,'error'))throw new ZalletProbeError('RPC_REJECTED');
-    if(!Object.hasOwn(result,'result'))throw new ZalletProbeError('PROTOCOL');
-    return result.result;
+    return this.rpc.call(method,params);
   }
 }
 
@@ -67,7 +31,7 @@ function contract<T>(fn:()=>T):T{try{return fn();}catch(error){if(error instance
  * Matching tips do not prove a complete/snapshot-consistent history or binary identity.
  */
 export async function probeZallet(rpc:Pick<ZalletReadOnlyRpc,'call'>,binding?:{accountId:string;address:string}){
-  if(binding&&!z.object({accountId:z.string().uuid(),address:z.string().regex(/^utest1[a-z0-9]{15,349}$/)}).safeParse(binding).success)
+  if(binding&&!z.object({accountId:z.string().uuid(),address:z.string().regex(/^u(test|regtest)1[a-z0-9]{15,349}$/)}).safeParse(binding).success)
     throw new ZalletProbeError('CONFIGURATION');
   const firstRaw=await rpc.call('getwalletstatus');
   const first=contract(()=>status.parse(firstRaw));

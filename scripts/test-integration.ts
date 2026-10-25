@@ -8,7 +8,7 @@ import {migrate} from '../src/migrations.ts';
 import {config} from '../src/config.ts';
 const source=new URL(process.env.TEST_DATABASE_ADMIN_URL??config.databaseUrl);source.pathname='/postgres';
 const admin=new pg.Pool({connectionString:source.toString(),connectionTimeoutMillis:5000});
-const files=readdirSync('test').filter(n=>n.endsWith('integration.test.ts')).sort((a,b)=>a==='integration.test.ts'?-1:b==='integration.test.ts'?1:a.localeCompare(b));
+const files=readdirSync('test').filter(n=>n.endsWith('integration.test.ts')&&(!process.env.ARCANA_TEST_FILTER||n.includes(process.env.ARCANA_TEST_FILTER))).sort((a,b)=>a==='integration.test.ts'?-1:b==='integration.test.ts'?1:a.localeCompare(b));
 try{
   for(const file of files){
     const databaseName=`arcana_test_${randomBytes(8).toString('hex')}`;

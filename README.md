@@ -1,8 +1,8 @@
-# Gallery Arcana backend v0.5
+# Gallery Arcana v0.5
 
 A Node.js 22+, TypeScript, Fastify and PostgreSQL marketplace backend. API and wallet workers run separately. Development payments use an explicitly labelled durable mock wallet. **Real Zcash, mainnet and production custody remain disabled.**
 
-The local workflow supports alias accounts, hashed passphrases, rotating/revocable sessions, seller-owned uploads and listing edits, public/unlisted discovery, private offers and counteroffers, atomic checkout, confirmation checks, held seller funds, verified encrypted-file delivery, explicit buyer acceptance, private disputes, Ed25519 attestations, receipts, refunds and payout reconciliation. No frontend is included.
+The local workflow supports alias accounts, hashed passphrases, rotating/revocable sessions, seller-owned uploads and listing edits, public/unlisted discovery, private offers and counteroffers, atomic checkout, confirmation checks, held seller funds, verified encrypted-file delivery, explicit buyer acceptance, private disputes, Ed25519 attestations, receipts, refunds and payout reconciliation. The web app lives in [`web/`](web/README.md).
 
 ## Start locally
 
@@ -25,6 +25,36 @@ npm run api                     # terminal B
 The API binds to loopback by default. `GET /api/health` reports process liveness; `GET /api/ready` checks schema, encryption/signing keys, worker heartbeat and payment-destination availability. All mutations require `X-Arcana-Action: 1`; browser mutations also enforce the configured origin and fetch-site checks. Session cookies are HttpOnly and SameSite=Strict, and Secure when `PUBLIC_ORIGIN` uses HTTPS.
 
 Copy `.env.worker.example` to `.env.worker` for worker-only options. The localhost payment simulator is disabled unless a strong `MOCK_SIMULATOR_TOKEN` is configured. It requires Bearer authentication and never submits blockchain transactions. Wallet spending credentials must not be placed in the API environment.
+
+## Deploy (Cloudflare)
+
+`cd deploy && ./init.sh && docker compose up -d --build` runs the whole stack (PostgreSQL, API, worker, web, nightly backups, Cloudflare Tunnel). Everything restarts on its own and no inbound ports are opened. See [docs/DEPLOY_CLOUDFLARE.md](docs/DEPLOY_CLOUDFLARE.md).
+
+## Ubuntu / WSL quick start
+
+From an Ubuntu (or WSL2) shell with Node.js 22+:
+
+```bash
+npm run setup:wsl    # installs/starts PostgreSQL, creates role+DB, .env files, keys, migrations, web deps
+npm run dev          # worker + API + web together; open http://localhost:5173 from Windows
+```
+
+Clone inside the Linux filesystem (for example `~/code`), not under `/mnt/c`, so file watching and npm installs stay fast. To pay for a test order, copy the memo from the order page and run `npm run mock:pay -- <memo>`. This uses the local mock simulator and sends no blockchain transaction.
+
+Operator tasks such as disputes, reviewer assignment and resolution go through `npm run admin -- disputes | assign <orderId> <reviewerAlias> | resolve <orderId> release|refund`. The browser journeys run with `npm run e2e --prefix web` while `npm run dev` is up. For the three-party walkthrough, see [docs/DEMO.md](docs/DEMO.md). For live Zcash testnet preparation, see [docs/TESTNET_RUNBOOK.md](docs/TESTNET_RUNBOOK.md).
+
+**Live testnet adapter (unverified):** `WALLET_DRIVER=zallet` runs the Zallet adapter (snapshot scanning, reorg handling, non-resubmitting payouts) with worker-fetched market prices. It is testnet-only and requires explicit acknowledgement until the gate in [docs/ZALLET_GAP.md](docs/ZALLET_GAP.md) passes. **Fees:** the platform fee (`npm run admin -- set-fee <bps>`, 0–15%) applies to completed sales only. It is snapshotted per order and published with its history at `GET /api/terms`.
+
+## Web app
+
+`web/` is a Vite + React + Tailwind v4 frontend that runs the client-crypto SDK in the browser: capsules are created and decrypted locally, negotiation is end-to-end encrypted, and it covers invitations, passports, asset control and dispute evidence (see [docs/BROWSER_CLIENT.md](docs/BROWSER_CLIENT.md)). It uses shadcn/Base UI primitives with a warm paper, dot-matrix and isometric line-art design. With the API and worker running:
+
+```bash
+npm ci --prefix web
+npm run web:dev                 # http://localhost:5173, proxies /api and /previews to :8080
+```
+
+Without a reachable API the market shows clearly labelled, non-purchasable preview listings. See [web/README.md](web/README.md) for production serving.
 
 ## Validate
 
@@ -64,4 +94,4 @@ For the runnable local demonstration, configure the optional worker simulator cr
 
 Run `npm run journey:capsule` against configured loopback mock API/worker services to exercise encrypted negotiation → capsule purchase → local decryption → buyer acceptance → passport verification. This creates local verification records and does not send blockchain transactions. The original `npm run demo:mock` remains functional. The full automated suite runs both through actual HTTP processes plus isolated database tests.
 
-First-contact fingerprints must be compared out of band or pinned from an already trusted channel. Static recipient keys provide no Signal-style forward secrecy. Malicious client code, endpoint compromise and privileged early release of prepared envelopes are outside ordinary encrypted-storage protection. Production, browser-interoperability and independent protocol review remain outstanding. Real Zcash remains a separate **blocked release gate**, documented with [current evidence](docs/evidence/zcash-testnet-v05.json).
+First-contact fingerprints must be compared out of band or pinned from an already trusted channel. Static recipient keys provide no Signal-style forward secrecy. Malicious client code, endpoint compromise and privileged early release of prepared envelopes are outside ordinary encrypted-storage protection. Chromium browser journeys now pass; other browsers, production deployment and independent protocol review remain outstanding. Real Zcash remains a separate **blocked release gate**, documented with [current evidence](docs/evidence/zcash-testnet-v05.json).

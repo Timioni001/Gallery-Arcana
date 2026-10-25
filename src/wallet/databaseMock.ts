@@ -14,6 +14,14 @@ export class DatabaseMockWallet implements WalletAdapter{
     const txid=randomBytes(32).toString('hex'),outputId=`${txid}:orchard:0`;
     await pool.query('INSERT INTO mock_notes(output_id,txid,address,zat,memo,confirmations) VALUES($1,$2,$3,$4,$5,$6)',[outputId,txid,address,zat.toString(),memo,confirmations]);return outputId;
   }
+  /** Demo mode: pays every open invoice older than `seconds`, exactly and with the right memo. Mock evidence only. */
+  async autopay(seconds:number){
+    const {rows}=await pool.query(`SELECT p.address,p.expected_zat::text AS zat,p.memo_code FROM payments p
+      WHERE p.status='pending' AND p.scrubbed_at IS NULL AND p.expires_at>clock_timestamp() AND p.created_at<clock_timestamp()-make_interval(secs=>$1)
+        AND NOT EXISTS(SELECT 1 FROM mock_notes n WHERE n.address=p.address) LIMIT 50`,[seconds]);
+    for(const r of rows)await this.simulatePayment(r.address,BigInt(r.zat),r.memo_code);
+    return rows.length;
+  }
   async lookupSend(key:string):Promise<SendLookup>{
     const row=(await pool.query('SELECT * FROM mock_sends WHERE idempotency_key=$1',[key])).rows[0];
     return row?{state:'found',txid:row.txid,to:row.to_address,zat:BigInt(row.zat)}:{state:'not_found'};

@@ -1,0 +1,8 @@
+{
+  "files": [],
+  "compilerOptions": { "paths": { "@/*": ["./src/*"], "@arcana/client-crypto": ["../packages/client-crypto/src/index.ts"], "@hpke/core": ["./node_modules/@hpke/core"] } },
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" }
+  ]
+}

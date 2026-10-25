@@ -9,22 +9,23 @@ import {scanOnce,topUpAddressPool} from './jobs/watcher.ts';
 import {runPayouts} from './jobs/payouts.ts';
 import {scrubOrders} from './jobs/privacy.ts';
 import {releaseExpired} from './services/checkout.ts';
+import {refreshQuote} from './services/priceFeed.ts';
 import {log,errorCode} from './lib/log.ts';
 import {registerWorker,heartbeatWorker} from './jobs/workerHealth.ts';
 const wallet=getWallet();
 const instanceId=randomUUID();
-let stopping=false,ready=false,timer:NodeJS.Timeout|undefined,inflight:Promise<void>=Promise.resolve(),lastPrivacy=0,failures=0;
+let lastQuote=0,stopping=false,ready=false,timer:NodeJS.Timeout|undefined,inflight:Promise<void>=Promise.resolve(),lastPrivacy=0,failures=0;
 const guard=await pool.connect().catch(async()=>{log('worker_start_failed',{level:'error'});await pool.end();process.exit(1);});
 let locked=false;try{locked=(await guard.query('SELECT pg_try_advisory_lock(174428,5) AS locked')).rows[0].locked;}catch{log('worker_start_failed',{level:'error'});}
 if(!locked){log('worker_lock_unavailable',{level:'error'});guard.release();await pool.end();process.exit(1);}
 try{
-  if(!(await guard.query("SELECT 1 FROM schema_migrations WHERE version='010_asset_control.sql'")).rowCount)throw new Error('Migrations required');
+  if(!(await guard.query("SELECT 1 FROM schema_migrations WHERE version='014_waitlist.sql'")).rowCount)throw new Error('Migrations required');
   await registerWorker(guard,instanceId);
 }catch{log('worker_start_failed',{level:'error'});guard.release(true);await pool.end();process.exit(1);}
 const server=createServer(async(req,res)=>{
   res.setHeader('Content-Type','application/json');res.setHeader('Cache-Control','no-store');
-  if(req.method==='GET'&&req.url==='/health'){res.end(JSON.stringify({ok:true,mode:'mock'}));return;}
-  if(req.method==='GET'&&req.url==='/ready'){res.writeHead(ready?200:503).end(JSON.stringify({ready,mode:'mock'}));return;}
+  if(req.method==='GET'&&req.url==='/health'){res.end(JSON.stringify({ok:true,mode:config.walletDriver}));return;}
+  if(req.method==='GET'&&req.url==='/ready'){res.writeHead(ready?200:503).end(JSON.stringify({ready,mode:config.walletDriver}));return;}
   if(stopping||req.method!=='POST'||req.url!=='/dev/pay'||!config.simulatorToken||!(wallet instanceof DatabaseMockWallet)){res.writeHead(404).end('{}');return;}
   const expected=Buffer.from(config.simulatorToken),provided=Buffer.from(req.headers.authorization?.replace(/^Bearer /,'')??'');
   const digest=(v:Buffer)=>createHash('sha256').update(v).digest();
@@ -40,7 +41,10 @@ async function heartbeat(value:boolean){if(!await heartbeatWorker(pool,instanceI
 async function cycle(){
   try{
     if(!(await wallet.syncStatus()).ready)throw new Error('Wallet is not synchronized');
+    // A failed quote refresh pauses new checkouts (stale price) but never blocks settlement.
+    if(config.priceSource==='market'&&Date.now()-lastQuote>60_000){lastQuote=Date.now();await refreshQuote().catch(()=>{});}
     await topUpAddressPool(wallet);if(stopping)return;
+    if(config.demoAutopaySeconds&&wallet instanceof DatabaseMockWallet)await wallet.autopay(config.demoAutopaySeconds);
     await tx(c=>releaseExpired(c));if(stopping)return;
     await scanOnce(wallet);if(stopping)return;
     await runPayouts(wallet);if(stopping)return;

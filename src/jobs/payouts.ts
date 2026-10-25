@@ -1,5 +1,5 @@
 import {pool,tx} from '../db.ts';
-import type {WalletAdapter} from '../wallet/types.ts';
+import {PayoutNotSubmittedError,type WalletAdapter} from '../wallet/types.ts';
 import {log,errorCode} from '../lib/log.ts';
 async function recordSent(id:string,txid:string){
   await tx(async c=>{
@@ -33,6 +33,11 @@ export async function runPayouts(wallet:WalletAdapter,batch=10){
   for(const p of rows){
     try{const txid=await wallet.send(p.to_address,BigInt(p.zat),undefined,p.id);await recordSent(p.id,txid);}
     catch(error){
+      // Only a definite non-submission returns to the queue; anything uncertain waits for reconciliation.
+      if(error instanceof PayoutNotSubmittedError){
+        await pool.query("UPDATE payouts SET status='queued',failure_code=$2,updated_at=now() WHERE id=$1 AND status='sending'",[p.id,error.code]);
+        log('payout_not_submitted',{id:p.id,level:'warn',code:error.code});continue;
+      }
       await pool.query("UPDATE payouts SET failure_code=$2,updated_at=now() WHERE id=$1 AND status='sending'",[p.id,errorCode(error)]);
       log('payout_submission_uncertain',{id:p.id,level:'warn',code:errorCode(error)});
     }
