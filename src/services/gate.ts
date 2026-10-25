@@ -1,3 +1,4 @@
+import { shieldedDestination } from '../lib/network.ts';
 import { z } from 'zod';
 import { pool, tx } from '../db.ts';
 import type { PoolClient } from 'pg';
@@ -52,7 +53,7 @@ export async function logout(token: string) {
 
 export function looksShielded(addr: string) {
   // Shape check only. Wallet/network validation must be added before real funds.
-  return /^utest1[a-z0-9]{15,}$/.test(addr) && addr.length < 350;
+  return shieldedDestination(config.network).test(addr) && addr.length < 350;
 }
 
 export async function updatePayout(accountId: string, address: string) {

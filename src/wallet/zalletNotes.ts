@@ -11,7 +11,7 @@ const transaction=z.object({
     account_uuid:z.string().optional(),address:z.string().optional(),outgoing:z.boolean().nullable().optional(),walletInternal:z.boolean(),
     valueZat:value,memo:z.string().optional(),memoStr:z.string().optional()})),
 });
-function textMemo(hex:string){
+export function textMemo(hex:string){
   if(!/^[a-fA-F0-9]{1024}$/.test(hex))throw new Error('Invalid memo encoding');
   const bytes=Buffer.from(hex,'hex');
   let end=bytes.length;while(end>0&&bytes[end-1]===0)end--;
@@ -42,4 +42,11 @@ export function matchZalletTransaction(raw:unknown,invoice:{accountId:string;add
       confirmations:Math.max(0,tx.confirmations),canonical:tx.status!=='expired',shielded:true});
   }
   return notes;
+}
+
+/** Memo text for attribution, or null for empty (0xF6), binary or malformed memos.
+ * Never throws: a payer-controlled memo must not be able to halt scanning. */
+export function memoOrNull(hex:string|undefined):string|null{
+  if(!hex||/^f6/i.test(hex))return null;
+  try{const text=textMemo(hex);return text||null;}catch{return null;}
 }

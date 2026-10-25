@@ -8,3 +8,8 @@ dist/
 .env.*
 !.env.example
 !.env.worker.example
+.regtest-accounts.json
+deploy/.env
+deploy/.env.worker
+deploy/backups/
+web/.wrangler/

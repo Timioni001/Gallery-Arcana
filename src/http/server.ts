@@ -6,7 +6,7 @@ import {z} from 'zod';
 import {timingSafeEqual,createHash} from 'node:crypto';
 import {log,errorCode} from '../lib/log.ts';
 import {config} from '../config.ts';
-import {pool} from '../db.ts';
+import {pool,setting} from '../db.ts';
 import {HttpError,unauthorized,notFound,forbidden} from '../lib/errors.ts';
 import {allow} from '../lib/ratelimit.ts';
 import * as gate from '../services/gate.ts';
@@ -46,7 +46,7 @@ const id=z.object({id:z.string().uuid()});
 const amount=z.number().int().min(50).max(100_000_000);
 
 export function buildServer(){
-  const app=Fastify({logger:false,trustProxy:false,bodyLimit:1024*1024});
+  const app=Fastify({logger:false,trustProxy:config.trustProxy,bodyLimit:1024*1024});
   app.addContentTypeParser('application/octet-stream',{parseAs:'buffer'},(_req,body,done)=>done(null,body));
   app.addHook('onRequest',async(req,reply)=>{
     reply.header('Referrer-Policy','no-referrer');
@@ -76,13 +76,29 @@ export function buildServer(){
     return reply.status(500).send({error:'Internal error'});
   });
   app.get('/',()=>({name:'Gallery Arcana API',version:'0.5.0',documentation:'README.md',frontend:false}));
-  app.get('/api/health',()=>({ok:true,mode:config.walletDriver,network:config.network}));
+  app.get('/api/health',()=>({ok:true,mode:config.walletDriver,network:config.network,origin:config.publicOrigin,demoAutopaySeconds:config.demoAutopaySeconds}));
+  app.post('/api/waitlist',async req=>{
+    await limit(req,'waitlist',10,60*60_000);
+    const body=z.object({email:z.string().trim().toLowerCase().max(254).email(),role:z.enum(['collector','creator','both']).default('collector'),website:z.string().max(200).optional()}).parse(req.body);
+    // Honeypot and existing entries get the same answer, so the form cannot test who signed up.
+    if(!body.website)await pool.query('INSERT INTO waitlist(email,role) VALUES($1,$2) ON CONFLICT(email) DO NOTHING',[body.email,body.role]);
+    return {ok:true};
+  });
+  app.get('/api/terms',async()=>{
+    const fee=await setting<number>('platform_cut_bps');
+    const history=(await pool.query('SELECT fee_bps,effective_at FROM fee_history ORDER BY effective_at DESC,id DESC LIMIT 20')).rows;
+    const quote=config.priceSource==='market'?(await pool.query('SELECT rate_micro_usd::text AS rate_micro_usd,fetched_at FROM price_quotes ORDER BY fetched_at DESC LIMIT 1')).rows[0]??null:null;
+    return {platformFeeBps:fee,feeAppliesTo:'completed sales only; refunds and cancelled orders pay no fee',feeHistory:history,
+      settlement:config.walletDriver,network:config.network,minConfirmations:config.minConfirmations,
+      price:{source:config.priceSource,maxAgeSeconds:config.priceMaxAgeSeconds,...(config.priceSource==='fixed'?{rateMicroUsd:config.rateMicroUsd.toString()}:{latest:quote})},
+      neverSold:['identity disclosure','user transaction data']};
+  });
   app.get('/api/ready',async(_req,reply)=>{
     try{
       validateAssetKey();attestationKeys();
-      const db=await pool.query("SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version='010_asset_control.sql') AND EXISTS(SELECT 1 FROM worker_health WHERE name='payments' AND ready AND heartbeat_at>now()-interval '30 seconds') AND EXISTS(SELECT 1 FROM address_pool WHERE NOT claimed) AS ready");
+      const db=await pool.query("SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version='014_waitlist.sql') AND EXISTS(SELECT 1 FROM worker_health WHERE name='payments' AND ready AND heartbeat_at>now()-interval '30 seconds') AND EXISTS(SELECT 1 FROM address_pool WHERE NOT claimed) AS ready");
       if(!db.rows[0].ready||!await issuerReady())return reply.status(503).send({ready:false});
-      return {ready:true,mode:'mock',network:'test'};
+      return {ready:true,mode:config.walletDriver,network:config.network};
     }catch{return reply.status(503).send({ready:false});}
   });
 

@@ -1,0 +1,85 @@
+# Gallery Arcana production stack behind Cloudflare Tunnel.
+#   cd deploy && ./init.sh && docker compose up -d
+# Nothing publishes a host port: the only way in is the tunnel.
+name: gallery-arcana
+
+x-app: &app
+  build: {context: .., dockerfile: deploy/Dockerfile.app}
+  image: gallery-arcana-app:local
+  env_file: [.env]
+  environment: &appenv
+    DATABASE_URL: postgres://arcana:${POSTGRES_PASSWORD}@db:5432/arcana
+    PUBLIC_ORIGIN: ${PUBLIC_ORIGIN}
+    CLOUDFLARE_TUNNEL_TOKEN: ""
+  volumes: [storage:/data/storage, secrets:/data/secrets]
+  restart: unless-stopped
+  networks: [arcana]
+
+services:
+  db:
+    image: postgres:16.15
+    environment: {POSTGRES_USER: arcana, POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}", POSTGRES_DB: arcana}
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck: {test: ["CMD-SHELL", "pg_isready -U arcana -d arcana"], interval: 5s, timeout: 5s, retries: 20}
+    restart: unless-stopped
+    networks: [arcana]
+
+  init:
+    <<: *app
+    command: ["init"]
+    restart: "no"
+    depends_on: {db: {condition: service_healthy}}
+
+  api:
+    <<: *app
+    command: ["api"]
+    environment:
+      <<: *appenv
+      API_HOST: 0.0.0.0
+      PORT: "8080"
+      TRUST_PROXY: 172.30.0.10
+      # Wallet and simulator credentials live only in .env.worker; blank any stray copy.
+      ZALLET_RPC_PASS: ""
+    depends_on: {init: {condition: service_completed_successfully}}
+    healthcheck: {test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/api/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"], interval: 15s, timeout: 5s, retries: 5}
+
+  worker:
+    <<: *app
+    command: ["worker"]
+    env_file: [.env, .env.worker]
+    volumes: [storage:/data/storage, "secrets:/data/secrets:ro"]
+    depends_on: {init: {condition: service_completed_successfully}}
+    healthcheck: {test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8081/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"], interval: 15s, timeout: 5s, retries: 5}
+
+  web:
+    build: {context: .., dockerfile: deploy/Dockerfile.web}
+    image: gallery-arcana-web:local
+    depends_on: {api: {condition: service_healthy}}
+    restart: unless-stopped
+    networks: {arcana: {ipv4_address: 172.30.0.10}}
+
+  tunnel:
+    image: cloudflare/cloudflared:2025.10.0
+    command: ["tunnel", "--no-autoupdate", "run"]
+    environment: {TUNNEL_TOKEN: "${CLOUDFLARE_TUNNEL_TOKEN}"}
+    depends_on: [web]
+    restart: unless-stopped
+    networks: {arcana: {ipv4_address: 172.30.0.11}}
+
+  backup:
+    image: postgres:16.15
+    environment: {PGPASSWORD: "${POSTGRES_PASSWORD}", KEEP_DAYS: "${BACKUP_KEEP_DAYS:-14}"}
+    volumes: ["./backups:/backups", "./backup.sh:/backup.sh:ro"]
+    entrypoint: ["sh", "/backup.sh"]
+    depends_on: {db: {condition: service_healthy}}
+    restart: unless-stopped
+    networks: [arcana]
+
+networks:
+  arcana:
+    ipam: {config: [{subnet: 172.30.0.0/24}]}
+
+volumes:
+  pgdata:
+  storage:
+  secrets:

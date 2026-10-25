@@ -48,5 +48,43 @@ First-contact pins need independent trust. Client compromise/malicious client
 code and privileged premature key-envelope release bypass ordinary encrypted
 storage protection. Static keys have no Signal-like forward secrecy. Browser
 interoperability, independent crypto review, production key/custody/backup and
-fresh FX remain outstanding. No frontend, legal title, ZK/unlinkability,
+fresh FX remain outstanding. No legal title, ZK/unlinkability,
 NFT/domain/repository transfer or cross-chain custody is implemented.
+
+WEB APP (web/)
+Vite + React 19 + Tailwind v4 frontend (paper/ink/signal-orange design with
+dot-matrix type, halftone and isometric illustrations): landing page, market browse/search,
+listing detail with private offers/counters and checkout, order page with
+payment details, in-browser SHA-256 verification, acceptance and disputes,
+and a seller studio (listings, offers, purchases, sales, payout, new listing).
+Verified locally: production build, typecheck, and a headless-browser journey
+against the real API/worker (signup → payout → listing with preview and
+encrypted file → buyer checkout → simulated mock payment → download, verify,
+accept → paid). Capsule (client-encrypted) listing creation and buyer key
+envelopes still go through the SDK/journey script, not the browser UI.
+
+Local Ubuntu/WSL: npm run setup:wsl once, then npm run dev (worker + API +
+web). npm run mock:pay -- <memo> funds a pending order via the simulator.
+
+BROWSER CLIENT (v0.6 web)
+Client-crypto SDK runs in the browser: IndexedDB key vault with sealed
+registration, encrypted backup/restore and reset; capsules encrypted locally
+and sealed per buyer after TOFU fingerprint confirmation; funded envelope
+release and local decryption; E2EE conversations with attachments; private
+invitations; Trade Passport issue/present + public /verify; asset-control
+challenges; consent-based reviewer evidence. Backend additions: health
+origin, seller-side buyer id/alias + capsule_ready on offers, conversation
+listing (integration-tested). Two Playwright journeys pass end to end in
+Chromium against the real API/worker (mock settlement). Live Zcash testnet
+remains blocked pending the operator runbook in docs/TESTNET_RUNBOOK.md.
+
+SETTLEMENT READINESS (v0.6)
+Zallet testnet adapter implemented behind explicit opt-in: snapshot scanning
+with tip-stability check, shallow-transaction re-reads, reorg/disappearance
+review, Orchard-only crediting, anomaly review, durable pre-submission
+records, raw-decimal z_sendmany, broadcast + output verification, no
+resubmission of ambiguous sends, operator requeue. Market USD/ZEC oracle
+(4 sources, median, >=2 within 2%, max age) required for live mode.
+Transparent fee: per-order snapshot, public /api/terms with append-only
+history, seller breakdown, bounded admin command. Verified with fake-RPC and
+DB integration tests only; real-binary testnet acceptance is still pending.
