@@ -10,8 +10,8 @@ export function DemoBanner() {
   }
   return (
     <div className="bg-fg px-4 py-2 text-center text-[12px] text-surface">
-      <b className="font-medium">Live demo.</b> The marketplace runs entirely in your browser. Payments are simulated and the sample sellers respond automatically.
-      Encryption, sealed keys and signatures are real. Try it: create an alias, request <i>Glacier Study No. 4</i>, then decrypt it.
+      <b className="font-medium">Live demo.</b> <span className="sm:hidden">Runs in your browser; payments are simulated.</span><span className="hidden sm:inline">The marketplace runs entirely in your browser. Payments are simulated and the sample sellers respond automatically.</span>
+      <span className="hidden sm:inline">Encryption, sealed keys and signatures are real. Try it: create an alias, request <i>Glacier Study No. 4</i>, then decrypt it.</span>
       <button disabled={busy} onClick={reset} className="ml-2 underline opacity-80 hover:opacity-100">Reset demo</button>
     </div>
   )

@@ -9,6 +9,8 @@ import { cn } from '@/lib/utils'
 
 const links = [
   { to: '/market', label: 'Market' },
+  { to: '/auctions', label: 'Auctions' },
+  { to: '/#collection', label: 'Collection' },
   { to: '/#how', label: 'How it works' },
   { to: '/#privacy', label: 'Privacy' },
   { to: '/#selling', label: 'Selling' },
@@ -23,12 +25,12 @@ export function SiteNav() {
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-paper/85 backdrop-blur-xl">
       <div className="mx-auto grid h-16 max-w-6xl grid-cols-[1fr_auto_1fr] items-center px-4 sm:px-6">
-        <nav className="hidden items-center gap-6 text-[13px] text-fg/75 lg:flex">
+        <nav className="hidden items-center gap-5 text-[13px] text-fg/75 lg:flex">
           {links.map((l) => (
-            <NavLink key={l.to} to={l.to} className={({ isActive }) => cn('transition-colors hover:text-fg', isActive && l.to === '/market' && 'text-fg')}>{l.label}</NavLink>
+            <NavLink key={l.to} to={l.to} className={({ isActive }) => cn('transition-colors hover:text-fg', isActive && !l.to.includes('#') && 'text-fg')}>{l.label}</NavLink>
           ))}
         </nav>
-        <button className="justify-self-start text-fg lg:hidden" onClick={() => setOpen((o) => !o)} aria-label="Menu" aria-expanded={open}>
+        <button className="-ml-2 grid size-10 place-items-center justify-self-start text-fg lg:hidden" onClick={() => setOpen((o) => !o)} aria-label="Menu" aria-expanded={open}>
           {open ? <X className="size-5" /> : <Menu className="size-5" />}
         </button>
         <Link to="/" aria-label="Gallery Arcana home" className="justify-self-center"><Logo /></Link>
@@ -50,9 +52,10 @@ export function SiteNav() {
       </div>
       {open && (
         <div className="glass mx-4 mb-3 rounded-2xl p-4 lg:hidden">
-          <div className="flex flex-col gap-3 text-sm">
-            <NetworkBadge className="self-start" />
+          <div className="flex flex-col text-[15px] [&>a]:py-2.5 [&>button]:py-2.5">
+            <NetworkBadge className="mb-1 self-start" />
             {links.map((l) => <Link key={l.to} to={l.to} onClick={() => setOpen(false)}>{l.label}</Link>)}
+            <Link to="/verify" onClick={() => setOpen(false)}>Verify a receipt</Link>
             <div className="hairline my-1" />
             {account
               ? <><Link to="/studio" onClick={() => setOpen(false)}>Studio · @{account.alias}</Link><button className="text-left text-muted-foreground" onClick={signOut}>Sign out</button></>

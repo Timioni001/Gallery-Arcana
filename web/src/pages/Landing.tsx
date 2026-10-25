@@ -11,6 +11,8 @@ import { cn } from '@/lib/utils'
 import { FragmentsGallery } from '@/components/fragments-gallery'
 import { PoweredByZcash } from '@/components/powered-by-zcash'
 import { Waitlist } from '@/components/waitlist'
+import { PoweredByZcashBadge } from '@/components/zcash-logo'
+import { ZkSnarksFeature } from '@/components/zksnarks-feature'
 
 /** Black pill with a signal-orange dot tile, the primary call to action. */
 function DotButton({ to, children, light = false }: { to: string; children: ReactNode; light?: boolean }) {
@@ -59,7 +61,7 @@ function Hero() {
           <a href="#waitlist" className="inline-flex items-center gap-2 rounded-xl bg-signal px-6 py-3 text-[15px] font-medium text-surface shadow-[0_10px_30px_-10px_oklch(0.645_0.19_38/.8)] transition hover:brightness-110">Join the waitlist →</a>
           <DotButton to="/market">Explore the demo market</DotButton>
         </div>
-        <p className="mt-6 inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.16em] text-fg/55"><span className="text-[14px] text-fg">ⓩ</span> Powered by Zcash · shielded settlement</p>
+        <PoweredByZcashBadge className="mt-6" />
         <p className="mt-3 text-[13px] italic text-fg/50">“Private commerce should be as simple as ordinary online shopping.”</p>
       </div>
     </section>
@@ -345,22 +347,43 @@ function Faq() {
   )
 }
 
+const jumps = [['Zcash', '#zcash'], ['Collection', '#collection'], ['zkSNARKs', '#zksnarks'], ['Auctions', '/auctions'], ['How it works', '#how'], ['Privacy', '#privacy'], ['Selling', '#selling'], ['Waitlist', '#waitlist'], ['FAQ', '#faq']]
+
+/** Section index so every part of the page is one tap away. */
+function JumpBar() {
+  return (
+    <nav aria-label="On this page" className="mx-auto mt-10 max-w-6xl px-4 sm:px-6">
+      <ul className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:justify-center sm:px-0">
+        {jumps.map(([label, to]) => (
+          <li key={to} className="shrink-0">
+            {to.startsWith('#')
+              ? <a href={to} className="block rounded-full border bg-surface px-3.5 py-2 text-[13px] text-fg/75 hover:border-fg/30 hover:text-fg">{label}</a>
+              : <Link to={to} className="block rounded-full bg-fg px-3.5 py-2 text-[13px] text-surface">{label}</Link>}
+          </li>
+        ))}
+      </ul>
+    </nav>
+  )
+}
+
 export default function Landing() {
   return (
     <>
       <SiteNav />
       <Hero />
       <ProofStrip />
-      <FragmentsGallery />
+      <JumpBar />
       <PoweredByZcash />
+      <FragmentsGallery />
+      <ZkSnarksFeature />
       <Markets />
       <Exchange />
       <Capsules />
       <Features />
       <Privacy />
       <Selling />
-      <Status />
       <Waitlist />
+      <Status />
       <Faq />
       <SiteFooter />
     </>
