@@ -3,6 +3,7 @@
 // and simulates sample sellers, payments and a dispute reviewer. All client
 // cryptography (capsules, sealed keys, encrypted chat) is the real SDK.
 import * as sdk from '@arcana/client-crypto'
+import { FRAGMENT_COUNT, fragment, fragmentDataUrl } from '@/lib/fragments'
 
 type Json = Record<string, unknown>
 type Account = { id: string; alias: string; salt: string; pass: string; payout: string | null; epoch: number; sim?: boolean }
@@ -15,7 +16,7 @@ type Order = { id: string; listing_id: string; buyer_id: string; title: string; 
 type Conversation = { id: string; listing_id: string; buyer_id: string; seller_id: string; buyer_key_id: string; seller_key_id: string; expires_at: string; created_at: string; sequence: number }
 type Message = { id: string; conversation_id: string; sender_id: string; sequence: number; buyer_envelope: sdk.Envelope; seller_envelope: sdk.Envelope; created_at: string }
 type State = {
-  v: 1; session: string | null; accounts: Account[]; identities: IdentityRec[]; assets: Asset[]; listings: Listing[]; offers: Offer[]; envelopes: Envelope[]
+  v: 2; session: string | null; accounts: Account[]; identities: IdentityRec[]; assets: Asset[]; listings: Listing[]; offers: Offer[]; envelopes: Envelope[]
   orders: Order[]; conversations: Conversation[]; messages: Message[]; invitations: Json[]; passports: Json[]; controls: Json[]; challenges: Json[]; evidence: Json[]
   simKeys: Record<string, sdk.Identity>; contentKeys: Record<string, { capsuleId: string; sha: string; key: string }>; signing?: { pub: JsonWebKey; priv: JsonWebKey }; reviewer?: string
 }
@@ -41,8 +42,8 @@ function idb<T>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<
     }
   })
 }
-const save = () => idb('readwrite', (s) => s.put(S, 'v1'))
-export async function resetDemo() { await idb('readwrite', (s) => s.delete('v1')); indexedDB.deleteDatabase('arcana-vault'); location.reload() }
+const save = () => idb('readwrite', (s) => s.put(S, 'v2'))
+export async function resetDemo() { await idb('readwrite', (s) => s.delete('v2')); indexedDB.deleteDatabase('arcana-vault'); location.reload() }
 
 // ---------- helpers ----------
 class Http extends Error { status: number; constructor(status: number, msg: string) { super(msg); this.status = status } }
@@ -100,6 +101,15 @@ async function seed() {
     { ...base, id: uuid(), seller_id: kiln, title: 'Monolith UI kit', description: 'Dark interface system — 180 components, tokens and source.', category: 'digital', delivery: 'download', file_key: files[1].key, price_usd_cents: 12900, crypto_mode: 'server', created_at: t(6) },
     { ...base, id: uuid(), seller_id: meridian, title: 'Private repo: orbital sim', description: 'GitHub control verified. Repository transfer after acceptance.', category: 'other', delivery: 'external', file_key: null, price_usd_cents: 64000, crypto_mode: 'server', created_at: t(7) },
   )
+  // The Arcana Fragments collection: each original sealed as a capsule, its preview public.
+  const studio = await mkSeller('fragments-studio')
+  for (let i = 0; i < FRAGMENT_COUNT; i++) {
+    const f = fragment(i), slug = f.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+    const fileKey = await capsule(studio, `arcana-fragment-${f.number}-${slug}.svg`, 'image/svg+xml', te.encode(f.svg))
+    const previewKey = uuid()
+    S.assets.push({ key: previewKey, owner: studio, kind: 'previews', name: 'preview', sha256: '', dataUrl: fragmentDataUrl(f.svg), crypto_mode: 'server' })
+    S.listings.push({ ...base, id: uuid(), seller_id: studio, title: f.title, description: `Arcana Fragments ${f.number}/15, a generative work in CMYK dot matrix. The original SVG is sealed as an Arcana Capsule and decrypts only in the buyer's browser.`, category: 'collectible', delivery: 'download', preview_key: previewKey, file_key: fileKey, price_usd_cents: f.priceUsdCents, crypto_mode: 'capsule-v1', created_at: new Date(Date.now() - i * 3600000).toISOString() })
+  }
   const reviewer = await mkSeller('arcana-reviewer'); S.reviewer = reviewer
 }
 
@@ -445,9 +455,9 @@ async function handle(req: Request): Promise<Response> {
 /** Installs the in-browser API. Previews are served as data URLs via previewUrl(). */
 export async function installDemoServer() {
   origin = window.location.origin
-  S = (await idb<State | undefined>('readonly', (s) => s.get('v1'))) as State
-  if (!S || S.v !== 1) {
-    S = { v: 1, session: null, accounts: [], identities: [], assets: [], listings: [], offers: [], envelopes: [], orders: [], conversations: [], messages: [], invitations: [], passports: [], controls: [], challenges: [], evidence: [], simKeys: {}, contentKeys: {} }
+  S = (await idb<State | undefined>('readonly', (s) => s.get('v2'))) as State
+  if (!S || S.v !== 2) {
+    S = { v: 2, session: null, accounts: [], identities: [], assets: [], listings: [], offers: [], envelopes: [], orders: [], conversations: [], messages: [], invitations: [], passports: [], controls: [], challenges: [], evidence: [], simKeys: {}, contentKeys: {} }
     await seed()
   }
   if (!S.signing) {
@@ -463,7 +473,8 @@ export async function installDemoServer() {
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     const req = new Request(input, init)
     const path = new URL(req.url).pathname
-    return path.startsWith('/api/') ? handle(req) : realFetch(input, init)
+    // The waitlist is real even in the demo: it goes to the Pages Function, never the simulation.
+    return path.startsWith('/api/') && path !== '/api/waitlist' ? handle(req) : realFetch(input, init)
   }
   ;(window as unknown as { __arcanaPreview?: (k: string) => string | null }).__arcanaPreview = (key) => S.assets.find((a) => a.key === key)?.dataUrl ?? null
 }

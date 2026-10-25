@@ -19,7 +19,7 @@ const guard=await pool.connect().catch(async()=>{log('worker_start_failed',{leve
 let locked=false;try{locked=(await guard.query('SELECT pg_try_advisory_lock(174428,5) AS locked')).rows[0].locked;}catch{log('worker_start_failed',{level:'error'});}
 if(!locked){log('worker_lock_unavailable',{level:'error'});guard.release();await pool.end();process.exit(1);}
 try{
-  if(!(await guard.query("SELECT 1 FROM schema_migrations WHERE version='013_fee_transparency.sql'")).rowCount)throw new Error('Migrations required');
+  if(!(await guard.query("SELECT 1 FROM schema_migrations WHERE version='014_waitlist.sql'")).rowCount)throw new Error('Migrations required');
   await registerWorker(guard,instanceId);
 }catch{log('worker_start_failed',{level:'error'});guard.release(true);await pool.end();process.exit(1);}
 const server=createServer(async(req,res)=>{

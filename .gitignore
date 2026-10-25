@@ -12,3 +12,4 @@ dist/
 deploy/.env
 deploy/.env.worker
 deploy/backups/
+web/.wrangler/
