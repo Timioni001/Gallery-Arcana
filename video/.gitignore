@@ -1,0 +1,6 @@
+node_modules/
+fixtures/
+.env*
+public/captures/*raw.webm
+public/captures/page@*.webm
+out/

@@ -1,0 +1,56 @@
+[
+  {
+    "start": 0.8,
+    "end": 5.014541666666666,
+    "text": "Gallery Arcana. A private market for digital work worth protecting.",
+    "rate": 1
+  },
+  {
+    "start": 8.6,
+    "end": 14.719666666666665,
+    "text": "Discover original work. Explore the collection, filter the market, and find something that matters to you.",
+    "rate": 1
+  },
+  {
+    "start": 20.6,
+    "end": 26.968083333333336,
+    "text": "Start with an alias. Create your encryption identity in the browser, where your private keys stay under your control.",
+    "rate": 1
+  },
+  {
+    "start": 30.6,
+    "end": 39.045375,
+    "text": "Speak directly with the seller through encrypted messages. Agree on the terms privately. The platform still processes financial amounts.",
+    "rate": 1
+  },
+  {
+    "start": 43.6,
+    "end": 52.76745833333334,
+    "text": "Files are encrypted before upload. The seller prepares a key envelope for one buyer, ready before payment. Only ciphertext reaches storage.",
+    "rate": 1
+  },
+  {
+    "start": 54.6,
+    "end": 63.299375,
+    "text": "Reserve the asset and fund the invoice. This recording uses simulated payments. Live Zcash settlement still requires verification.",
+    "rate": 1
+  },
+  {
+    "start": 65.6,
+    "end": 75.36879166666667,
+    "text": "Decrypt locally and verify the file. Accept to release funds, or dispute to freeze them. Otherwise, release follows the seventy-two-hour review window.",
+    "rate": 1
+  },
+  {
+    "start": 77.5,
+    "end": 82.65283333333333,
+    "text": "Share a signed acquisition claim with a chosen audience, without publishing your purchase history.",
+    "rate": 1
+  },
+  {
+    "start": 84.5,
+    "end": 88.05666666666667,
+    "text": "Gallery Arcana. Your work. Your conversations. Your keys.",
+    "rate": 1
+  }
+]

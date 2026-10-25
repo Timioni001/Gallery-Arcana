@@ -1,0 +1,10 @@
+const fs=require('fs'),crypto=require('crypto'),path=require('path');
+const ROOT='/workspace/Gallery-Arcana-video-source';
+const raw=fs.readFileSync('/workspace/Gallery-Arcana/.env','utf8');
+const existing=/^DATABASE_URL=(.+)$/m.exec(raw)?.[1];
+if(!existing)throw new Error('No local database configuration');
+const url=new URL(existing);if(!['127.0.0.1','localhost'].includes(url.hostname))throw new Error('Local database required');
+const pg=require(ROOT+'/node_modules/pg');
+(async()=>{const c=new pg.Client({connectionString:url.href});await c.connect();const name='arcana_video_20261025';const found=await c.query('SELECT 1 FROM pg_database WHERE datname=$1',[name]);if(!found.rowCount)await c.query('CREATE DATABASE '+name);await c.end();url.pathname='/'+name;
+const env=`DATABASE_URL=${url.href}\nAPI_HOST=127.0.0.1\nPORT=8180\nWORKER_PORT=8181\nPUBLIC_ORIGIN=http://127.0.0.1:8180\nZCASH_NETWORK=test\nWALLET_DRIVER=mock\nPRICE_SOURCE=fixed\nMIN_CONFIRMATIONS=2\nZEC_USD_FIXED=40\nSTORAGE_DIR=./storage\nASSET_ENCRYPTION_KEY=${crypto.randomBytes(32).toString('hex')}\nATTESTATION_SIGNING_KEY_FILE=./secrets/arcana_ed25519_private.pem\nATTESTATION_VERIFY_KEY_FILE=./secrets/arcana_ed25519_public.pem\nADMIN_TOKEN=${crypto.randomBytes(32).toString('hex')}\n`;
+if(!fs.existsSync(ROOT+'/.env'))fs.writeFileSync(ROOT+'/.env',env,{mode:0o600});if(!fs.existsSync(ROOT+'/.env.worker'))fs.writeFileSync(ROOT+'/.env.worker',`MOCK_SIMULATOR_TOKEN=${crypto.randomBytes(32).toString('hex')}\nWORKER_POLL_MS=1000\n`,{mode:0o600}); console.log('Isolated capture database and config ready');})();
