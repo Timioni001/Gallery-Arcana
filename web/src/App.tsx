@@ -17,7 +17,6 @@ const Review = lazy(() => import('@/pages/Review'))
 const Auctions = lazy(() => import('@/pages/Auctions'))
 import { PageShell } from '@/components/page-shell'
 import { DotText } from '@/components/brand'
-import { DemoBanner } from '@/components/demo-banner'
 import { MobileTabbar } from '@/components/mobile-tabbar'
 
 function ScrollManager() {
@@ -35,7 +34,6 @@ export default function App() {
       <SessionProvider>
         <VaultProvider>
         <ScrollManager />
-        <DemoBanner />
         <Suspense fallback={<div className="min-h-svh" />}>
         <Routes>
           <Route path="/" element={<Landing />} />
