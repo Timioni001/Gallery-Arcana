@@ -54,7 +54,7 @@ export default function App() {
         </Routes>
         </Suspense>
         <MobileTabbar />
-        <Toaster position="bottom-right" mobileOffset={{ bottom: 76 }} toastOptions={{ classNames: { description: "!text-fg/70" } }} />
+        <Toaster position="bottom-right" mobileOffset={{ bottom: 92 }} toastOptions={{ classNames: { description: "!text-fg/70" } }} />
         </VaultProvider>
       </SessionProvider>
     </BrowserRouter>
