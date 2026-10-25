@@ -5,6 +5,7 @@ const cols = [
   { title: 'Market', links: [['Browse', '/market'], ['Auctions', '/auctions'], ['Arcana Fragments', '/#collection'], ['Digital', '/market?category=digital'], ['Collectibles', '/market?category=collectible'], ['Onchain', '/market?category=onchain'], ['Digital property', '/market?category=other']] },
   { title: 'Sellers', links: [['Studio', '/studio'], ['List a work', '/studio/new'], ['Ways to sell', '/#selling']] },
   { title: 'Protocol', links: [['Protected exchange', '/#how'], ['Privacy guarantees', '/#privacy'], ['Observer view', '/observer'], ['Build status', '/#status'], ['FAQ', '/#faq']] },
+  { title: 'Legal', links: [['Terms of service', '/terms'], ['Escrow', '/terms#escrow'], ['Privacy policy', '/privacy']] },
 ]
 
 async function resetDemo() {
@@ -15,7 +16,7 @@ async function resetDemo() {
 export function SiteFooter() {
   return (
     <footer className="mt-28 border-t bg-surface pb-24 sm:pb-0">
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 pt-14 sm:px-6 grid-cols-2 md:grid-cols-[1.4fr_repeat(3,1fr)]">
+      <div className="mx-auto grid max-w-6xl gap-10 px-4 pt-14 sm:px-6 grid-cols-2 md:grid-cols-[1.4fr_repeat(4,1fr)]">
         <div className="col-span-2 max-w-xs md:col-span-1">
           <Logo />
           <p className="mt-4 text-sm text-muted-foreground">A private market for digital assets. Discover, negotiate and exchange privately. Lawful digital commerce only.</p>

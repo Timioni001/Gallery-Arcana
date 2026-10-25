@@ -189,6 +189,10 @@ export default function Order() {
                 {order.file_sha256 && <Copyable label="Expected SHA-256" value={order.file_sha256} />}
                 {verified && <p className="flex items-center gap-2 text-[13px] text-emerald-700"><Check className="size-4" />Checksum matches</p>}
               </div>
+              {order.status === 'funded' && order.release_after && <EscrowClock until={order.release_after} />}
+              {order.status === 'disputed' && order.dispute_due_at && (
+                <p className="mt-6 rounded-xl border border-amber-600/25 bg-amber-500/[0.07] px-4 py-3 text-[13px] text-fg/80">Funds are frozen while a reviewer looks at this. A decision is due by <b className="font-medium text-fg">{new Date(order.dispute_due_at).toLocaleString()}</b>: release to the seller or a full refund to you.</p>
+              )}
               {order.status === 'funded' && (
                 <div className="mt-6 flex gap-3">
                   <Button className="h-11 flex-1" disabled={!verified || busy} onClick={accept}>Accept delivery</Button>
@@ -230,11 +234,12 @@ export default function Order() {
           {[
             ['Funds held', order.funded_at ? new Date(order.funded_at).toLocaleString() : '—'],
             ['Buyer accepted', order.delivery_confirmed_at ? new Date(order.delivery_confirmed_at).toLocaleString() : '—'],
+            ['Auto-release', order.release_after && ['funded', 'paid'].includes(order.status) && !order.delivery_confirmed_at && !order.disputed_at ? new Date(order.release_after).toLocaleString() : '—'],
             ['Disputed', order.disputed_at ? new Date(order.disputed_at).toLocaleString() : '—'],
           ].map(([k, v]) => (
             <div key={k} className="flex justify-between rounded-xl border px-4 py-3"><span className="text-fg/55">{k}</span><span className="text-fg">{v}</span></div>
           ))}
-          <p className="px-1 text-[12px] text-fg/45">The seller payout is released only after you accept or a reviewer resolves a dispute. Testnet only: these are mock payments.</p>
+          <p className="px-1 text-[12px] text-fg/45">Your payment is held in escrow. It goes to the seller when you accept, or automatically when the review window ends without a dispute. A dispute freezes it until a reviewer releases or refunds in full. <Link to="/terms#escrow" className="text-signal">Escrow terms</Link></p>
         </aside>
       </div>
 
@@ -249,5 +254,20 @@ export default function Order() {
         </DialogContent>
       </Dialog>
     </PageShell>
+  )
+}
+
+/** Live countdown to the automatic release of a funded order. */
+function EscrowClock({ until }: { until: string }) {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t) }, [])
+  const left = Math.max(0, Date.parse(until) - now), s = Math.floor(left / 1000)
+  const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60
+  const text = d ? `${d}d ${h}h ${m}m` : h ? `${h}h ${m}m` : `${m}m ${String(sec).padStart(2, '0')}s`
+  return (
+    <div className="mt-6 rounded-xl border border-signal/25 bg-signal/[0.06] px-4 py-3 text-[13px] text-fg/80">
+      <p className="flex items-center justify-between gap-3"><span className="font-medium text-fg">Escrow review window</span><span className="font-mono text-fg">{left ? text : 'releasing…'}</span></p>
+      <p className="mt-1">Check the file, then accept. If you do nothing, payment releases to the seller automatically when this reaches zero. Something wrong? Open a dispute before then to freeze the funds.</p>
+    </div>
   )
 }

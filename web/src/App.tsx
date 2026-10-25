@@ -15,6 +15,8 @@ const Verify = lazy(() => import('@/pages/Verify'))
 const InvitePage = lazy(() => import('@/pages/Invite'))
 const Review = lazy(() => import('@/pages/Review'))
 const Auctions = lazy(() => import('@/pages/Auctions'))
+const TermsPage = lazy(() => import('@/pages/Legal').then((m) => ({ default: m.TermsPage })))
+const PrivacyPage = lazy(() => import('@/pages/Legal').then((m) => ({ default: m.PrivacyPage })))
 import { PageShell } from '@/components/page-shell'
 import { DotText } from '@/components/brand'
 import { MobileTabbar } from '@/components/mobile-tabbar'
@@ -39,6 +41,8 @@ export default function App() {
           <Route path="/" element={<Landing />} />
           <Route path="/market" element={<Market />} />
           <Route path="/auctions" element={<Auctions />} />
+          <Route path="/terms" element={<TermsPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/listing/:id" element={<ListingPage />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/studio" element={<Studio />} />

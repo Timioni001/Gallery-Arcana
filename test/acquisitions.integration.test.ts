@@ -11,6 +11,7 @@ import {topUpAddressPool,scanOnce} from '../src/jobs/watcher.ts';
 import {runPayouts} from '../src/jobs/payouts.ts';
 import {scrubOrders} from '../src/jobs/privacy.ts';
 import {verifyTransfer} from '../src/lib/acquisition.ts';
+import {releaseDue} from '../src/services/acquisitions.ts';
 import {attestationKeys} from '../src/services/attestationKeys.ts';
 
 const enabled=process.env.RUN_DB_TESTS==='1'&&process.env.ARCANA_ISOLATED_TEST_DB==='1';
@@ -119,6 +120,23 @@ test('isolated PostgreSQL private acquisitions, custody holds and signed attesta
     assert.equal((await download(order)).statusCode,409);assert.equal((await row(order.orderId)).file_first_accessed_at,null);assert.equal((await accept(order)).statusCode,409);
     await assert.rejects(pool.query('UPDATE orders SET file_sha256=NULL WHERE id=$1',[order.orderId]),{code:'23514'});
     await pool.query("UPDATE orders SET funded_at=now()-interval '100 days' WHERE id=$1",[order.orderId]);await scrubOrders();assert.equal((await row(order.orderId)).buyer_id,buyer.id);
+  });
+  await t.test('escrow review window: funding sets a deadline, disputes close with it, and silent orders auto-release once',async()=>{
+    const order=await purchase();const funded=await row(order.orderId);
+    const hours=(funded.release_after-funded.funded_at)/3600_000;assert.ok(Math.abs(hours-config.escrowReviewHours)<0.01,String(hours));
+    assert.equal(await releaseDue(),0);assert.equal((await row(order.orderId)).status,'funded');
+    await pool.query("UPDATE orders SET release_after=now()-interval '1 second' WHERE id=$1",[order.orderId]);
+    assert.equal((await dispute(order)).statusCode,409);
+    assert.ok(await releaseDue()>=1);const done=await row(order.orderId);
+    assert.equal(done.status,'paid');assert.equal(done.proof.claim.outcome,'auto_release');assert.equal(done.delivery_confirmed_at,null);
+    assert.equal((await payouts(order.orderId)).length,1);assert.equal(await releaseDue(),0);assert.equal((await payouts(order.orderId)).length,1);
+    const key=(await request('GET','/api/proofs/public-key')).json().publicKey;assert.equal(verifyTransfer(done.proof,key),true);
+    const held=await purchase();assert.equal((await dispute(held)).statusCode,200);const d=await row(held.orderId);
+    assert.ok(Math.abs((d.dispute_due_at-d.disputed_at)/86400_000-config.escrowDisputeDays)<0.01);
+    await pool.query("UPDATE orders SET release_after=now()-interval '1 day' WHERE id=$1",[held.orderId]);
+    await releaseDue();assert.equal((await row(held.orderId)).status,'disputed');assert.equal((await payouts(held.orderId)).length,0);
+    const terms=(await request('GET','/api/terms')).json();assert.equal(terms.escrow.reviewHours,config.escrowReviewHours);
+    await pool.query('TRUNCATE rate_limits'); // this subtest's extra checkouts must not throttle the ones after it
   });
   await t.test('pre-upgrade orders keep legacy settlement and bearer delivery without fabricated attestations',async()=>{
     await topUpAddressPool(wallet);
