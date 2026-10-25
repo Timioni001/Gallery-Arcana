@@ -14,9 +14,11 @@ const Observer = lazy(() => import('@/pages/Observer'))
 const Verify = lazy(() => import('@/pages/Verify'))
 const InvitePage = lazy(() => import('@/pages/Invite'))
 const Review = lazy(() => import('@/pages/Review'))
+const Auctions = lazy(() => import('@/pages/Auctions'))
 import { PageShell } from '@/components/page-shell'
 import { DotText } from '@/components/brand'
 import { DemoBanner } from '@/components/demo-banner'
+import { MobileTabbar } from '@/components/mobile-tabbar'
 
 function ScrollManager() {
   const { pathname, hash } = useLocation()
@@ -38,6 +40,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/market" element={<Market />} />
+          <Route path="/auctions" element={<Auctions />} />
           <Route path="/listing/:id" element={<ListingPage />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/studio" element={<Studio />} />
@@ -50,7 +53,8 @@ export default function App() {
           <Route path="*" element={<PageShell><p className="dot-display py-32 text-center text-5xl text-fg"><DotText>404. Not here.</DotText></p></PageShell>} />
         </Routes>
         </Suspense>
-        <Toaster position="bottom-right" />
+        <MobileTabbar />
+        <Toaster position="bottom-right" mobileOffset={{ bottom: 76 }} toastOptions={{ classNames: { description: "!text-fg/70" } }} />
         </VaultProvider>
       </SessionProvider>
     </BrowserRouter>
