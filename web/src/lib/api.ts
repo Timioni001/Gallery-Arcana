@@ -38,7 +38,7 @@ export type Payment = { paymentId?: string; address: string; memo: string; amoun
 export type Checkout = { orderId: string; payment: Payment; receiptCode: string }
 export type OrderStatus = {
   id: string; listing_id: string; title: string; price_usd_cents: number; status: string; expires_at: string
-  received_zat: string; confirmations: number; file_sha256: string | null; funded_at: string | null
+  received_zat: string; confirmations: number; file_sha256: string | null; funded_at: string | null; release_after?: string | null; dispute_due_at?: string | null
   delivery_confirmed_at: string | null; disputed_at: string | null; downloadable: boolean; buyer_confirmed: boolean; crypto_mode?: string
 }
 

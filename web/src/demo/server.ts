@@ -12,7 +12,7 @@ type Asset = { key: string; owner: string; kind: 'previews' | 'private'; name: s
 type Listing = { id: string; seller_id: string; title: string; description: string | null; category: string; visibility: string; delivery: string; preview_key: string | null; file_key: string | null; price_usd_cents: number; crypto_mode: string; status: string; created_at: string; revision: number; invitation_only: boolean }
 type Offer = { id: string; listing_id: string; buyer_id: string; amount_usd_cents: number; counter_usd_cents: number | null; status: string; created_at: string; revision: number; invitation_id?: string }
 type Envelope = { listing_id: string; buyer_id: string; listing_revision: number; recipient_key_id: string; sender_key_id: string; envelope: sdk.Envelope; expires_at: string }
-type Order = { id: string; listing_id: string; buyer_id: string; title: string; price_usd_cents: number; status: string; created_at: string; receipt: string; payment: Json; amount_zat: string; funded_at: string | null; delivery_confirmed_at: string | null; disputed_at: string | null; file_sha256: string | null; crypto_mode: string; envelope: sdk.Envelope | null; proof: Json | null; fee_bps: number; dispute_reason?: string }
+type Order = { id: string; listing_id: string; buyer_id: string; title: string; price_usd_cents: number; status: string; created_at: string; receipt: string; payment: Json; amount_zat: string; funded_at: string | null; release_after?: string | null; dispute_due_at?: string | null; delivery_confirmed_at: string | null; disputed_at: string | null; file_sha256: string | null; crypto_mode: string; envelope: sdk.Envelope | null; proof: Json | null; fee_bps: number; dispute_reason?: string }
 type Conversation = { id: string; listing_id: string; buyer_id: string; seller_id: string; buyer_key_id: string; seller_key_id: string; expires_at: string; created_at: string; sequence: number }
 type Message = { id: string; conversation_id: string; sender_id: string; sequence: number; buyer_envelope: sdk.Envelope; seller_envelope: sdk.Envelope; created_at: string }
 type State = {
@@ -123,6 +123,14 @@ async function sealFor(listingId: string, buyerId: string) {
     sdk.encode({ capsuleId: ck.capsuleId, ciphertextSha256: ck.sha, contentKey: ck.key }))
   S.envelopes.push({ listing_id: l.id, buyer_id: buyerId, listing_revision: l.revision, recipient_key_id: envelope.recipientKeyId, sender_key_id: envelope.senderKeyId, envelope, expires_at: expiresAt })
 }
+// The demo shortens the escrow review window so visitors can watch an automatic release.
+const DEMO_REVIEW_MS = 10 * 60_000, DISPUTE_DAYS = 14
+async function finalize(o: Order, outcome: 'buyer_accepted' | 'auto_release') {
+  o.status = 'paid'
+  const at = now(); if (outcome === 'buyer_accepted') o.delivery_confirmed_at = at
+  const claim = { version: 1, kind: 'acquisition', orderId: o.id, listingId: o.listing_id, assetSha256: o.file_sha256, finalizedAt: at, outcome, settlement: 'demo-simulated' }
+  o.proof = { algorithm: 'ECDSA-P256 (demo key)', claim, signature: await signClaim(claim) }
+}
 async function tick() {
   let changed = false
   for (const o of S.offers) {
@@ -136,12 +144,13 @@ async function tick() {
   }
   for (const o of S.orders) {
     if (o.status === 'awaiting_payment' && Date.now() - Date.parse(o.created_at) > AUTOPAY_MS) {
-      o.status = 'funded'; o.funded_at = now()
+      o.status = 'funded'; o.funded_at = now(); o.release_after = new Date(Date.now() + DEMO_REVIEW_MS).toISOString()
       const l = S.listings.find((x) => x.id === o.listing_id); if (l) l.status = 'sold'
       for (const of of S.offers) if (of.listing_id === o.listing_id && ['open', 'countered', 'accepted'].includes(of.status)) of.status = of.buyer_id === o.buyer_id ? 'completed' : 'declined'
       changed = true
     }
   }
+  for (const o of S.orders) if (o.status === 'funded' && o.release_after && Date.parse(o.release_after) <= Date.now()) { await finalize(o, 'auto_release'); changed = true }
   // Simulated sellers answer the first message in each thread.
   for (const c of S.conversations) {
     const sim = S.simKeys[c.seller_id]
@@ -160,7 +169,7 @@ const capsuleReady = (o: Offer) => {
   const l = S.listings.find((x) => x.id === o.listing_id), buyer = activeIdentity(o.buyer_id)
   return !!l && l.crypto_mode === 'capsule-v1' && !!buyer && S.envelopes.some((e) => e.listing_id === l.id && e.buyer_id === o.buyer_id && e.listing_revision === l.revision && e.recipient_key_id === buyer.public_identity.keyId)
 }
-const orderView = (o: Order) => ({ id: o.id, listing_id: o.listing_id, title: o.title, price_usd_cents: o.price_usd_cents, status: o.status, expires_at: o.payment.expiresAt, received_zat: o.status === 'awaiting_payment' ? '0' : o.amount_zat, confirmations: o.status === 'awaiting_payment' ? 0 : 2, file_sha256: o.file_sha256, funded_at: o.funded_at, delivery_confirmed_at: o.delivery_confirmed_at, disputed_at: o.disputed_at, downloadable: ['funded', 'paid', 'disputed'].includes(o.status), buyer_confirmed: !!o.delivery_confirmed_at, crypto_mode: o.crypto_mode })
+const orderView = (o: Order) => ({ id: o.id, listing_id: o.listing_id, title: o.title, price_usd_cents: o.price_usd_cents, status: o.status, expires_at: o.payment.expiresAt, received_zat: o.status === 'awaiting_payment' ? '0' : o.amount_zat, confirmations: o.status === 'awaiting_payment' ? 0 : 2, file_sha256: o.file_sha256, funded_at: o.funded_at, release_after: o.release_after ?? null, dispute_due_at: o.dispute_due_at ?? null, delivery_confirmed_at: o.delivery_confirmed_at, disputed_at: o.disputed_at, downloadable: ['funded', 'paid', 'disputed'].includes(o.status), buyer_confirmed: !!o.delivery_confirmed_at, crypto_mode: o.crypto_mode })
 
 // ---------- checkout ----------
 function checkout(me: string, listingId: string, offerId?: string, priceOverride?: number) {
@@ -192,7 +201,7 @@ const b = (c: Ctx) => (c.body ?? {}) as Json
 
 const routes: Route[] = [
   ['GET', /^\/api\/health$/, () => ({ ok: true, mode: 'demo', network: 'test', origin, demoAutopaySeconds: AUTOPAY_MS / 1000 })],
-  ['GET', /^\/api\/terms$/, () => ({ platformFeeBps: 0, feeAppliesTo: 'completed sales only; refunds and cancelled orders pay no fee', feeHistory: [{ fee_bps: 0, effective_at: now() }], settlement: 'demo', network: 'test', minConfirmations: 2, price: { source: 'fixed', rateMicroUsd: ZEC_USD.toString() }, neverSold: ['identity disclosure', 'user transaction data'] })],
+  ['GET', /^\/api\/terms$/, () => ({ platformFeeBps: 0, feeAppliesTo: 'completed sales only; refunds and cancelled orders pay no fee', feeHistory: [{ fee_bps: 0, effective_at: now() }], settlement: 'demo', network: 'test', minConfirmations: 2, price: { source: 'fixed', rateMicroUsd: ZEC_USD.toString() }, escrow: { reviewHours: 72, disputeDecisionDays: DISPUTE_DAYS, demoReviewMinutes: DEMO_REVIEW_MS / 60_000 }, neverSold: ['identity disclosure', 'user transaction data'] })],
   ['GET', /^\/api\/me$/, (c) => { const a = account(c.me); return { account: a ? { id: a.id, alias: a.alias, hasPayout: !!a.payout } : null } }],
   ['POST', /^\/api\/signup$/, async (c) => {
     const alias = String(b(c).alias ?? '').trim().toLowerCase(), pass = String(b(c).passphrase ?? '')
@@ -277,7 +286,7 @@ const routes: Route[] = [
   }],
   ['POST', /^\/api\/listings\/([\w-]+)\/checkout$/, (c, m) => checkout(need(c), m[1], (b(c).offerId as string) || undefined)],
   ['GET', /^\/api\/orders$/, (c) => { const me = need(c); return S.orders.filter((o) => o.buyer_id === me).sort((x, y) => y.created_at.localeCompare(x.created_at)).map((o) => ({ id: o.id, listing_id: o.listing_id, title: o.title, status: o.status, price_usd_cents: o.price_usd_cents, created_at: o.created_at, refund_status: 'none' })) }],
-  ['GET', /^\/api\/sales$/, (c) => { const me = need(c); return S.orders.filter((o) => listing(o.listing_id).seller_id === me).map((o) => ({ id: o.id, listing_id: o.listing_id, title: o.title, status: o.status, price_usd_cents: o.price_usd_cents, created_at: o.created_at, funded_at: o.funded_at, delivery_confirmed_at: o.delivery_confirmed_at, disputed_at: o.disputed_at, platform_fee_bps: 0, price_zat: o.amount_zat, platform_fee_zat: '0', seller_payout_zat: o.amount_zat })) }],
+  ['GET', /^\/api\/sales$/, (c) => { const me = need(c); return S.orders.filter((o) => listing(o.listing_id).seller_id === me).map((o) => ({ id: o.id, listing_id: o.listing_id, title: o.title, status: o.status, price_usd_cents: o.price_usd_cents, created_at: o.created_at, funded_at: o.funded_at, release_after: o.release_after ?? null, dispute_due_at: o.dispute_due_at ?? null, delivery_confirmed_at: o.delivery_confirmed_at, disputed_at: o.disputed_at, platform_fee_bps: 0, price_zat: o.amount_zat, platform_fee_zat: '0', seller_payout_zat: o.amount_zat })) }],
   ['GET', /^\/api\/orders\/([\w-]+)$/, (c, m) => { const me = need(c); return orderView(S.orders.find((o) => o.id === m[1] && o.buyer_id === me) ?? fail(404, 'Not found')) }],
   ['GET', /^\/api\/orders\/([\w-]+)\/payment$/, (c, m) => { const me = need(c), o = S.orders.find((x) => x.id === m[1] && x.buyer_id === me) ?? fail(404, 'Not found'); return { orderId: o.id, status: o.status, expiresAt: o.payment.expiresAt, payment: o.payment } }],
   ['POST', /^\/api\/orders\/([\w-]+)\/receipt$/, (c, m) => { const me = need(c), o = S.orders.find((x) => x.id === m[1] && x.buyer_id === me && ['funded', 'paid', 'disputed'].includes(x.status)) ?? fail(404, 'Not found'); o.receipt = code('RCT'); return { id: o.id, title: o.title, receiptCode: o.receipt } }],
@@ -290,15 +299,15 @@ const routes: Route[] = [
     const me = need(c), x = b(c), o = S.orders.find((y) => y.id === m[1] && y.buyer_id === me && y.receipt === x.receiptCode) ?? fail(404, 'Not found')
     if (o.status !== 'funded') fail(409, 'Order is not awaiting acceptance')
     if (String(x.assetSha256).toLowerCase() !== o.file_sha256) fail(409, 'Digest does not match the purchased asset')
-    o.status = 'paid'; o.delivery_confirmed_at = now()
-    const claim = { version: 1, kind: 'acquisition', orderId: o.id, listingId: o.listing_id, assetSha256: o.file_sha256, acceptedAt: o.delivery_confirmed_at, settlement: 'demo-simulated' }
-    o.proof = { algorithm: 'ECDSA-P256 (demo key)', claim, signature: await signClaim(claim) }
+    await finalize(o, 'buyer_accepted')
     return { status: 'paid', proof: o.proof }
   }],
   ['POST', /^\/api\/orders\/([\w-]+)\/dispute$/, (c, m) => {
     const me = need(c), o = S.orders.find((y) => y.id === m[1] && y.buyer_id === me) ?? fail(404, 'Not found'), reason = String(b(c).reason ?? '').trim()
     if (o.status !== 'funded') fail(409, 'Only funded orders can be disputed'); if (reason.length < 10) fail(400, 'Invalid input')
-    o.status = 'disputed'; o.disputed_at = now(); o.dispute_reason = reason; return { status: 'disputed' }
+    if (o.release_after && Date.parse(o.release_after) <= Date.now()) fail(409, 'The review window has closed; this order is being released to the seller')
+    o.status = 'disputed'; o.disputed_at = now(); o.dispute_due_at = new Date(Date.now() + DISPUTE_DAYS * 86400000).toISOString(); o.dispute_reason = reason
+    return { status: 'disputed', sellerPayout: 'on_hold', decisionDueInDays: DISPUTE_DAYS }
   }],
   ['POST', /^\/api\/orders\/([\w-]+)\/proof$/, (c, m) => S.orders.find((o) => o.id === m[1] && o.receipt === b(c).receiptCode && o.status === 'paid')?.proof ?? fail(404, 'Not found')],
   ['POST', /^\/api\/proofs\/verify$/, async (c) => { const p = b(c).proof as Json | undefined; return { valid: !!p && await verifyClaim(p.claim, p.signature) } }],

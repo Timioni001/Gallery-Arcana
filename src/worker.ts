@@ -9,6 +9,7 @@ import {scanOnce,topUpAddressPool} from './jobs/watcher.ts';
 import {runPayouts} from './jobs/payouts.ts';
 import {scrubOrders} from './jobs/privacy.ts';
 import {releaseExpired} from './services/checkout.ts';
+import {releaseDue} from './services/acquisitions.ts';
 import {refreshQuote} from './services/priceFeed.ts';
 import {log,errorCode} from './lib/log.ts';
 import {registerWorker,heartbeatWorker} from './jobs/workerHealth.ts';
@@ -19,7 +20,7 @@ const guard=await pool.connect().catch(async()=>{log('worker_start_failed',{leve
 let locked=false;try{locked=(await guard.query('SELECT pg_try_advisory_lock(174428,5) AS locked')).rows[0].locked;}catch{log('worker_start_failed',{level:'error'});}
 if(!locked){log('worker_lock_unavailable',{level:'error'});guard.release();await pool.end();process.exit(1);}
 try{
-  if(!(await guard.query("SELECT 1 FROM schema_migrations WHERE version='014_waitlist.sql'")).rowCount)throw new Error('Migrations required');
+  if(!(await guard.query("SELECT 1 FROM schema_migrations WHERE version='015_escrow_release.sql'")).rowCount)throw new Error('Migrations required');
   await registerWorker(guard,instanceId);
 }catch{log('worker_start_failed',{level:'error'});guard.release(true);await pool.end();process.exit(1);}
 const server=createServer(async(req,res)=>{
@@ -47,6 +48,7 @@ async function cycle(){
     if(config.demoAutopaySeconds&&wallet instanceof DatabaseMockWallet)await wallet.autopay(config.demoAutopaySeconds);
     await tx(c=>releaseExpired(c));if(stopping)return;
     await scanOnce(wallet);if(stopping)return;
+    await releaseDue();if(stopping)return;
     await runPayouts(wallet);if(stopping)return;
     if(Date.now()-lastPrivacy>3600_000){await scrubOrders();lastPrivacy=Date.now();}
     if(stopping)return;

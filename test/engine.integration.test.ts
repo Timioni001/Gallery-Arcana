@@ -307,7 +307,7 @@ test('isolated PostgreSQL marketplace and recovery acceptance', {skip:!enabled},
       await migrate(legacy);await migrate(legacy);
       assert.equal((await legacy.query("SELECT alias FROM accounts WHERE alias='legacy_alias'")).rows[0].alias,'legacy_alias');
       assert.equal((await legacy.query('SELECT address FROM mock_addresses WHERE address=$1',[address])).rows[0].address,address);
-      assert.equal((await legacy.query('SELECT count(*)::int AS n FROM schema_migrations')).rows[0].n,14);
+      assert.equal((await legacy.query('SELECT count(*)::int AS n FROM schema_migrations')).rows[0].n,15);
     }finally{await legacy.end();await pool.query('DROP SCHEMA legacy_upgrade CASCADE');}
   });
   await t.test('retention removes settled buyer/payment links and keeps private file redemption working',async()=>{
