@@ -1,0 +1,3 @@
+Kokoro82M v1.0 / af_heart. All nine segments use natural speed1.0; no speech acceleration needed.
+90.000s mono48kHz PCM24 WAV. Measured integrated -18.26 LUFS, truepeak -2.00dBTP, LRA7.30LU.
+The MP4 combines narration with original music at14% linear gain. Voice is synthesized; no claim of a human recording.

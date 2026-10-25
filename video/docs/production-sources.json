@@ -1,0 +1,15 @@
+{
+  "application": "https://github.com/Timioni001/Gallery-Arcana",
+  "revision": "728f3ce",
+  "remotionSkills": "https://github.com/remotion-dev/skills/tree/6c67adcd9cdbe6eb84d76342da89b225f9161cb2",
+  "remotionDocumentation": [
+    "https://www.remotion.dev/docs/sequence",
+    "https://www.remotion.dev/docs/media/video"
+  ],
+  "documentationTransport": "Official remotion-dev/remotion GitHub Markdown; remotion.dev returned403",
+  "remotionVersion": "4.0.538",
+  "tts": "Kokoro82M-v1.0 ONNX, af_heart",
+  "voiceSource": "https://github.com/thewh1teagle/kokoro-onnx/releases/tag/model-files-v1.0",
+  "music": "Original synthesis, scripts/make-score.py",
+  "captures": "Real Chromium/Playwright, isolated full stack, mock settlement"
+}
