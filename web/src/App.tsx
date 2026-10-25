@@ -16,6 +16,7 @@ const InvitePage = lazy(() => import('@/pages/Invite'))
 const Review = lazy(() => import('@/pages/Review'))
 import { PageShell } from '@/components/page-shell'
 import { DotText } from '@/components/brand'
+import { DemoBanner } from '@/components/demo-banner'
 
 function ScrollManager() {
   const { pathname, hash } = useLocation()
@@ -32,6 +33,7 @@ export default function App() {
       <SessionProvider>
         <VaultProvider>
         <ScrollManager />
+        <DemoBanner />
         <Suspense fallback={<div className="min-h-svh" />}>
         <Routes>
           <Route path="/" element={<Landing />} />

@@ -76,7 +76,7 @@ export function buildServer(){
     return reply.status(500).send({error:'Internal error'});
   });
   app.get('/',()=>({name:'Gallery Arcana API',version:'0.5.0',documentation:'README.md',frontend:false}));
-  app.get('/api/health',()=>({ok:true,mode:config.walletDriver,network:config.network,origin:config.publicOrigin}));
+  app.get('/api/health',()=>({ok:true,mode:config.walletDriver,network:config.network,origin:config.publicOrigin,demoAutopaySeconds:config.demoAutopaySeconds}));
   app.get('/api/terms',async()=>{
     const fee=await setting<number>('platform_cut_bps');
     const history=(await pool.query('SELECT fee_bps,effective_at FROM fee_history ORDER BY effective_at DESC,id DESC LIMIT 20')).rows;

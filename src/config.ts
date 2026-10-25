@@ -13,6 +13,8 @@ const schema=z.object({
   WALLET_DRIVER:z.enum(['mock','zallet']).default('mock'),
   ZALLET_TESTNET_ACK:z.string().optional(),
   PRICE_SOURCE:z.enum(['fixed','market']).default('fixed'),
+  // Demo only: the worker simulates payment of each open mock invoice after this many seconds.
+  DEMO_AUTOPAY_SECONDS:z.coerce.number().int().min(1).max(3600).optional(),
   // Comma-separated IPs/CIDRs of the reverse proxy allowed to set X-Forwarded-For. Never 'true'.
   TRUST_PROXY:z.string().regex(/^[0-9a-f.:/,]+$/i).optional(),
   PRICE_MAX_AGE_SECONDS:positiveInt(120,900),
@@ -38,11 +40,12 @@ export function parseConfig(env:NodeJS.ProcessEnv){
   if(v.SESSION_DAYS>v.SESSION_ABSOLUTE_DAYS)throw new Error('Session idle lifetime exceeds absolute lifetime');
   // The live adapter is testnet-only and unverified until the gate in docs/ZALLET_GAP.md passes.
   if(v.WALLET_DRIVER==='zallet'&&v.ZALLET_TESTNET_ACK!=='unverified-testnet-only')throw new Error('WALLET_DRIVER=zallet requires ZALLET_TESTNET_ACK=unverified-testnet-only (testnet acceptance gate not yet passed)');
+  if(v.DEMO_AUTOPAY_SECONDS&&v.WALLET_DRIVER!=='mock')throw new Error('DEMO_AUTOPAY_SECONDS is only available with the mock wallet');
   if(v.ZCASH_NETWORK==='regtest'&&v.WALLET_DRIVER!=='zallet')throw new Error('ZCASH_NETWORK=regtest is only for verifying the Zallet adapter against a local regtest stack');
   // Regtest coins have no market value, so only testnet needs a live price.
   if(v.WALLET_DRIVER==='zallet'&&v.ZCASH_NETWORK==='test'&&v.PRICE_SOURCE!=='market')throw new Error('WALLET_DRIVER=zallet requires PRICE_SOURCE=market; the fixed demo quote is mock-only');
   return {host:v.API_HOST,workerPollMs:v.WORKER_POLL_MS,simulatorToken:v.MOCK_SIMULATOR_TOKEN,databaseUrl:v.DATABASE_URL,port:v.PORT,workerPort:v.WORKER_PORT,network:v.ZCASH_NETWORK,walletDriver:v.WALLET_DRIVER,
-    minConfirmations:v.MIN_CONFIRMATIONS,priceSource:v.PRICE_SOURCE,trustProxy:v.TRUST_PROXY??false,priceMaxAgeSeconds:v.PRICE_MAX_AGE_SECONDS,rateMicroUsd:rate,publicOrigin:v.PUBLIC_ORIGIN,storageDir:v.STORAGE_DIR,
+    minConfirmations:v.MIN_CONFIRMATIONS,priceSource:v.PRICE_SOURCE,demoAutopaySeconds:v.DEMO_AUTOPAY_SECONDS??null,trustProxy:v.TRUST_PROXY??false,priceMaxAgeSeconds:v.PRICE_MAX_AGE_SECONDS,rateMicroUsd:rate,publicOrigin:v.PUBLIC_ORIGIN,storageDir:v.STORAGE_DIR,
     sessionDays:v.SESSION_DAYS,sessionAbsoluteDays:v.SESSION_ABSOLUTE_DAYS,addressPoolTarget:30,
     adminToken:v.ADMIN_TOKEN&&v.ADMIN_TOKEN.length>=32&&!/replace|change-me/i.test(v.ADMIN_TOKEN)?v.ADMIN_TOKEN:null};
 }
