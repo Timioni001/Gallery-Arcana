@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Search } from 'lucide-react'
-import { PageShell, Notice } from '@/components/page-shell'
+import { PageShell } from '@/components/page-shell'
 import { ListingCard } from '@/components/listing-card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { api, type Category, type Listing } from '@/lib/api'
@@ -83,7 +83,6 @@ export default function Market() {
         </select>
       </div>
 
-      {offline && <div className="mt-6"><Notice>The API is not reachable, so these are <b>preview listings</b> and can't be bought. Start the API and worker (<code className="font-mono text-signal">npm run api</code>, <code className="font-mono text-signal">npm run worker</code>) to see the live market.</Notice></div>}
 
       <div className="mt-8 grid grid-cols-2 gap-x-4 gap-y-10 sm:grid-cols-3 lg:grid-cols-4">
         {!sorted && Array.from({ length: 8 }, (_, i) => (
