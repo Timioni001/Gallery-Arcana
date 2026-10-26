@@ -36,7 +36,7 @@ function Doc({ tag, title, intro, toc, children }: { tag: string; title: string;
 
 export function TermsPage() {
   const t = useTerms(), e = t.escrow
-  const hours = e?.reviewHours ?? 72, days = e?.disputeDecisionDays ?? 14
+  const hours = e?.reviewHours ?? 24, days = e?.disputeDecisionDays ?? 7
   const fee = t.platformFeeBps === undefined ? null : `${(t.platformFeeBps / 100).toFixed(2).replace(/\.00$/, '')}%`
   return (
     <Doc tag="Terms" title="Terms of service" intro="These terms explain how buying, selling and escrow work on Gallery Arcana. They are written to match what the software enforces."
@@ -105,7 +105,7 @@ export function TermsPage() {
 }
 
 export function PrivacyPage() {
-  const t = useTerms(), days = t.escrow?.disputeDecisionDays ?? 14
+  const t = useTerms(), days = t.escrow?.disputeDecisionDays ?? 7
   return (
     <Doc tag="Privacy" title="Privacy policy" intro="Gallery Arcana is built to know as little about you as possible. This policy lists what we store, what we can't see, and when data is deleted."
       toc={[['short', 'The short version'], ['collect', 'What we store'], ['cannot', 'What we cannot see'], ['escrow', 'Escrow and disputes'], ['zcash', 'Zcash payments'], ['retention', 'Retention'], ['cookies', 'Cookies'], ['sharing', 'Sharing'], ['demo', 'The public demo'], ['choices', 'Your choices']]}>
