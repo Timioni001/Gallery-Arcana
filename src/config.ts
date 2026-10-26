@@ -21,8 +21,8 @@ const schema=z.object({
   MIN_CONFIRMATIONS:positiveInt(2,1000),
   // Escrow: hours a buyer has to accept or dispute a funded order before it releases to the seller,
   // and days an operator has to decide a dispute. Snapshotted per order when it is funded.
-  ESCROW_REVIEW_HOURS:positiveInt(72,720),
-  ESCROW_DISPUTE_DAYS:positiveInt(14,90),
+  ESCROW_REVIEW_HOURS:positiveInt(24,720),
+  ESCROW_DISPUTE_DAYS:positiveInt(7,90),
   ZEC_USD_FIXED:z.string().regex(/^(?:0|[1-9][0-9]{0,6})(?:\.[0-9]{1,6})?$/).default('40'),
   STORAGE_DIR:z.string().min(1).default('./storage'),
   SESSION_DAYS:positiveInt(30,90),

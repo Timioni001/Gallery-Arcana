@@ -134,7 +134,7 @@ function Markets() {
 const flow = [
   ['Buyer funds', 'Checkout reserves the item and issues a unique shielded invoice with a ZIP-321 request.'],
   ['Payment verified', 'Exact integer-zatoshi accounting, confirmations, expiry, underpayments and overpayments.'],
-  ['Proceeds in escrow', "The seller's payout is held for a 72-hour review window. Nothing is released yet."],
+  ['Proceeds in escrow', "The seller's payout is held for a 24-hour review window. Nothing is released yet."],
   ['Buyer verifies', 'The asset decrypts locally and its SHA-256 is checked against the listing snapshot.'],
   ['Buyer approves', 'Approving signs an Ed25519 receipt and releases the payout. No answer by the deadline releases it automatically; a dispute freezes it.'],
 ]
@@ -326,8 +326,8 @@ const faq = [
   ['Is this real money?', 'No. The current build uses a mock wallet on Zcash testnet, and the nav badge shows that at all times. Real settlement has to be demonstrated on testnet before any production claim is made.'],
   ['Does shielded ZEC make everything private?', 'It protects the onchain payment details. It does not anonymize application metadata held by the platform, or transfers of external blockchain assets.'],
   ['Who holds the money during a trade?', 'Gallery Arcana does, in escrow, from payment until the buyer accepts or the review window ends. This custodial buyer protection is what lets disputes freeze funds for review.'],
-  ['What if I never accept or dispute?', 'You have 72 hours after payment confirms to check the file. If you do nothing, the payment releases to the seller automatically, so sellers are never left waiting forever. Full rules are in the escrow terms.'],
-  ['What if the file is not what was described?', 'Don’t approve it. Open a dispute before the review window ends and the payment is frozen. Share only the evidence you choose with an assigned reviewer, who decides within 14 days to release or refund in full.'],
+  ['What if I never accept or dispute?', 'You have 24 hours after payment confirms to check the file. If you do nothing, the payment releases to the seller automatically, so sellers are never left waiting forever. Full rules are in the escrow terms.'],
+  ['What if the file is not what was described?', 'Don’t approve it. Open a dispute before the review window ends and the payment is frozen. Share only the evidence you choose with an assigned reviewer, who decides within 7 days to release or refund in full.'],
   ['Does a receipt prove I legally own it?', 'No. Signed receipts prove a platform transaction, and control checks prove technical control at one point in time. Neither establishes legal title or licensing rights.'],
   ['What can’t be sold?', 'Gallery Arcana is for lawful digital commerce. Prohibited content, stolen assets and fraud are removed, with fraud prevention and compliance safeguards kept proportionate.'],
 ]

@@ -124,7 +124,7 @@ async function sealFor(listingId: string, buyerId: string) {
   S.envelopes.push({ listing_id: l.id, buyer_id: buyerId, listing_revision: l.revision, recipient_key_id: envelope.recipientKeyId, sender_key_id: envelope.senderKeyId, envelope, expires_at: expiresAt })
 }
 // The demo shortens the escrow review window so visitors can watch an automatic release.
-const DEMO_REVIEW_MS = 10 * 60_000, DISPUTE_DAYS = 14
+const DEMO_REVIEW_MS = 10 * 60_000, DISPUTE_DAYS = 7
 async function finalize(o: Order, outcome: 'buyer_accepted' | 'auto_release') {
   o.status = 'paid'
   const at = now(); if (outcome === 'buyer_accepted') o.delivery_confirmed_at = at
@@ -201,7 +201,7 @@ const b = (c: Ctx) => (c.body ?? {}) as Json
 
 const routes: Route[] = [
   ['GET', /^\/api\/health$/, () => ({ ok: true, mode: 'demo', network: 'test', origin, demoAutopaySeconds: AUTOPAY_MS / 1000 })],
-  ['GET', /^\/api\/terms$/, () => ({ platformFeeBps: 0, feeAppliesTo: 'completed sales only; refunds and cancelled orders pay no fee', feeHistory: [{ fee_bps: 0, effective_at: now() }], settlement: 'demo', network: 'test', minConfirmations: 2, price: { source: 'fixed', rateMicroUsd: ZEC_USD.toString() }, escrow: { reviewHours: 72, disputeDecisionDays: DISPUTE_DAYS, demoReviewMinutes: DEMO_REVIEW_MS / 60_000 }, neverSold: ['identity disclosure', 'user transaction data'] })],
+  ['GET', /^\/api\/terms$/, () => ({ platformFeeBps: 0, feeAppliesTo: 'completed sales only; refunds and cancelled orders pay no fee', feeHistory: [{ fee_bps: 0, effective_at: now() }], settlement: 'demo', network: 'test', minConfirmations: 2, price: { source: 'fixed', rateMicroUsd: ZEC_USD.toString() }, escrow: { reviewHours: 24, disputeDecisionDays: DISPUTE_DAYS, demoReviewMinutes: DEMO_REVIEW_MS / 60_000 }, neverSold: ['identity disclosure', 'user transaction data'] })],
   ['GET', /^\/api\/me$/, (c) => { const a = account(c.me); return { account: a ? { id: a.id, alias: a.alias, hasPayout: !!a.payout } : null } }],
   ['POST', /^\/api\/signup$/, async (c) => {
     const alias = String(b(c).alias ?? '').trim().toLowerCase(), pass = String(b(c).passphrase ?? '')
