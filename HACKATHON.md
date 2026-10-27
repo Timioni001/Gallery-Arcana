@@ -15,36 +15,73 @@
 ## Contents
 
 1. [The 30-second version](#1-the-30-second-version)
-2. [The problem](#2-the-problem)
-3. [What we built](#3-what-we-built)
-4. [What stays private, and from whom](#4-what-stays-private-and-from-whom)
-5. [How Zcash is used](#5-how-zcash-is-used)
-6. [Escrow with a clock](#6-escrow-with-a-clock)
-7. [Implemented vs verified](#7-implemented-vs-verified)
-8. [Two-minute judge walkthrough](#8-two-minute-judge-walkthrough)
-9. [Architecture](#9-architecture)
-10. [Engineering quality](#10-engineering-quality)
-11. [Run it yourself](#11-run-it-yourself)
-12. [Known limitations](#12-known-limitations)
-13. [Roadmap](#13-roadmap)
-14. [Team and disclosure](#14-team-and-disclosure)
+2. [One flow, end to end](#2-one-flow-end-to-end)
+3. [Where this fits next to Zilk Road](#3-where-this-fits-next-to-zilk-road)
+4. [The problem](#4-the-problem)
+5. [What we built](#5-what-we-built)
+6. [What stays private, and from whom](#6-what-stays-private-and-from-whom)
+7. [How Zcash is used](#7-how-zcash-is-used)
+8. [Escrow with a clock](#8-escrow-with-a-clock)
+9. [Custody: v1 today, non-custodial next](#9-custody-v1-today-non-custodial-next)
+10. [Implemented vs verified](#10-implemented-vs-verified)
+11. [Two-minute judge walkthrough](#11-two-minute-judge-walkthrough)
+12. [Architecture](#12-architecture)
+13. [Engineering quality](#13-engineering-quality)
+14. [Run it yourself](#14-run-it-yourself)
+15. [Known limitations](#15-known-limitations)
+16. [Roadmap](#16-roadmap)
+17. [Team and disclosure](#17-team-and-disclosure)
 
 ---
 
 ## 1. The 30-second version
 
-Buying a digital good online today publishes a trail: your account, your wallet, the price you paid, what you bought and who you bought it from. Gallery Arcana is a marketplace where none of that becomes public.
+Buying a digital good online publishes a trail: your account, your wallet, what you paid, what you bought and who from. Gallery Arcana is built around one flow that keeps that trail off the public record:
+
+> **Seal** the file in the seller's browser → **pay** in shielded ZEC → the buyer's browser **verifies** the exact file → the seller is **paid**.
 
 | | |
 | --- | --- |
-| **Who it's for** | Artists, developers and collectors selling files, editions, code, datasets and digital property |
+| **Who it's for** | Artists, developers and collectors selling files, editions, code and datasets |
 | **Payment** | Shielded ZEC, one fresh Orchard address and memo per invoice |
 | **Delivery** | Files encrypted in the seller's browser; each buyer receives their own sealed key |
-| **Protection** | Escrow: the seller is paid the instant the buyer's browser verifies the file; 1-hour fallback if the buyer never opens it |
-| **Proof** | Signed receipts and Trade Passports that attest a platform sale to the people you choose (not legal ownership) |
-| **Try it** | [gallery-arcana.timioni1490.workers.dev](https://gallery-arcana.timioni1490.workers.dev), no signup wall, runs in your browser |
+| **Release** | Instant when the buyer's browser verifies the file's fingerprint; 1-hour fallback if they never open it |
+| **Proof** | A signed receipt that attests the platform sale (not legal ownership) |
+| **Try it** | [gallery-arcana.timioni1490.workers.dev](https://gallery-arcana.timioni1490.workers.dev), mock settlement, runs in your browser |
 
-## 2. The problem
+## 2. One flow, end to end
+
+Everything else in the project supports this path. Each step is something a judge can check.
+
+```mermaid
+flowchart LR
+    A["1 · Seal<br/><sub>file encrypted in the<br/>seller's browser</sub>"] --> B["2 · Pay<br/><sub>shielded ZEC to a fresh<br/>Orchard address + memo</sub>"]
+    B --> C["3 · Verify<br/><sub>buyer opens the sealed key,<br/>decrypts, checks SHA-256</sub>"]
+    C --> D["4 · Release<br/><sub>seller paid instantly,<br/>signed receipt</sub>"]
+```
+
+| Step | What happens | What it proves | Where |
+| --- | --- | --- | --- |
+| **1. Seal** | The seller's browser encrypts the file in authenticated chunks and uploads ciphertext. The content key never leaves the seller's device unencrypted. | The server can't read the goods. | `packages/client-crypto`, studio upload |
+| **2. Pay** | Checkout issues an exact zatoshi amount, a single-use Orchard address and a memo (ZIP-321). The worker matches address, memo and value and waits for confirmations. | Payment is shielded and tied to exactly one invoice. | `src/services/checkout.ts`, `src/jobs/watcher.ts` |
+| **3. Verify** | The buyer receives a key envelope sealed to their key (HPKE), decrypts locally and checks the file's SHA-256 against the checkout snapshot. | The buyer got exactly the file that was listed. | order page, `openPurchasedCapsule` |
+| **4. Release** | A matching fingerprint completes the order: the seller payout is queued and an Ed25519 receipt is signed. A mismatch never releases. | The seller is paid only after correct delivery. | `src/services/acquisitions.ts` |
+
+Status: the full flow runs in automated browser journeys and database tests on the mock wallet ([VALIDATION.md](docs/VALIDATION.md)), and is scripted end to end for real Zebra and Zallet on local regtest ([SETTLEMENT_EVIDENCE.md](docs/SETTLEMENT_EVIDENCE.md)). Public-testnet verification is in progress.
+
+## 3. Where this fits next to Zilk Road
+
+zkSNARKs runs [Zilk Road](https://zilkroad.com), the official marketplace for the zkSNARKs collection of shielded identities on Zcash, with listings, offers and shielded bidder identities. Gallery Arcana is aimed at a different kind of good: **files whose contents must stay private until a buyer pays**, such as source code, datasets, design files and unreleased work.
+
+| | Zilk Road | Gallery Arcana |
+| --- | --- | --- |
+| Primary good | The zkSNARKs collection | Encrypted digital files |
+| Core question answered | Who owns which identity | Did the buyer receive exactly the file they paid for, without the platform seeing it |
+| Distinctive mechanism | Shielded bidding and sales of a collection | Browser-side encryption, buyer-sealed keys, verification-gated release |
+
+The two are complementary: encrypted delivery and verified release are building blocks a collection marketplace could use for unlockable content.
+
+## 4. The problem
 
 Private payment alone doesn't make private commerce. Even with a shielded transaction, a typical marketplace still leaks:
 
@@ -57,30 +94,36 @@ Private payment alone doesn't make private commerce. Even with a shielded transa
 
 Zcash solves the payment layer. Gallery Arcana is the marketplace layer built on top so the rest of the trade doesn't undo it.
 
-## 3. What we built
+## 5. What we built
 
 <table>
-<tr><td width="50%"><img src="docs/assets/market.png" alt="Market"><br><sub><b>Market.</b> Public listings only. Buyers and offers are never shown.</sub></td>
-<td width="50%"><img src="docs/assets/auctions.png" alt="Auctions"><br><sub><b>Sealed-bid auctions (simulation).</b> Rival bids are generated in the browser.</sub></td></tr>
-<tr><td colspan="2"><img src="docs/assets/mobile.png" alt="Phone views"><br><sub><b>Mobile-first.</b> Home, market, auctions and the full-screen artwork viewer.</sub></td></tr>
+<tr><td width="50%"><img src="docs/assets/market.png" alt="Market"><br><sub><b>Market.</b> Public previews; buyers and offers are not shown.</sub></td>
+<td width="50%"><img src="docs/assets/mobile.png" alt="Phone views"><br><sub><b>Mobile.</b> Home, market and the artwork viewer.</sub></td></tr>
 </table>
+
+### Core
 
 | Feature | What it does |
 | --- | --- |
-| **Alias accounts** | An alias and a passphrase. No email, phone or ID. Passphrases are hashed with scrypt and a per-user salt. |
-| **Capsules** | Files are encrypted in the seller's browser in authenticated chunks. The server stores ciphertext only. |
-| **Sealed key envelopes** | The content key is sealed to one buyer's public key (HPKE). Only that buyer can open it. |
-| **Private negotiation** | Offers and counteroffers are never public. Chat and attachments are end-to-end encrypted. |
+| **Capsules** | Files encrypted in the seller's browser in authenticated chunks; the server stores ciphertext only. |
+| **Sealed key envelopes** | The content key is sealed to one buyer's public key (HPKE); only that buyer can open it. |
 | **Shielded checkout** | Exact ZEC amount, fresh Orchard address and memo, ZIP-321 payment URI. |
-| **Escrow** | Funds are held until the buyer's browser verifies the file (instant release), a 1-hour fallback ends, or a reviewer decides a dispute. |
-| **Encrypted disputes** | Evidence is encrypted to the assigned reviewer only. Decision due within 7 days. |
-| **Signed receipts** | Ed25519 proof of how a sale completed: accepted, auto-released or reviewer-released. |
-| **Trade Passports** | Prove a trading history to one party, with minimal facts, expiry and revocation. |
-| **Asset control checks** | Prove control of a domain, GitHub repo or wallet without handing it over. |
-| **Sealed-bid auctions** *(simulation)* | Second-price rules shown in the browser with generated rival bids. Not connected to settlement; no payment is taken. |
-| **Private invitations** | Single-use, expiring links that sell a listing to one designated buyer. |
+| **Verified release** | The order completes when the buyer's browser verifies the file; 1-hour fallback; disputes freeze funds. |
+| **Signed receipts** | Ed25519 record of how a sale completed: verified, auto-released or reviewer-released. |
+| **Alias accounts** | An alias and a passphrase (scrypt, per-user salt). No email, phone or ID. |
 
-## 4. What stays private, and from whom
+### Also built
+
+Supporting features, implemented and tested, but not the focus of this submission:
+
+- **Private negotiation:** offers and counteroffers, plus end-to-end encrypted chat and attachments.
+- **Encrypted disputes:** evidence sealed to an assigned reviewer; 7-day decision deadline.
+- **Private invitations:** single-use, expiring links that sell to one designated buyer.
+- **Trade Passports:** prove a trading history to one party, with minimal facts, expiry and revocation.
+- **Asset-control checks:** prove control of a domain, GitHub repo or wallet without handing it over.
+- **Auctions** *(simulation)***:** a front-end demonstration of sealed-bid, second-price rules; not connected to settlement.
+
+## 6. What stays private, and from whom
 
 Each leak from section 2, and what reduces it. Privacy here is a set of specific, testable properties against specific observers, not a promise of anonymity.
 
@@ -89,7 +132,7 @@ Each leak from section 2, and what reduces it. Privacy here is a set of specific
 | Identity | Alias + passphrase only. Rate limiting uses hashed IPs; no tracking or analytics. |
 | Wallet linkage | A fresh Orchard address for every invoice, so two purchases never share an address. |
 | Price paid | Shielded amounts on chain; no public sales history; sellers see their own sales, not who bought. |
-| Bids | No public bid feed. Auctions are sealed; only the bid count is visible. |
+| Offers | No public bid feed or offer history; offers are visible only to the two parties and the operator. |
 | File contents | Encrypted in the seller's browser; the content key never reaches the server. |
 | Messages | End-to-end encrypted; the server relays ciphertext. |
 | Dispute evidence | Encrypted to the assigned reviewer; expires within 30 days. |
@@ -99,7 +142,7 @@ Each leak from section 2, and what reduces it. Privacy here is a set of specific
 
 **Honest boundary.** Shielding protects the onchain payment details. It doesn't hide the application metadata the marketplace itself must keep to settle an order (price, status, timestamps), and offer amounts are operator-readable so settlement can be checked. This is documented, not hidden: see [THREAT_MODEL.md](docs/THREAT_MODEL.md).
 
-## 5. How Zcash is used
+## 7. How Zcash is used
 
 Zcash isn't a logo on this project; it's the settlement rail.
 
@@ -133,7 +176,7 @@ sequenceDiagram
 - **Live ZEC/USD price** from a market feed on testnet, with a maximum quote age; stale prices pause new checkouts but never block settlement.
 - **Wallet behind an interface** (`WalletAdapter`) with two drivers: a durable database mock for development, and a **Zallet** driver for testnet and regtest.
 
-## 6. Escrow with a clock
+## 8. Escrow with a clock
 
 Most escrow fails one side. If the seller is paid first, buyers have no protection. If funds wait for buyer approval with no deadline, a silent buyer can hold a seller's money forever. Gallery Arcana pays the seller the moment the buyer's browser proves the right file arrived, with a short fallback for buyers who never check.
 
@@ -180,7 +223,36 @@ These are two different kinds of control. **Client-side encryption** is a crypto
 
 The public demo uses a 10-minute fallback so you can watch an automatic release. The full rules are published at `GET /api/terms` and on the [Terms page](https://gallery-arcana.timioni1490.workers.dev/terms#escrow).
 
-## 7. Implemented vs verified
+## 9. Custody: v1 today, non-custodial next
+
+Escrow in this submission is custodial: funds sit in the platform's wallet until release or refund. That's a deliberate v1 trade-off, because it gives buyers refunds and disputes, but it means trusting the operator with money. Here is the design we intend to move to.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as Buyer
+    participant P as Platform (viewing key only)
+    participant SW as Seller's own wallet
+    actor S as Seller
+    S->>P: Incoming viewing key for a dedicated sales account
+    S->>P: Key envelope pre-sealed to the buyer
+    U->>SW: Shielded payment to a fresh address in the seller's wallet
+    P->>P: Sees the payment with the viewing key (cannot spend)
+    P-->>U: Releases the pre-sealed key envelope after confirmations
+    U->>U: Decrypts and verifies SHA-256
+```
+
+| | v1 (this submission) | Next: non-custodial |
+| --- | --- | --- |
+| Who holds funds | Platform wallet | Seller's own wallet, from the first block |
+| Platform's Zcash access | Spending key for escrow | Incoming viewing key only: can see payments, cannot move them |
+| Non-delivery risk | Covered by escrow and refunds | Removed: the key is released automatically on payment |
+| "Not as described" risk | Dispute and refund | No refund path; covered by previews, receipts and Trade Passports |
+| Operator visibility | Amounts and order metadata | Payments to sellers' sales accounts and order metadata |
+
+This is a design, not an implemented feature. It depends on the wallet stack importing an incoming viewing key for watch-only scanning, which we still have to confirm against Zallet. It also gives up refunds, so it would be offered alongside, not instead of, the protected mode until reputation tools mature.
+
+## 10. Implemented vs verified
 
 We'd rather you trust this section than be surprised later. *Implemented* means the code exists and is covered by automated tests. *Verified* means it has been demonstrated against that environment with recorded evidence.
 
@@ -212,7 +284,7 @@ We'd rather you trust this section than be surprised later. *Implemented* means 
 | Demo payments | Auto-confirm a few seconds after checkout. No ZEC moves. |
 | Demo receipts | Signed with a key held in your browser, not the platform's Ed25519 key. |
 
-## 8. Two-minute judge walkthrough
+## 11. Two-minute judge walkthrough
 
 Open the [live demo](https://gallery-arcana.timioni1490.workers.dev) on any device. The demo is mock settlement: no ZEC moves. The latest automated results are in [VALIDATION.md](docs/VALIDATION.md).
 
@@ -228,7 +300,7 @@ Open the [live demo](https://gallery-arcana.timioni1490.workers.dev) on any devi
 | 8 | Open **Observer view**. | Which requests an outsider can make, and that buyer and offer data are refused. |
 | 9 | *(Optional)* Try **Auctions**. | A labelled simulation of sealed-bid rules; not settled. |
 
-## 9. Architecture
+## 12. Architecture
 
 ```mermaid
 flowchart LR
@@ -264,7 +336,7 @@ flowchart LR
 | Wallet | Zallet JSON-RPC (testnet / regtest), durable mock for development |
 | Deploy | Docker Compose, Caddy, Cloudflare Tunnel, Cloudflare Workers + KV |
 
-## 10. Engineering quality
+## 13. Engineering quality
 
 - **Tests.** Unit, security and RPC-contract tests (`npm test`), plus PostgreSQL integration suites that create and drop an isolated database per file (`npm run test:integration`). Covered: the full purchase journey, concurrent checkout, races between acceptance, dispute and auto-release, expiry, partial, late and excess payments, output replay, chain reorganisations, worker crash and restart, payout reconciliation, retention scrubbing, and the escrow window.
 - **Browser journeys** run in Chromium: capsule sale, local decryption, encrypted chat, passport verification, dispute evidence and vault restore.
@@ -272,7 +344,7 @@ flowchart LR
 - **Security headers** and a strict Content-Security-Policy; all mutations require an action header plus origin and fetch-site checks; session cookies are HttpOnly and SameSite=Strict.
 - **Documented**: API contract, threat model, crypto protocol, invariants, operations, deploy and testnet runbooks in [`docs/`](docs).
 
-## 11. Run it yourself
+## 14. Run it yourself
 
 | Goal | Command |
 | --- | --- |
@@ -285,30 +357,31 @@ flowchart LR
 
 Requirements: Node.js 22+, PostgreSQL 16 for the full stack, Docker Compose v2.24+ for self-hosting. Details in the [README](README.md#running-requirements).
 
-## 12. Known limitations
+## 15. Known limitations
 
 - Public-testnet settlement is implemented; live-chain verification is in progress. Mainnet is disabled.
-- The marketplace is custodial during escrow. Non-custodial threshold escrow depends on FROST-style signing for shielded pools, which isn't production-ready yet.
+- The marketplace is custodial during escrow. The non-custodial, viewing-key design in [section 9](#9-custody-v1-today-non-custodial-next) is the planned replacement and depends on confirming watch-only viewing-key support in Zallet.
 - First-contact key fingerprints should be compared out of band; static recipient keys provide no forward secrecy.
 - Onchain assets and digital property can be listed and negotiated, but their transfer happens outside the platform.
 - Signed receipts prove a platform transaction, not legal ownership.
 - No independent security audit yet.
 
-## 13. Roadmap
+## 16. Roadmap
 
 | Next | Why |
 | --- | --- |
 | Verified public-testnet settlement | Close the gap between the scripted regtest journey and a live chain. |
 | zkSNARKs featured collection | The upcoming collection of shielded identities, sold as sealed capsules. |
 | Viewing-key disclosure | Let a buyer prove a specific payment to an auditor without revealing others. |
-| Threshold escrow | Move from custodial holding to 2-of-3 release once shielded threshold signing matures. |
+| Non-custodial mode | Sellers paid directly; the platform watches with an incoming viewing key and releases the pre-sealed key on payment ([section 9](#9-custody-v1-today-non-custodial-next)). |
 | Seller tools | Bulk capsule upload, editions, and invitation campaigns. |
 | Mainnet | Only after testnet verification, an external audit and a legal review. |
 
-## 14. Team and disclosure
+## 17. Team and disclosure
 
 - **Builder:** Timi ([@0x_TIMii](https://x.com/0x_TIMii)).
 - **AI assistance:** parts of the code, tests and documentation were written with Claude Code; commits it co-authored are marked in the git history. Every design decision, deployment and submission is the builder's.
 - **License and use:** lawful digital commerce only. This is a testnet preview, not a custodian of real funds.
 
 <div align="center"><sub>Built for ZECATHON · Private Markets · Powered by Zcash</sub></div>
+
