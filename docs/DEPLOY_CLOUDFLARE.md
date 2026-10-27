@@ -74,7 +74,7 @@ Capsule content keys are never on the server. Each seller keeps them in their ow
 
 1. Run the Z3 testnet stack on the same server (see [TESTNET_RUNBOOK.md](TESTNET_RUNBOOK.md)).
 2. Add the `ZALLET_*` lines to `deploy/.env.worker`, with `ZALLET_RPC_URL=http://127.0.0.1:28232`.
-3. In `deploy/.env`, set `WALLET_DRIVER=zallet`, `ZALLET_TESTNET_ACK=unverified-testnet-only` and `PRICE_SOURCE=market`.
+3. In `deploy/.env`, set `WALLET_DRIVER=zallet`, `ZALLET_TESTNET_ACK=testnet-in-progress` and `PRICE_SOURCE=market`.
 4. Start with the loopback bridge, setting `ZALLET_HOST_PORT` to the host port where Z3 publishes Zallet:
    ```bash
    ZALLET_HOST_PORT=<port> docker compose -f docker-compose.yml -f compose.zallet.yml up -d

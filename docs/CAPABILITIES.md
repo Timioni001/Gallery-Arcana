@@ -16,7 +16,7 @@ Version 0.5 extends the existing private-acquisitions backend. Version 0.4 combi
 - Public search, categories, bounded pagination and deterministic ordering; paused/reserved/sold availability states.
 - Private offers, seller acceptance/rejection/counters, buyer counter acceptance/rejection and withdrawal; stale revision and ownership checks.
 - One active offer per buyer/listing; one reservation/completed acquisition per asset. Edits invalidate active offers and reserved/sold listings cannot change.
-- Manual/external references can be listed and negotiated; their external ownership/delivery is not verified and they cannot use automatic file checkout.
+- Manual/external references can be listed and negotiated; their external ownership/delivery isn't checked by the platform and they cannot use automatic file checkout.
 
 ## Purchasing and private acquisitions
 
@@ -72,7 +72,7 @@ Version 0.5 extends the existing private-acquisitions backend. Version 0.4 combi
 
 [API contract](API.md) · [Acquisition protocol](PRIVATE_ACQUISITIONS.md) · [Operations](OPERATIONS.md) · [Domain invariants](INVARIANTS.md) · [Threat model](THREAT_MODEL.md) · [Executed validation](VALIDATION.md) · [Real Zcash gate](ZALLET_GAP.md).
 
-## Not available or not verified
+## Not available or in progress
 
 No live Zcash/testnet settlement, mainnet custody, live FX feed, production key vault/backup recovery, independent protocol/security certification, individual operator authentication, key transparency/Signal-style forward secrecy, malware scanning, legal ownership/licensing guarantees, NFT/domain/repository custody, cross-chain atomic transfer, auctions, platform token or frontend. Browser ESM compiles and Node crypto journeys execute; real-browser interoperability is not yet demonstrated. A buyer confirmation/platform signature cannot provide those guarantees.
 
