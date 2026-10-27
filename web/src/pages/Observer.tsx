@@ -48,7 +48,7 @@ export default function Observer() {
       <p className="mt-4 max-w-xl text-[15px] text-fg/65">These requests are made live against the API with no session cookie, exactly as an unrelated observer would make them. Anything returned here is public. Everything else is refused.</p>
       <div className="mt-6 flex flex-wrap items-center gap-3">
         <Button className="h-10 rounded-xl" disabled={running} onClick={run}><Play className="size-3.5" />{running ? 'Probing…' : 'Run probes again'}</Button>
-        <Link to="/#privacy" className="text-[13px] text-fg/60 hover:text-fg">Read the privacy guarantees →</Link>
+        <Link to="/#privacy" className="text-[13px] text-fg/60 hover:text-fg">Read the privacy model →</Link>
       </div>
 
       <div className="mt-10 divide-y overflow-hidden rounded-2xl border bg-surface">

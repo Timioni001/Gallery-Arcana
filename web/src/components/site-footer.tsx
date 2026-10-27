@@ -4,7 +4,7 @@ import { Logo } from './brand'
 const cols = [
   { title: 'Market', links: [['Browse', '/market'], ['Auctions', '/auctions'], ['Arcana Fragments', '/#collection'], ['Digital', '/market?category=digital'], ['Collectibles', '/market?category=collectible'], ['Onchain', '/market?category=onchain'], ['Digital property', '/market?category=other']] },
   { title: 'Sellers', links: [['Studio', '/studio'], ['List a work', '/studio/new'], ['Ways to sell', '/#selling']] },
-  { title: 'Protocol', links: [['Protected exchange', '/#how'], ['Privacy guarantees', '/#privacy'], ['Observer view', '/observer'], ['Build status', '/#status'], ['FAQ', '/#faq']] },
+  { title: 'Protocol', links: [['Protected exchange', '/#how'], ['Privacy model', '/#privacy'], ['Observer view', '/observer'], ['Build status', '/#status'], ['FAQ', '/#faq']] },
   { title: 'Legal', links: [['Terms of service', '/terms'], ['Escrow', '/terms#escrow'], ['Privacy policy', '/privacy']] },
 ]
 

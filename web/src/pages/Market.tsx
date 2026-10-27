@@ -56,7 +56,8 @@ export default function Market() {
         <div>
           <span className="eyebrow">Market</span>
           <h1 className="mt-4 text-[34px] leading-tight tracking-[-0.025em] text-fg sm:text-[42px]">Works, sealed <span className="text-stone">until sold.</span></h1>
-          <p className="mt-2 text-sm text-muted-foreground">Public listings only. Buyers and offers are never shown.</p>
+          <p className="mt-2 text-sm text-muted-foreground">Public listings only. Buyers and offers are not shown here.</p>
+          {import.meta.env.VITE_DEMO === '1' && <p className="mt-2 font-mono text-[11px] uppercase tracking-wider text-fg/45">Demo · sample sellers are automated · payments are simulated</p>}
         </div>
         <form onSubmit={(e) => { e.preventDefault(); set('q', q.trim() || undefined) }} className="relative w-full md:w-80">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-fg/40" />

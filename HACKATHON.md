@@ -17,10 +17,10 @@
 1. [The 30-second version](#1-the-30-second-version)
 2. [The problem](#2-the-problem)
 3. [What we built](#3-what-we-built)
-4. [Why it does not leak](#4-why-it-does-not-leak)
+4. [What stays private, and from whom](#4-what-stays-private-and-from-whom)
 5. [How Zcash is used](#5-how-zcash-is-used)
 6. [Escrow with a clock](#6-escrow-with-a-clock)
-7. [What is real and what is a mock](#7-what-is-real-and-what-is-a-mock)
+7. [Implemented vs verified](#7-implemented-vs-verified)
 8. [Two-minute judge walkthrough](#8-two-minute-judge-walkthrough)
 9. [Architecture](#9-architecture)
 10. [Engineering quality](#10-engineering-quality)
@@ -41,7 +41,7 @@ Buying a digital good online today publishes a trail: your account, your wallet,
 | **Payment** | Shielded ZEC, one fresh Orchard address and memo per invoice |
 | **Delivery** | Files encrypted in the seller's browser; each buyer receives their own sealed key |
 | **Protection** | Escrow: the buyer verifies the file before the seller is paid, with a 24-hour deadline |
-| **Proof** | Signed receipts and Trade Passports that prove a sale only to the people you choose |
+| **Proof** | Signed receipts and Trade Passports that attest a platform sale to the people you choose (not legal ownership) |
 | **Try it** | [gallery-arcana.timioni1490.workers.dev](https://gallery-arcana.timioni1490.workers.dev), no signup wall, runs in your browser |
 
 ## 2. The problem
@@ -61,7 +61,7 @@ Zcash solves the payment layer. Gallery Arcana is the marketplace layer built on
 
 <table>
 <tr><td width="50%"><img src="docs/assets/market.png" alt="Market"><br><sub><b>Market.</b> Public listings only. Buyers and offers are never shown.</sub></td>
-<td width="50%"><img src="docs/assets/auctions.png" alt="Auctions"><br><sub><b>Sealed-bid auctions.</b> Rivals see a bid count, never amounts.</sub></td></tr>
+<td width="50%"><img src="docs/assets/auctions.png" alt="Auctions"><br><sub><b>Sealed-bid auctions (simulation).</b> Rival bids are generated in the browser.</sub></td></tr>
 <tr><td colspan="2"><img src="docs/assets/mobile.png" alt="Phone views"><br><sub><b>Mobile-first.</b> Home, market, auctions and the full-screen artwork viewer.</sub></td></tr>
 </table>
 
@@ -77,12 +77,12 @@ Zcash solves the payment layer. Gallery Arcana is the marketplace layer built on
 | **Signed receipts** | Ed25519 proof of how a sale completed: accepted, auto-released or reviewer-released. |
 | **Trade Passports** | Prove a trading history to one party, with minimal facts, expiry and revocation. |
 | **Asset control checks** | Prove control of a domain, GitHub repo or wallet without handing it over. |
-| **Sealed-bid auctions** | Second-price: highest bid wins and pays the runner-up price, so bidding your true maximum is safe. |
+| **Sealed-bid auctions** *(simulation)* | Second-price rules shown in the browser with generated rival bids. Not connected to settlement; no payment is taken. |
 | **Private invitations** | Single-use, expiring links that sell a listing to one designated buyer. |
 
-## 4. Why it does not leak
+## 4. What stays private, and from whom
 
-Each leak from section 2, and what stops it.
+Each leak from section 2, and what reduces it. Privacy here is a set of specific, testable properties against specific observers, not a promise of anonymity.
 
 | Leak | How Gallery Arcana stops it |
 | --- | --- |
@@ -160,48 +160,72 @@ stateDiagram-v2
 | Fixed per order | Deadlines are stored on the order when it's funded or disputed. Changing the settings never shortens an existing order. |
 | Race-safe | Auto-release re-checks the order under a row lock, so a concurrent acceptance or dispute wins or loses atomically, and a release happens at most once. |
 
+### Who controls the money, and what the operator sees
+
+Escrow here is **custodial**. While an order is funded, the buyer's ZEC sits in the platform's wallet and the platform alone can move it: by releasing it to the seller (on acceptance, on automatic release, or on a reviewer's decision) or by refunding it in full. Neither party can move escrowed funds directly.
+
+Because it settles the order, the operator necessarily sees the financial side of every trade:
+
+| The operator sees | The operator does not see |
+| --- | --- |
+| Price in USD and exact ZEC amount | File contents (encrypted in the seller's browser) |
+| Invoice address, memo and confirmations | Content keys (sealed to the buyer) |
+| Offer and counteroffer amounts | Chat text and attachments (end-to-end encrypted) |
+| Payout and refund destinations and transaction IDs | Dispute evidence (encrypted to the assigned reviewer) |
+| When each order was funded, accepted, disputed, released or refunded | The buyer's wallet balance or other transactions |
+| Which alias bought and which alias sold | Real names, emails or IDs (never collected) |
+
+These are two different kinds of control. **Client-side encryption** is a cryptographic guarantee: the server holds ciphertext and cannot read it. **Escrow** is an operational control: buyers are protected by rules the platform enforces (deadlines, disputes, full refunds), and by signed receipts that record how each order ended. Shielded payments protect the trade from outside observers on chain; they do not hide it from the platform that settles it.
+
 The public demo shortens the window to 10 minutes so you can watch an automatic release. The full rules are published at `GET /api/terms` and on the [Terms page](https://gallery-arcana.timioni1490.workers.dev/terms#escrow).
 
-## 7. What is real and what is a mock
+## 7. Implemented vs verified
 
-We'd rather you trust this section than be surprised later.
+We'd rather you trust this section than be surprised later. *Implemented* means the code exists and is covered by automated tests. *Verified* means it has been demonstrated against that environment with recorded evidence.
 
-### Real
+### Settlement modes
 
-| Component | Status |
+| Mode | What moves | Status | Evidence |
+| --- | --- | --- | --- |
+| **Mock wallet** | Nothing on any chain. A durable database ledger stands in for the wallet. | Implemented and verified by tests. Default for local development. | Integration test suites (see [VALIDATION.md](docs/VALIDATION.md)) |
+| **Hosted demo** | Nothing. The API runs in your browser and payments auto-confirm. | Live at the demo URL. | Clearly labelled on the site |
+| **Local regtest** | Real shielded transactions between real **Zebra** and **Zallet** binaries on a private chain. Coins have no value. | Implemented: `npm run regtest -- journey` pays an invoice, waits for funding, downloads and checks the file, accepts, and confirms the seller payout. | The journey writes `docs/evidence/settlement-regtest-*.json` with txids, invoice, payout and a `verified` flag. See [SETTLEMENT_EVIDENCE.md](docs/SETTLEMENT_EVIDENCE.md). |
+| **Public testnet** | Testnet ZEC on the public Zcash testnet. | Implemented and gated behind `ZALLET_TESTNET_ACK`. **Not yet verified live.** | Blockers recorded in [zcash-testnet-v05.json](docs/evidence/zcash-testnet-v05.json) and [ZALLET_GAP.md](docs/ZALLET_GAP.md) |
+| **Mainnet** | — | Disabled. | — |
+
+### Implemented and tested
+
+| Component | Detail |
 | --- | --- |
-| Client cryptography | Real: chunked AES-GCM capsules, HPKE key envelopes, encrypted conversations, ECDSA identities with key pinning, browser key vault with backup and restore. |
-| Backend | Real: Fastify API + PostgreSQL + separate settlement worker, with checksummed, transactional migrations. |
-| Settlement logic | Real and tested: exact-value matching, confirmations, expiry, under/over/late payments, reorg freezes, escrow deadlines, idempotent payouts. |
-| Zallet adapter | Real code against the Zallet JSON-RPC interface, with a scripted end-to-end journey (`npm run regtest -- journey`) for real Zebra + Zallet binaries on local regtest. |
-| Hosted demo crypto | Real: the demo encrypts, seals and decrypts files with the same SDK. |
+| Client cryptography | Chunked AES-GCM capsules, HPKE key envelopes, encrypted conversations, ECDSA identities with key pinning, browser key vault with backup and restore. |
+| Backend | Fastify API + PostgreSQL + separate settlement worker, with checksummed, transactional migrations. |
+| Settlement logic | Exact-value matching, confirmations, expiry, under/over/late payments, reorg freezes, escrow deadlines, idempotent payouts. |
+| Zallet adapter | Zallet JSON-RPC driver for testnet and regtest, exercised end to end by the regtest journey above. |
 
-### Mock or simulated
+### Simulated
 
-| Component | Status |
+| Component | Detail |
 | --- | --- |
-| Hosted demo backend | Simulated: the whole API runs inside your browser (IndexedDB). Nothing leaves your device except the waitlist form. |
-| Demo payments | Simulated: they auto-confirm a few seconds after checkout. No ZEC moves. |
-| Demo counterparties | Simulated: sample sellers accept offers and reply to messages; auction rivals are simulated. |
-| Demo receipts | Signed with a demo key held in your browser, not the platform's Ed25519 key. |
-| Public testnet | Implemented and gated behind an explicit acknowledgement, **not yet verified live**. See [ZALLET_GAP.md](docs/ZALLET_GAP.md). |
-| Mainnet | Disabled. |
+| Auctions | A front-end simulation of sealed-bid, second-price rules. Rival bids are generated; bids are not settled. |
+| Demo counterparties | Sample sellers in the hosted demo accept offers and reply automatically. They are labelled as automated. |
+| Demo payments | Auto-confirm a few seconds after checkout. No ZEC moves. |
+| Demo receipts | Signed with a key held in your browser, not the platform's Ed25519 key. |
 
 ## 8. Two-minute judge walkthrough
 
-Open the [live demo](https://gallery-arcana.timioni1490.workers.dev) on any device.
+Open the [live demo](https://gallery-arcana.timioni1490.workers.dev) on any device. The demo is mock settlement: no ZEC moves. A narrated version is in [DEMO_VIDEO_SCRIPT.md](docs/DEMO_VIDEO_SCRIPT.md), and the latest automated results are in [VALIDATION.md](docs/VALIDATION.md).
 
 | Step | Do this | What it proves |
 | --- | --- | --- |
 | 1 | Tap **Get started** and create an alias and passphrase. | No email, phone or ID needed. |
 | 2 | Open **Market** and pick an Arcana Fragment (marked *Capsule*). | The file is a sealed capsule; only a preview is public. |
-| 3 | Make an offer, or open the encrypted chat with the seller. | Negotiation is private; the simulated seller replies. |
+| 3 | Make an offer, or open the encrypted chat with the seller. | Negotiation is end-to-end encrypted; the sample seller replies automatically. |
 | 4 | Check out. Note the single-use address, memo and ZIP-321 URI. | How a real shielded invoice is formed. |
 | 5 | Wait a few seconds for the simulated payment. | The order becomes *funded*; the escrow clock starts. |
 | 6 | Tap **Decrypt locally & verify**. | Your browser opens the sealed key and checks the SHA-256. |
 | 7 | **Accept**, or wait 10 minutes for auto-release. | Payment releases; a signed receipt is issued. |
-| 8 | Open **Observer view**. | What an outsider can see: nothing about your trade. |
-| 9 | Try **Auctions** and place a sealed bid. | Rivals see the count, never the amount. |
+| 8 | Open **Observer view**. | Which requests an outsider can make, and that buyer and offer data are refused. |
+| 9 | *(Optional)* Try **Auctions**. | A labelled simulation of sealed-bid rules; not settled. |
 
 ## 9. Architecture
 

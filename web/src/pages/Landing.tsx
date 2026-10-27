@@ -56,7 +56,7 @@ function Hero() {
       <ConnectorHero />
       <div className="animate-rise mx-auto max-w-lg px-4 text-center">
         <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-signal">A private market for digital assets</p>
-        <p className="mt-3 text-[15px] text-fg/70">Buy, sell and exchange digital property without exposing who you are, what you paid or what changed hands. You pay in shielded ZEC, delivery arrives encrypted, and the seller is paid only after you've had time to check it.</p>
+        <p className="mt-3 text-[15px] text-fg/70">Buy, sell and exchange digital property without publishing who you are, what you paid or what changed hands. You pay in shielded ZEC, delivery arrives encrypted, and the seller is paid only after you've had time to check it.</p>
         <div className="mt-7 flex flex-wrap justify-center gap-3">
           <a href="#waitlist" className="inline-flex items-center gap-2 rounded-xl bg-signal px-6 py-3 text-[15px] font-medium text-surface shadow-[0_10px_30px_-10px_oklch(0.645_0.19_38/.8)] transition hover:brightness-110">Join the waitlist →</a>
           <DotButton to="/market">Explore the demo market</DotButton>
@@ -230,7 +230,7 @@ function Privacy() {
   return (
     <section id="privacy" className="mt-28 scroll-mt-16 bg-fg py-24 text-surface">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
-        <Head dark tag="Privacy guarantees" strong="Who can see what." soft="Each audience is documented separately." aside="Privacy covers identity, communications, assets, payments and records. These are the limits as they stand today, including what we still handle." />
+        <Head dark tag="Privacy model" strong="Who can see what." soft="Each audience is documented separately." aside="Privacy covers identity, communications, assets, payments and records. These are the limits as they stand today, including what we still handle." />
         <div className="mt-12 grid gap-6 lg:grid-cols-[0.8fr_1.6fr]">
           <div className="relative hidden aspect-square overflow-hidden rounded-2xl border border-surface/10 lg:block">
             <Halftone shape={sphere} step={6} seed={9} erode={0.3} className="text-surface" />
