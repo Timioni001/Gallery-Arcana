@@ -43,8 +43,8 @@ export function parseConfig(env:NodeJS.ProcessEnv){
   const rate=BigInt(whole!)*1_000_000n+BigInt(fraction.padEnd(6,'0'));
   if(rate<=0n)throw new Error('ZEC_USD_FIXED must be positive');
   if(v.SESSION_DAYS>v.SESSION_ABSOLUTE_DAYS)throw new Error('Session idle lifetime exceeds absolute lifetime');
-  // The live adapter is testnet-only and unverified until the gate in docs/ZALLET_GAP.md passes.
-  if(v.WALLET_DRIVER==='zallet'&&v.ZALLET_TESTNET_ACK!=='unverified-testnet-only')throw new Error('WALLET_DRIVER=zallet requires ZALLET_TESTNET_ACK=unverified-testnet-only (testnet acceptance gate not yet passed)');
+  // The live adapter is testnet-only and in progress until the gate in docs/ZALLET_GAP.md passes.
+  if(v.WALLET_DRIVER==='zallet'&&v.ZALLET_TESTNET_ACK!=='testnet-in-progress')throw new Error('WALLET_DRIVER=zallet requires ZALLET_TESTNET_ACK=testnet-in-progress (testnet acceptance gate in progress)');
   if(v.DEMO_AUTOPAY_SECONDS&&v.WALLET_DRIVER!=='mock')throw new Error('DEMO_AUTOPAY_SECONDS is only available with the mock wallet');
   if(v.ZCASH_NETWORK==='regtest'&&v.WALLET_DRIVER!=='zallet')throw new Error('ZCASH_NETWORK=regtest is only for verifying the Zallet adapter against a local regtest stack');
   // Regtest coins have no market value, so only testnet needs a live price.

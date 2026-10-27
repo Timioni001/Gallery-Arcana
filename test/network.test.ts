@@ -12,7 +12,7 @@ test('address prefixes are network-specific and mainnet is never accepted',()=>{
   assert.ok(shieldedDestination('regtest').test(`zregtestsapling1${'q'.repeat(70)}`));
 });
 test('regtest is reserved for verifying the Zallet adapter; testnet live mode still needs market prices',()=>{
-  const base={...process.env,ZALLET_TESTNET_ACK:'unverified-testnet-only'};
+  const base={...process.env,ZALLET_TESTNET_ACK:'testnet-in-progress'};
   assert.throws(()=>parseConfig({...base,ZCASH_NETWORK:'regtest',WALLET_DRIVER:'mock'}),/regtest is only/);
   assert.equal(parseConfig({...base,ZCASH_NETWORK:'regtest',WALLET_DRIVER:'zallet',PRICE_SOURCE:'fixed'}).network,'regtest');
   assert.throws(()=>parseConfig({...base,ZCASH_NETWORK:'test',WALLET_DRIVER:'zallet',PRICE_SOURCE:'fixed'}),/PRICE_SOURCE=market/);

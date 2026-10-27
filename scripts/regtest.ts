@@ -64,7 +64,7 @@ async function setup(){
   }
   const a=load();
   console.log(`\n1) Add to .env.worker (alongside ZALLET_RPC_URL/USER/PASS):\nZALLET_ACCOUNT_ID=${a.merchant.uuid}\nZALLET_RECEIVE_ADDRESS=${a.merchant.ua}`);
-  console.log(`\n2) Add to .env:\nWALLET_DRIVER=zallet\nZALLET_TESTNET_ACK=unverified-testnet-only\nZCASH_NETWORK=regtest\nPRICE_SOURCE=fixed\nMIN_CONFIRMATIONS=2`);
+  console.log(`\n2) Add to .env:\nWALLET_DRIVER=zallet\nZALLET_TESTNET_ACK=testnet-in-progress\nZCASH_NETWORK=regtest\nPRICE_SOURCE=fixed\nMIN_CONFIRMATIONS=2`);
   console.log(`\n3) Point Zebra's regtest miner at the buyer's transparent address, then restart Zebra:\n   miner address: ${a.buyer.taddr}\n   grep -rn miner_address ~/z3/config/regtest/   # edit that line, then:\n   cd ~/z3 && docker compose --env-file .env.regtest restart zebra`);
   console.log(`\n4) npm run regtest -- fund`);
 }
