@@ -4,7 +4,7 @@
 //   npm run regtest -- setup        (create merchant/buyer/seller accounts, print env + miner address)
 //   npm run regtest -- fund [blocks] (mine to the buyer, shield coinbase, give the merchant a fee float)
 //   npm run regtest -- journey      (full purchase + payout through the running API and worker)
-import {readFileSync,writeFileSync,existsSync} from 'node:fs';
+import {readFileSync,writeFileSync,existsSync,mkdirSync} from 'node:fs';
 import {createHash,randomBytes} from 'node:crypto';
 import {z} from 'zod';
 import {ZalletRpc,RawNumber} from '../src/wallet/zalletRpc.ts';
@@ -111,8 +111,34 @@ async function journey(){
   const before=await orchardBalance(a.seller.uuid,0);
   await waitFor('seller payout',async()=>(await orchardBalance(a.seller.uuid,0))>before);
   await mine(2);
-  console.log(JSON.stringify({network:'regtest',realBinaries:true,paymentTxids:payment.txids,orderId:order.orderId,sellerReceivedZat:(await orchardBalance(a.seller.uuid,0)-before).toString(),
-    note:'Regtest proves adapter interoperability with real Zebra/Zallet binaries. Public-testnet acceptance is still required by the brief.'},null,2));
+  // Evidence is read back from the database the worker wrote, not from what this script sent.
+  const {pool}=await import('../src/db.ts');
+  try{
+    const db=(await pool.query(`SELECT o.id,o.status,o.funded_at,o.paid_at,o.release_after,o.proof->'claim'->>'outcome' AS outcome,
+      p.address,p.memo_code,p.expected_zat::text,p.received_zat::text,p.status AS payment_status
+      FROM orders o JOIN payments p ON p.id=o.payment_id WHERE o.id=$1`,[order.orderId])).rows[0];
+    const notes=(await pool.query('SELECT txid,zat::text,confirmations,canonical FROM payment_notes WHERE payment_id=(SELECT payment_id FROM orders WHERE id=$1)',[order.orderId])).rows;
+    const payouts=(await pool.query('SELECT kind,zat::text,status,txid FROM payouts WHERE ref_id=$1',[order.orderId])).rows;
+    const chain=await zebra('getblockchaininfo');
+    const evidence={
+      settlementMode:'local-regtest',
+      notPublicTestnet:true,valueBearing:false,
+      note:'Real Zebra and Zallet binaries on a private regtest chain. Not public testnet, not mainnet. Regtest coins have no value.',
+      recordedAt:new Date().toISOString(),
+      chain:{chain:chain.chain,tipHeight:chain.blocks,zalletTip:(await call('getwalletstatus')).wallet_tip?.height??null},
+      invoice:{orderId:db.id,address:db.address,memo:db.memo_code,expectedZat:db.expected_zat,receivedZat:db.received_zat,paymentStatus:db.payment_status},
+      buyerPayment:{txids:payment.txids,observedNotes:notes},
+      delivery:{fileSha256:digest,downloadedSha256Matched:true},
+      escrow:{fundedAt:db.funded_at,releaseAfter:db.release_after,paidAt:db.paid_at,orderStatus:db.status,proofOutcome:db.outcome},
+      sellerPayout:{payouts,sellerOrchardBalanceIncreaseZat:(await orchardBalance(a.seller.uuid,0)-before).toString()},
+    };
+    const ok=db.status==='paid'&&notes.some(n=>payment.txids.includes(n.txid))&&payouts.some(x=>x.kind==='seller_sale'&&x.status==='sent'&&x.txid);
+    mkdirSync('docs/evidence',{recursive:true});
+    const file=`docs/evidence/settlement-regtest-${evidence.recordedAt.replace(/[:.]/g,'-')}.json`;
+    writeFileSync(file,JSON.stringify({...evidence,verified:ok},null,2)+'\n');
+    step(`evidence written to ${file} (verified: ${ok})`);
+    if(!ok)process.exitCode=1;
+  }finally{await pool.end();}
 }
 
 const [cmd,arg]=process.argv.slice(2);

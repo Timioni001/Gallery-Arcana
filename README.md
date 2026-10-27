@@ -44,7 +44,7 @@ Gallery Arcana lets people buy and sell digital property without exposing who th
 <table>
 <tr><td colspan="2"><img src="docs/assets/mobile.png" alt="Phone views: home, market, auctions and the artwork viewer"></td></tr>
 <tr><td width="50%"><img src="docs/assets/market.png" alt="Market"><br><sub><b>Market.</b> Public listings only. Buyers and offers are never shown.</sub></td>
-<td width="50%"><img src="docs/assets/auctions.png" alt="Sealed-bid auctions"><br><sub><b>Auctions.</b> Sealed bids, second-price settlement.</sub></td></tr>
+<td width="50%"><img src="docs/assets/auctions.png" alt="Sealed-bid auctions"><br><sub><b>Auctions (simulation).</b> Sealed-bid, second-price rules with generated rival bids.</sub></td></tr>
 <tr><td><img src="docs/assets/zcash.png" alt="Powered by Zcash section"><br><sub><b>Powered by Zcash.</b> Shielded settlement on the Orchard pool.</sub></td>
 <td><img src="docs/assets/collection.png" alt="Arcana Fragments collection"><br><sub><b>Arcana Fragments.</b> 15 generative works sold as encrypted capsules.</sub></td></tr>
 </table>
@@ -60,7 +60,7 @@ Gallery Arcana lets people buy and sell digital property without exposing who th
 | **Checkout** | Atomic reservation and an exact integer-zatoshi invoice with a ZIP-321 payment request. The worker confirms, expires and handles under- and overpayments. |
 | **Escrow** | Funds are held for a 24-hour review window. Buyer acceptance releases them early; silence releases them automatically; a dispute freezes them until a reviewer releases or refunds (7-day decision deadline). See [Terms](https://gallery-arcana.timioni1490.workers.dev/terms#escrow). |
 | **Settlement** | Payouts are queued, sent and reconciled, and never blindly retried. |
-| **Auctions** | Sealed-bid, second-price rounds. Other bidders see only how many bids there are. |
+| **Auctions** *(simulation)* | Front-end simulation of sealed-bid, second-price rounds with generated rival bids. Not connected to settlement. |
 | **Proofs** | Ed25519-signed receipts, plus Trade Passport v2 with minimal facts, expiry and revocation. |
 | **Disputes** | Evidence is encrypted to the reviewer. Operators can assign a reviewer and release or refund. |
 | **Asset control** | Ownership checks without custody: DNS TXT records, GitHub challenge files and EIP-191 wallet signatures. |
@@ -118,6 +118,8 @@ stateDiagram-v2
 ![Who can see what in a Gallery Arcana sale](docs/assets/privacy-matrix.png)
 
 Shielding protects the payment details on chain. It does not hide application metadata from the marketplace operator, or transfers of assets on other chains. Financial offers can be read by the operator. Chat and capsule contents cannot. See the [threat model](docs/THREAT_MODEL.md) and [cryptography protocol](docs/CRYPTO_PROTOCOL.md).
+
+**Custody and operator visibility.** Escrow is custodial: during escrow the buyer's ZEC is held in the platform's wallet, and only the platform can release it (on acceptance, automatic release or a reviewer's decision) or refund it in full. To settle orders, the operator sees prices, exact ZEC amounts, invoice addresses, confirmations, offers, payout and refund destinations and order timestamps. Client-side encryption is a separate, cryptographic protection: it keeps file contents, keys, chat and dispute evidence unreadable to the operator. Full detail in [HACKATHON.md](HACKATHON.md#who-controls-the-money-and-what-the-operator-sees).
 
 ## Architecture
 
