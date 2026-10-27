@@ -94,6 +94,7 @@ export default function Order() {
       setSeller({ fingerprint: opened.seller.fingerprint, pin: opened.pin.status })
       save(new Blob([opened.bytes.slice()], { type: String(opened.metadata.mime) }), String(opened.metadata.name))
       setVerified(digest)
+      await release(digest)
     } catch (e) { setVerified(null); toast.error((e as Error).message || 'Decryption failed') } finally { setBusy(false) }
   }
   const download = async () => {
@@ -105,14 +106,19 @@ export default function Order() {
       const digest = await sha256Hex(f.blob)
       const a = document.createElement('a'); a.href = URL.createObjectURL(f.blob); a.download = f.name; a.click(); URL.revokeObjectURL(a.href)
       if (order.file_sha256 && digest !== order.file_sha256.toLowerCase()) { setVerified(null); toast.error('Checksum mismatch. Do not accept this delivery; open a dispute.') }
-      else { setVerified(digest); toast.success('File verified against the snapshotted SHA-256') }
+      else { setVerified(digest); await release(digest) }
     } catch (e) { toast.error((e as Error).message) } finally { setBusy(false) }
+  }
+  /** Instant release: a matching fingerprint completes the order straight away. */
+  const release = async (digest: string) => {
+    if (order?.status !== 'funded') return
+    try { await api.confirmDelivery(id, receipt, digest); toast.success('Verified and released. The seller is paid and your receipt is signed.'); await load() }
+    catch (e) { toast.error(`Verified, but release failed: ${(e as Error).message}. You can retry with Accept.`) }
   }
   const accept = async () => {
     if (!verified) return
     setBusy(true)
-    try { await api.confirmDelivery(id, receipt, verified); toast.success('Accepted. The seller payout is released and your receipt is signed.'); await load() }
-    catch (e) { toast.error((e as Error).message) } finally { setBusy(false) }
+    try { await release(verified) } finally { setBusy(false) }
   }
   const dispute = async () => {
     setBusy(true)
@@ -266,8 +272,8 @@ function EscrowClock({ until }: { until: string }) {
   const text = d ? `${d}d ${h}h ${m}m` : h ? `${h}h ${m}m` : `${m}m ${String(sec).padStart(2, '0')}s`
   return (
     <div className="mt-6 rounded-xl border border-signal/25 bg-signal/[0.06] px-4 py-3 text-[13px] text-fg/80">
-      <p className="flex items-center justify-between gap-3"><span className="font-medium text-fg">Escrow review window</span><span className="font-mono text-fg">{left ? text : 'releasing…'}</span></p>
-      <p className="mt-1">Check the file, then accept. If you do nothing, payment releases to the seller automatically when this reaches zero. Something wrong? Open a dispute before then to freeze the funds.</p>
+      <p className="flex items-center justify-between gap-3"><span className="font-medium text-fg">Held in escrow</span><span className="font-mono text-fg">{left ? `auto-release in ${text}` : 'releasing…'}</span></p>
+      <p className="mt-1">Decrypt and verify the file: if its fingerprint matches, payment releases to the seller instantly. If you don't open it, payment releases automatically when this reaches zero. A mismatch blocks release; open a dispute to freeze the funds.</p>
     </div>
   )
 }
