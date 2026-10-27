@@ -46,7 +46,8 @@ async function synced(){
   throw new Error('Wallet did not catch up with Zebra');
 }
 async function mine(n:number){await zebra('generate',[n]);return synced();}
-const orchardBalance=async(uuid:string,minconf=1)=>BigInt((await call('z_getbalanceforaccount',[uuid,minconf])).pools?.orchard?.valueZat??0);
+// Shielded Action balance: NU6.3 builds of Zallet report Orchard-receiver funds under 'ironwood'.
+const orchardBalance=async(uuid:string,minconf=1)=>{const p=(await call('z_getbalanceforaccount',[uuid,minconf])).pools??{};return BigInt(p.orchard?.valueZat??0)+BigInt(p.ironwood?.valueZat??0);};
 
 type Accounts={merchant:{uuid:string;ua:string};buyer:{uuid:string;ua:string;taddr:string};seller:{uuid:string;ua:string}};
 const load=():Accounts=>{if(!existsSync(STATE))throw new Error('Run `npm run regtest -- setup` first');return JSON.parse(readFileSync(STATE,'utf8'));};
@@ -114,6 +115,8 @@ async function journey(){
   // Evidence is read back from the database the worker wrote, not from what this script sent.
   const {pool}=await import('../src/db.ts');
   try{
+    // The worker marks a payout sent only once its transaction is mined and verified.
+    await waitFor('payout recorded as sent',async()=>!!(await pool.query("SELECT 1 FROM payouts WHERE ref_id=$1 AND kind='seller_sale' AND status='sent' AND txid IS NOT NULL",[order.orderId])).rowCount);
     const db=(await pool.query(`SELECT o.id,o.status,o.funded_at,o.paid_at,o.release_after,o.proof->'claim'->>'outcome' AS outcome,
       p.address,p.memo_code,p.expected_zat::text,p.received_zat::text,p.status AS payment_status
       FROM orders o JOIN payments p ON p.id=o.payment_id WHERE o.id=$1`,[order.orderId])).rows[0];

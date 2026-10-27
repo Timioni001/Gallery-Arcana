@@ -2,6 +2,12 @@
 
 Executed 2026-10-24 on Linux cloud, Node **22.23.4** and **24.19.0**, PostgreSQL **16.15**. PostgreSQL is supplied here by the optional container; scripts use PostgreSQL protocol connections and do not require Docker. Native Ubuntu/WSL instructions remain, but an actual WSL host was unavailable.
 
+## Latest run — 2026-10-27, regtest settlement
+
+**Local regtest, real binaries.** Zebra 6.2.3 and Zallet v0.1.0-beta.1 (Z3 regtest stack). One full purchase settled with real shielded transactions and was recorded with `verified: true` in [settlement-regtest-2026-10-27T23-55-54-663Z.json](evidence/settlement-regtest-2026-10-27T23-55-54-663Z.json). Details and the contract fixes it required are in [SETTLEMENT_EVIDENCE.md](SETTLEMENT_EVIDENCE.md). Not public testnet; regtest coins have no value.
+
+After those fixes, on the mock wallet: `npm run typecheck` passed; `npm test` 35 passed, 0 failed (8 database suites run below); `npm run test:integration` 67 passed, 0 failed, including new tests for the `ironwood` pool and for payouts reported without a `broadcast` flag; web `tsc -b` and `build:demo` passed.
+
 ## Latest run — 2026-10-27, later the same day (instant release on verification)
 
 Same environment and mock settlement. Change under test: the web client completes the order as soon as the downloaded file's SHA-256 matches the checkout snapshot; the server-side fallback (`ESCROW_REVIEW_HOURS`) is now 1 hour.
