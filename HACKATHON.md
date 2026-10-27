@@ -40,7 +40,7 @@ Buying a digital good online today publishes a trail: your account, your wallet,
 | **Who it's for** | Artists, developers and collectors selling files, editions, code, datasets and digital property |
 | **Payment** | Shielded ZEC, one fresh Orchard address and memo per invoice |
 | **Delivery** | Files encrypted in the seller's browser; each buyer receives their own sealed key |
-| **Protection** | Escrow: the buyer verifies the file before the seller is paid, with a 24-hour deadline |
+| **Protection** | Escrow: the seller is paid the instant the buyer's browser verifies the file; 1-hour fallback if the buyer never opens it |
 | **Proof** | Signed receipts and Trade Passports that attest a platform sale to the people you choose (not legal ownership) |
 | **Try it** | [gallery-arcana.timioni1490.workers.dev](https://gallery-arcana.timioni1490.workers.dev), no signup wall, runs in your browser |
 
@@ -72,7 +72,7 @@ Zcash solves the payment layer. Gallery Arcana is the marketplace layer built on
 | **Sealed key envelopes** | The content key is sealed to one buyer's public key (HPKE). Only that buyer can open it. |
 | **Private negotiation** | Offers and counteroffers are never public. Chat and attachments are end-to-end encrypted. |
 | **Shielded checkout** | Exact ZEC amount, fresh Orchard address and memo, ZIP-321 payment URI. |
-| **Escrow** | Funds are held until the buyer accepts, a 24-hour window ends, or a reviewer decides a dispute. |
+| **Escrow** | Funds are held until the buyer's browser verifies the file (instant release), a 1-hour fallback ends, or a reviewer decides a dispute. |
 | **Encrypted disputes** | Evidence is encrypted to the assigned reviewer only. Decision due within 7 days. |
 | **Signed receipts** | Ed25519 proof of how a sale completed: accepted, auto-released or reviewer-released. |
 | **Trade Passports** | Prove a trading history to one party, with minimal facts, expiry and revocation. |
@@ -117,8 +117,8 @@ sequenceDiagram
     U->>Z: Shielded payment (memo identifies the invoice)
     W->>Z: Scan wallet, match address + memo + exact value
     W->>W: Wait for confirmations, then mark the order funded
-    Note over W: Escrow window starts (24h)
-    U->>A: Accept after verifying the file
+    Note over W: Held in escrow (1h fallback)
+    U->>A: Browser verifies the file fingerprint = acceptance
     A->>W: Queue seller payout
     W->>Z: z_sendmany to the seller (shielded)
     W->>W: Reconcile by durable submission ID, never blind-retry
@@ -135,7 +135,7 @@ sequenceDiagram
 
 ## 6. Escrow with a clock
 
-Most escrow fails one side. If the seller is paid first, buyers have no protection. If funds wait for buyer approval with no deadline, a silent buyer can hold a seller's money forever. Gallery Arcana fixes both.
+Most escrow fails one side. If the seller is paid first, buyers have no protection. If funds wait for buyer approval with no deadline, a silent buyer can hold a seller's money forever. Gallery Arcana pays the seller the moment the buyer's browser proves the right file arrived, with a short fallback for buyers who never check.
 
 ```mermaid
 stateDiagram-v2
@@ -143,8 +143,8 @@ stateDiagram-v2
     [*] --> awaiting_payment: checkout
     awaiting_payment --> expired: invoice times out
     awaiting_payment --> funded: payment confirmed
-    funded --> paid: buyer accepts, or 24h window ends
-    funded --> disputed: buyer disputes within 24h
+    funded --> paid: buyer verifies (instant), or 1h fallback ends
+    funded --> disputed: buyer disputes before release
     disputed --> paid: reviewer releases
     disputed --> refund_queued: reviewer refunds in full
     paid --> [*]
@@ -154,9 +154,10 @@ stateDiagram-v2
 
 | Rule | Detail |
 | --- | --- |
-| Review window | **24 hours** from funding (`ESCROW_REVIEW_HOURS`). Accepting releases payment immediately. |
-| Auto-release | If the window ends with no acceptance and no dispute, the worker releases the payment. The signed receipt records `auto_release`. |
-| Dispute | Must be opened inside the window; freezes the funds. A reviewer must decide within **7 days** (`ESCROW_DISPUTE_DAYS`): release, or refund in full. |
+| Instant release | When the buyer's browser downloads (and for capsules, decrypts) the file and its SHA-256 matches the checkout snapshot, the order completes immediately. Verifying is the acceptance. A mismatch never releases. |
+| Fallback | **1 hour** from funding (`ESCROW_REVIEW_HOURS`). If the buyer never verifies and doesn't dispute, the worker releases the payment. |
+| Auto-release | The signed receipt records `auto_release`, distinct from `buyer_accepted` and `operator_release`. |
+| Dispute | Must be opened before release; freezes the funds. A reviewer must decide within **7 days** (`ESCROW_DISPUTE_DAYS`): release, or refund in full. |
 | Fixed per order | Deadlines are stored on the order when it's funded or disputed. Changing the settings never shortens an existing order. |
 | Race-safe | Auto-release re-checks the order under a row lock, so a concurrent acceptance or dispute wins or loses atomically, and a release happens at most once. |
 
@@ -177,7 +178,7 @@ Because it settles the order, the operator necessarily sees the financial side o
 
 These are two different kinds of control. **Client-side encryption** is a cryptographic guarantee: the server holds ciphertext and cannot read it. **Escrow** is an operational control: buyers are protected by rules the platform enforces (deadlines, disputes, full refunds), and by signed receipts that record how each order ended. Shielded payments protect the trade from outside observers on chain; they do not hide it from the platform that settles it.
 
-The public demo shortens the window to 10 minutes so you can watch an automatic release. The full rules are published at `GET /api/terms` and on the [Terms page](https://gallery-arcana.timioni1490.workers.dev/terms#escrow).
+The public demo uses a 10-minute fallback so you can watch an automatic release. The full rules are published at `GET /api/terms` and on the [Terms page](https://gallery-arcana.timioni1490.workers.dev/terms#escrow).
 
 ## 7. Implemented vs verified
 
@@ -213,7 +214,7 @@ We'd rather you trust this section than be surprised later. *Implemented* means 
 
 ## 8. Two-minute judge walkthrough
 
-Open the [live demo](https://gallery-arcana.timioni1490.workers.dev) on any device. The demo is mock settlement: no ZEC moves. A narrated version is in [DEMO_VIDEO_SCRIPT.md](docs/DEMO_VIDEO_SCRIPT.md), and the latest automated results are in [VALIDATION.md](docs/VALIDATION.md).
+Open the [live demo](https://gallery-arcana.timioni1490.workers.dev) on any device. The demo is mock settlement: no ZEC moves. The latest automated results are in [VALIDATION.md](docs/VALIDATION.md).
 
 | Step | Do this | What it proves |
 | --- | --- | --- |
@@ -221,9 +222,9 @@ Open the [live demo](https://gallery-arcana.timioni1490.workers.dev) on any devi
 | 2 | Open **Market** and pick an Arcana Fragment (marked *Capsule*). | The file is a sealed capsule; only a preview is public. |
 | 3 | Make an offer, or open the encrypted chat with the seller. | Negotiation is end-to-end encrypted; the sample seller replies automatically. |
 | 4 | Check out. Note the single-use address, memo and ZIP-321 URI. | How a real shielded invoice is formed. |
-| 5 | Wait a few seconds for the simulated payment. | The order becomes *funded*; the escrow clock starts. |
-| 6 | Tap **Decrypt locally & verify**. | Your browser opens the sealed key and checks the SHA-256. |
-| 7 | **Accept**, or wait 10 minutes for auto-release. | Payment releases; a signed receipt is issued. |
+| 5 | Wait a few seconds for the simulated payment. | The order becomes *funded*; funds are held in escrow. |
+| 6 | Tap **Decrypt locally & verify**. | Your browser opens the sealed key and checks the SHA-256; a match releases payment instantly. |
+| 7 | See the order turn **Paid** with a signed receipt. | Verified delivery is the acceptance; no extra click. |
 | 8 | Open **Observer view**. | Which requests an outsider can make, and that buyer and offer data are refused. |
 | 9 | *(Optional)* Try **Auctions**. | A labelled simulation of sealed-bid rules; not settled. |
 
