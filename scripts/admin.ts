@@ -4,7 +4,7 @@
 //   npm run admin -- resolve <orderId> release|refund [refundAddress]
 //   npm run admin -- stuck-payouts
 //   npm run admin -- set-fee <basisPoints>             (0-1500; applies to new checkouts only, publicly logged)
-//   npm run admin -- submissions                       (live wallet submissions not yet verified as sent)
+//   npm run admin -- submissions                       (live wallet submissions awaiting send confirmation)
 //   npm run admin -- requeue <payoutId> --confirmed-not-sent   (only after checking the wallet/chain yourself)
 import {config} from '../src/config.ts';
 import {pool,tx} from '../src/db.ts';

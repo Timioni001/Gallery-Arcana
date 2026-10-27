@@ -10,7 +10,7 @@ export function NetworkBadge({ className }: { className?: string }) {
     api.health().then((h) => setState(h.mode === 'demo' ? 'demo' : h.mode === 'mock' ? 'mock' : h.network === 'regtest' ? 'regtest' : 'live')).catch(() => setState('offline'))
   }, [])
   if (!state) return null
-  const label = { demo: 'Demo · simulated in your browser', mock: 'Testnet · mock settlement', live: 'Zcash testnet · live (unverified)', regtest: 'Local regtest · real Zallet, no value', offline: 'API offline · preview' }[state]
+  const label = { demo: 'Demo · simulated in your browser', mock: 'Testnet · mock settlement', live: 'Zcash testnet · live (in progress)', regtest: 'Local regtest · real Zallet, no value', offline: 'API offline · preview' }[state]
   return (
     <span title={state === 'mock' ? 'Payments are simulated. No blockchain transaction is sent.' : undefined}
       className={cn('inline-flex items-center gap-1.5 rounded-full border border-fg/15 bg-surface px-2 py-0.5 font-mono text-[10px] text-fg/70', className)}>

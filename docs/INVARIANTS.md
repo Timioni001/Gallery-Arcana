@@ -20,7 +20,7 @@ Only canonical shielded outputs at the configured confirmation threshold count. 
 
 Confirmed output loss, changed confirmed totals, or conflicting persistent output identity trigger review. Delivery of affected funded/disputed/paid orders is frozen and queued payouts are cancelled. Sending/sent funds cannot be undone; they require independent reconciliation. Review does not automatically clear after another snapshot. This is a safety response demonstrated by deterministic mocks, not a claim that chain finality is guaranteed.
 
-Payouts move queued → sending → sent. The durable payout UUID is the wallet submission/reconciliation key. Atomic row claims prevent two workers from sending one queued payout. If the RPC result is uncertain, sending remains sending. A later exact destination/value match records the existing transaction; neither missing nor unknown results authorize another send. The durable mock implements this contract across process restarts. A real wallet's equivalent remains unverified.
+Payouts move queued → sending → sent. The durable payout UUID is the wallet submission/reconciliation key. Atomic row claims prevent two workers from sending one queued payout. If the RPC result is uncertain, sending remains sending. A later exact destination/value match records the existing transaction; neither missing nor unknown results authorize another send. The durable mock implements this contract across process restarts. A real wallet's equivalent is in progress.
 
 ## Delivery and receipts
 

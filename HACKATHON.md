@@ -191,7 +191,7 @@ We'd rather you trust this section than be surprised later. *Implemented* means 
 | **Mock wallet** | Nothing on any chain. A durable database ledger stands in for the wallet. | Implemented and verified by tests. Default for local development. | Integration test suites (see [VALIDATION.md](docs/VALIDATION.md)) |
 | **Hosted demo** | Nothing. The API runs in your browser and payments auto-confirm. | Live at the demo URL. | Clearly labelled on the site |
 | **Local regtest** | Real shielded transactions between real **Zebra** and **Zallet** binaries on a private chain. Coins have no value. | Implemented: `npm run regtest -- journey` pays an invoice, waits for funding, downloads and checks the file, accepts, and confirms the seller payout. | The journey writes `docs/evidence/settlement-regtest-*.json` with txids, invoice, payout and a `verified` flag. See [SETTLEMENT_EVIDENCE.md](docs/SETTLEMENT_EVIDENCE.md). |
-| **Public testnet** | Testnet ZEC on the public Zcash testnet. | Implemented and gated behind `ZALLET_TESTNET_ACK`. **Not yet verified live.** | Blockers recorded in [zcash-testnet-v05.json](docs/evidence/zcash-testnet-v05.json) and [ZALLET_GAP.md](docs/ZALLET_GAP.md) |
+| **Public testnet** | Testnet ZEC on the public Zcash testnet. | Implemented and gated behind `ZALLET_TESTNET_ACK`. **Live verification in progress.** | Blockers recorded in [zcash-testnet-v05.json](docs/evidence/zcash-testnet-v05.json) and [ZALLET_GAP.md](docs/ZALLET_GAP.md) |
 | **Mainnet** | — | Disabled. | — |
 
 ### Implemented and tested
@@ -287,7 +287,7 @@ Requirements: Node.js 22+, PostgreSQL 16 for the full stack, Docker Compose v2.2
 
 ## 12. Known limitations
 
-- Public-testnet settlement is implemented but not yet verified against a live chain; mainnet is disabled.
+- Public-testnet settlement is implemented; live-chain verification is in progress. Mainnet is disabled.
 - The marketplace is custodial during escrow. Non-custodial threshold escrow depends on FROST-style signing for shielded pools, which isn't production-ready yet.
 - First-contact key fingerprints should be compared out of band; static recipient keys provide no forward secrecy.
 - Onchain assets and digital property can be listed and negotiated, but their transfer happens outside the platform.

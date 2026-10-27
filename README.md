@@ -58,7 +58,7 @@ Gallery Arcana lets people buy and sell digital property without exposing who th
 | **Capsules** | Files are encrypted in the browser in authenticated chunks. Each buyer gets an HPKE key envelope, and the server never receives the content key. |
 | **Negotiation** | Private offers and counteroffers, plus end-to-end encrypted chat and attachments. |
 | **Checkout** | Atomic reservation and an exact integer-zatoshi invoice with a ZIP-321 payment request. The worker confirms, expires and handles under- and overpayments. |
-| **Escrow** | Funds are held until the buyer's browser verifies the file; a match releases them instantly. Unverified orders release automatically after 1 hour; a dispute freezes them until a reviewer releases or refunds (7-day decision deadline). See [Terms](https://gallery-arcana.timioni1490.workers.dev/terms#escrow). |
+| **Escrow** | Funds are held until the buyer's browser verifies the file; a match releases them instantly. Orders the buyer hasn't checked release automatically after 1 hour; a dispute freezes them until a reviewer releases or refunds (7-day decision deadline). See [Terms](https://gallery-arcana.timioni1490.workers.dev/terms#escrow). |
 | **Settlement** | Payouts are queued, sent and reconciled, and never blindly retried. |
 | **Auctions** *(simulation)* | Front-end simulation of sealed-bid, second-price rounds with generated rival bids. Not connected to settlement. |
 | **Proofs** | Ed25519-signed receipts, plus Trade Passport v2 with minimal facts, expiry and revocation. |
@@ -261,7 +261,7 @@ test/                    Unit and integration suites
 
 ## Limitations
 
-- **Real Zcash is a blocked release gate.** The Zallet adapter is testnet-only and unverified until the gate in [ZALLET_GAP.md](docs/ZALLET_GAP.md) passes.
+- **Real Zcash is a blocked release gate.** The Zallet adapter is testnet-only and in progress until the gate in [ZALLET_GAP.md](docs/ZALLET_GAP.md) passes.
 - **No forward secrecy.** First-contact key fingerprints should be compared out of band, and static recipient keys provide no forward secrecy.
 - **Out of scope:** malicious client code and a compromised device.
 - **Proofs have limits.** SHA-256 proves the file is consistent and Ed25519 proves a platform claim. Neither proves legal ownership.

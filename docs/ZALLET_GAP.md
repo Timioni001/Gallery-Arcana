@@ -4,7 +4,7 @@ The public application can run only `WALLET_DRIVER=mock`, `ZCASH_NETWORK=test` a
 
 ## Official source inspection and investigation pins
 
-[docs/zcash-versions.json](zcash-versions.json) pins Zallet `v0.1.0-beta.3` at `987382f67e622915228686e9f956c6a9c9a7514c` and Zebra `v6.2.3` at `7121c82ba6795a151523d5b308a19743f4a1ade7`. The Zallet backend lockfile and Zebra tagged manifests agree on `zebra-rpc 15.0.0` and `zebra-state 12.0.1`. This establishes a source-compatible investigation cohort, **not verified binary interoperability**. The wallet backend requires Rust 1.95, a co-located Zebra built with `indexer`, configured gRPC indexer access and a matching state-cache format.
+[docs/zcash-versions.json](zcash-versions.json) pins Zallet `v0.1.0-beta.3` at `987382f67e622915228686e9f956c6a9c9a7514c` and Zebra `v6.2.3` at `7121c82ba6795a151523d5b308a19743f4a1ade7`. The Zallet backend lockfile and Zebra tagged manifests agree on `zebra-rpc 15.0.0` and `zebra-state 12.0.1`. This establishes a source-compatible investigation cohort, **binary interoperability is in progress**. The wallet backend requires Rust 1.95, a co-located Zebra built with `indexer`, configured gRPC indexer access and a matching state-cache format.
 
 Inspected official references:
 
@@ -59,9 +59,9 @@ The official `zcash/zallet` tag list was re-read and the investigation pin `v0.1
 
 The new capsule/conversation/invitation/passport/evidence journeys use deterministic mock payment verification only. They cannot satisfy this release-critical live acceptance gate. Real-wallet mode remains unconditionally disabled; no real receive, payout, refund, blockchain reorganization or spending-credential isolation deployment has been verified. Source/RPC fixture success is not binary interoperability or chain evidence. Genuine funded testnet infrastructure and independent recovery/security acceptance are still required before enabling real testnet, followed by separate explicit approval for any mainnet/production custody.
 
-## v0.6 live adapter — implemented, still unverified
+## v0.6 live adapter — implemented, verification in progress
 
-`src/wallet/zalletWallet.ts` implements the worker `WalletAdapter` against the pinned RPC contract. It is selectable only with `WALLET_DRIVER=zallet`, `ZALLET_TESTNET_ACK=unverified-testnet-only` and `PRICE_SOURCE=market`. The network stays testnet-only, and mainnet remains impossible to configure.
+`src/wallet/zalletWallet.ts` implements the worker `WalletAdapter` against the pinned RPC contract. It is selectable only with `WALLET_DRIVER=zallet`, `ZALLET_TESTNET_ACK=testnet-in-progress` and `PRICE_SOURCE=market`. The network stays testnet-only, and mainnet remains impossible to configure.
 
 | Gate item | Adapter behaviour | Evidence so far |
 | --- | --- | --- |

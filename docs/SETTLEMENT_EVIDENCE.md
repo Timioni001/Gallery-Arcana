@@ -7,7 +7,7 @@ Gallery Arcana can settle in four modes. Evidence is only ever claimed for the m
 | Mock wallet | No | None. A database ledger stands in for the wallet. | `npm run test:integration` (results in [VALIDATION.md](VALIDATION.md)) |
 | Hosted demo | No | None. The API runs in the browser. | Not evidence of settlement; a product demo only |
 | Local regtest | No | Private chain, real Zebra + Zallet binaries | `npm run regtest -- journey` (below) |
-| Public testnet | No (testnet ZEC) | Public Zcash testnet | Not yet verified; see [TESTNET_RUNBOOK.md](TESTNET_RUNBOOK.md) |
+| Public testnet | No (testnet ZEC) | Public Zcash testnet | In progress; see [TESTNET_RUNBOOK.md](TESTNET_RUNBOOK.md) |
 
 Mainnet is disabled.
 
