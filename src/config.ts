@@ -19,9 +19,10 @@ const schema=z.object({
   TRUST_PROXY:z.string().regex(/^[0-9a-f.:/,]+$/i).optional(),
   PRICE_MAX_AGE_SECONDS:positiveInt(120,900),
   MIN_CONFIRMATIONS:positiveInt(2,1000),
-  // Escrow: hours a buyer has to accept or dispute a funded order before it releases to the seller,
+  // Escrow: fallback hours before a funded order releases to the seller if the buyer never verifies
+  // (verifying in the browser releases it instantly), and
   // and days an operator has to decide a dispute. Snapshotted per order when it is funded.
-  ESCROW_REVIEW_HOURS:positiveInt(24,720),
+  ESCROW_REVIEW_HOURS:positiveInt(1,720),
   ESCROW_DISPUTE_DAYS:positiveInt(7,90),
   ZEC_USD_FIXED:z.string().regex(/^(?:0|[1-9][0-9]{0,6})(?:\.[0-9]{1,6})?$/).default('40'),
   STORAGE_DIR:z.string().min(1).default('./storage'),
