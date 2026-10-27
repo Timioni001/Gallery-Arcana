@@ -20,7 +20,7 @@ export class ZalletReadOnlyRpc{
 
 const height=z.number().int().min(0).max(4_294_967_295),hash=z.string().regex(/^[a-f0-9]{64}$/);
 const tip=z.object({height,blockhash:hash});
-const status=z.object({node_tip:tip,wallet_tip:tip.optional(),fully_synced_height:height.optional(),locked:z.boolean(),
+const status=z.object({node_tip:tip,wallet_tip:tip.optional(),fully_synced_height:height.optional(),locked:z.boolean().optional(),
   sync_work_remaining:z.object({unscanned_blocks:height,progress:z.object({numerator:z.number().int().nonnegative(),denominator:z.number().int().nonnegative()})}).optional()});
 function synced(s:z.infer<typeof status>){
   return !s.locked&&!s.sync_work_remaining&&s.wallet_tip?.height===s.node_tip.height&&s.wallet_tip?.blockhash===s.node_tip.blockhash&&s.fully_synced_height===s.node_tip.height;

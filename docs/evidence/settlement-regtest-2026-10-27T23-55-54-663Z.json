@@ -1,0 +1,56 @@
+{
+  "settlementMode": "local-regtest",
+  "notPublicTestnet": true,
+  "valueBearing": false,
+  "note": "Real Zebra and Zallet binaries on a private regtest chain. Not public testnet, not mainnet. Regtest coins have no value.",
+  "recordedAt": "2026-10-27T23:55:54.663Z",
+  "chain": {
+    "chain": "test",
+    "tipHeight": 163,
+    "zalletTip": 163
+  },
+  "invoice": {
+    "orderId": "e077bd63-dd8c-46c2-ab11-a9cc5948bf27",
+    "address": "uregtest1xyhv2lh7v0y4rcqfj055m5rqfn9cs4nycttac77tsuhtgd5fvv66vwdwcjd8m7qjtsmzzallqq0a6a2h93qkgsnrfnkx59h6gv8hf0tq",
+    "memo": "GA-SV76-75Y3-XHGS-4CDW-8P03-9MXQ-GC",
+    "expectedZat": "12500000",
+    "receivedZat": "12500000",
+    "paymentStatus": "confirmed"
+  },
+  "buyerPayment": {
+    "txids": [
+      "796661ddbdcc9e30b87088ad23cf3ef2fe0c46dd29717d498988817f88e6c066"
+    ],
+    "observedNotes": [
+      {
+        "txid": "796661ddbdcc9e30b87088ad23cf3ef2fe0c46dd29717d498988817f88e6c066",
+        "zat": "12500000",
+        "confirmations": 6,
+        "canonical": true
+      }
+    ]
+  },
+  "delivery": {
+    "fileSha256": "24581a603cea637d77603408af7979289099f2043193bcb1ba4a97bce39fd8ec",
+    "downloadedSha256Matched": true
+  },
+  "escrow": {
+    "fundedAt": "2026-10-27T23:55:18.875Z",
+    "releaseAfter": "2026-10-28T00:55:18.875Z",
+    "paidAt": "2026-10-27T23:55:20.164Z",
+    "orderStatus": "paid",
+    "proofOutcome": "buyer_accepted"
+  },
+  "sellerPayout": {
+    "payouts": [
+      {
+        "kind": "seller_sale",
+        "zat": "12500000",
+        "status": "sent",
+        "txid": "5240770fc148faf7ca32a117114194e930b487ba03e09c6292c6cbc37b66df80"
+      }
+    ],
+    "sellerOrchardBalanceIncreaseZat": "12500000"
+  },
+  "verified": true
+}
