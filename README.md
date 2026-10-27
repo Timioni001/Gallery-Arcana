@@ -201,7 +201,7 @@ npm ci --prefix web && npm run web:dev   # terminal C → http://localhost:5173
 | `npm run demo:mock` | Seed demo accounts and listings, then print verification flags. |
 | `npm run journey:capsule` | Run an end-to-end encrypted capsule sale against the running services. |
 | `npm run zallet:probe` | Read-only diagnosis of Zallet RPC contracts. It can't spend. |
-| `npm run regtest -- setup\|fund\|journey` | Full purchase and payout with real Zebra and Zallet on regtest. |
+| `npm run regtest -- setup\|fund\|journey` | Full purchase and payout with real Zebra and Zallet on regtest; writes verified evidence to `docs/evidence/` ([latest](docs/evidence/settlement-regtest-2026-10-27T23-55-54-663Z.json)). |
 
 ## Deploy
 

@@ -88,6 +88,11 @@ test('Zallet testnet adapter: snapshot scanning, attribution, reorgs and non-res
     fake.advance();await scanOnce(wallet);assert.equal(await status(o),'funded');
     paid=o;
   });
+  await t.test('NU6.3 Action outputs reported as ironwood fund the invoice',async()=>{
+    const o=await makeOrder();
+    fake.mine(fake.pay(o.payment.address,BigInt(o.payment.amountZat),o.payment.memo,{pool:'ironwood',spendPool:'ironwood'}));
+    fake.advance();await scanOnce(wallet);assert.equal(await status(o),'funded');
+  });
 
   await t.test('a scan is discarded when the tip moves mid-scan',async()=>{
     const before=(await pool.query('SELECT tip_height FROM zallet_scan_state')).rows[0].tip_height;
@@ -153,8 +158,10 @@ test('Zallet testnet adapter: snapshot scanning, attribution, reorgs and non-res
     assert.equal((await pool.query('SELECT state FROM zallet_submissions WHERE idempotency_key=$1',[id])).rows[0].state,'unbroadcast');
     await pool.query('DELETE FROM zallet_submissions WHERE idempotency_key=$1',[id]);await pool.query("UPDATE payouts SET status='queued' WHERE id=$1",[id]);
     fake.s.send='pending';await runPayouts(wallet);assert.equal((await payout(id)).status,'sending','still executing');
-    const op=[...fake.s.ops.values()].at(-1);const txid=[...fake.s.sendTo.keys()].at(-1)!;op.status='success';op.result={txid,txids:[txid],broadcast:true};
-    const before=sends();await runPayouts(wallet);
+    // Current Zallet omits `broadcast`: an unmined transaction stays unresolved, a mined one counts.
+    const op=[...fake.s.ops.values()].at(-1);const txid=[...fake.s.sendTo.keys()].at(-1)!;op.status='success';op.result={txid,txids:[txid]};
+    const before=sends();await runPayouts(wallet);assert.equal((await payout(id)).status,'sending','unmined without broadcast flag');
+    fake.mine(txid);await runPayouts(wallet);
     const done=await payout(id);assert.equal(done.status,'sent');assert.equal(done.txid,txid);assert.equal(sends(),before,'reconciled, not resent');
     assert.equal(fake.s.sendTo.get(txid),BigInt(done.zat));
   });
