@@ -4,7 +4,7 @@
 
 **A private market for digital assets. Discover, negotiate and exchange, paid in shielded Zcash.**
 
-[Live demo](https://gallery-arcana.timioni1490.workers.dev) · [How it works](#how-a-sale-works) · [Run it](#running-requirements) · [Docs](#documentation)
+[Live demo](https://gallery-arcana.timioni1490.workers.dev) · [ZECATHON submission](HACKATHON.md) · [How it works](#how-a-sale-works) · [Run it](#running-requirements) · [Docs](#documentation)
 
 ![Node 22+](https://img.shields.io/badge/node-22%2B-141414?style=flat-square)
 ![PostgreSQL 16](https://img.shields.io/badge/postgresql-16-141414?style=flat-square)
