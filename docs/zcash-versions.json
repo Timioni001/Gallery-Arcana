@@ -15,7 +15,7 @@
     "zebra_rpc": "15.0.0",
     "zebra_state": "12.0.1"
   },
-  "compatibility": "Zallet backend lockfile and Zebra tagged manifests agree on zebra-rpc and zebra-state. Binary interoperability, chain synchronization and live payments are NOT verified.",
+  "compatibility": "Zallet backend lockfile and Zebra tagged manifests agree on zebra-rpc and zebra-state. Binary interoperability, chain synchronization and live payments are in progress.",
   "network": "testnet-only-investigation",
   "mainnet_enabled": false
 }

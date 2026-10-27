@@ -25,4 +25,4 @@ Narration processing: high-pass70Hz, low-pass15kHz, EBU loudness normalization, 
 
 `public/captures/verification.json` records real local decryption byte equality and receipt-signature checks. `scripts/capture.cjs` captures the isolated app; private fixtures/session state are excluded from delivery. `scripts/edit-captures.py` cuts actual footage and holds the last frame where needed.
 
-Real Zcash testnet remains unverified. Encrypted chat excludes financial metadata; integrity is not legal title. The current 72-hour review window auto-releases undisputed orders; a dispute freezes release. Auctions are presently browser-demo functionality, so this film focuses on the tested core sale. See source README and the repository threat model.
+Real Zcash testnet verification is in progress. Encrypted chat excludes financial metadata; integrity is not legal title. The current 72-hour review window auto-releases undisputed orders; a dispute freezes release. Auctions are presently browser-demo functionality, so this film focuses on the tested core sale. See source README and the repository threat model.

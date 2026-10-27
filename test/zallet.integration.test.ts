@@ -56,7 +56,7 @@ function fakeZallet(accountId:string){
 
 test('Zallet testnet adapter: snapshot scanning, attribution, reorgs and non-resubmitting payouts',{skip:!enabled},async t=>{
   assert.throws(()=>parseConfig({...process.env,WALLET_DRIVER:'zallet',ZALLET_TESTNET_ACK:''}),/ZALLET_TESTNET_ACK/);
-  assert.equal(parseConfig({...process.env,WALLET_DRIVER:'zallet',ZALLET_TESTNET_ACK:'unverified-testnet-only',PRICE_SOURCE:'market'}).walletDriver,'zallet');
+  assert.equal(parseConfig({...process.env,WALLET_DRIVER:'zallet',ZALLET_TESTNET_ACK:'testnet-in-progress',PRICE_SOURCE:'market'}).walletDriver,'zallet');
   const accountId=randomUUID(),fake=fakeZallet(accountId);
   await new Promise<void>(r=>fake.server.listen(0,'127.0.0.1',r));
   const url=`http://127.0.0.1:${(fake.server.address() as {port:number}).port}`;

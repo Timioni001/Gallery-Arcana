@@ -4,5 +4,5 @@
  * See docs/ZALLET_GAP.md and docs/zcash-versions.json for source inspection evidence.
  */
 export class ZalletWallet{
-  constructor(){throw new Error('Real Zallet integration is unverified and disabled. No funds may be accepted.');}
+  constructor(){throw new Error('Real Zallet integration is in progress and disabled. No funds may be accepted.');}
 }

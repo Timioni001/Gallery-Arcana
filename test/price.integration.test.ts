@@ -8,7 +8,7 @@ import {usdCentsToZat} from '../src/lib/money.ts';
 const enabled=process.env.RUN_DB_TESTS==='1'&&process.env.ARCANA_ISOLATED_TEST_DB==='1';
 test('market oracle serves only fresh, agreed quotes',{skip:!enabled},async t=>{
   t.after(()=>pool.end());
-  assert.throws(()=>parseConfig({...process.env,WALLET_DRIVER:'zallet',ZALLET_TESTNET_ACK:'unverified-testnet-only',PRICE_SOURCE:'fixed'}),/PRICE_SOURCE=market/);
+  assert.throws(()=>parseConfig({...process.env,WALLET_DRIVER:'zallet',ZALLET_TESTNET_ACK:'testnet-in-progress',PRICE_SOURCE:'fixed'}),/PRICE_SOURCE=market/);
   await assert.rejects(marketOracle.rateMicroUsd(),{status:503},'no quote yet: checkout must pause');
   const sources=[{name:'a',url:'x',extract:(b:string)=>b},{name:'b',url:'x',extract:(b:string)=>b},{name:'c',url:'x',extract:(b:string)=>b}];
   const prices:Record<string,bigint|Error>={a:1_160_000_000n,b:1_162_000_000n,c:new Error('down')};

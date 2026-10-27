@@ -109,13 +109,13 @@ The probe is read-only and its output is redacted. It checks sync, tip agreement
 2. Send two more fully shielded transfers to it: one exact and one with a memo string you choose.
 3. Re-run `npm run zallet:probe` after a few confirmations.
 
-## 6. Run the app in live testnet mode (unverified)
+## 6. Run the app in live testnet mode (in progress)
 
 Once the probe passes and the receive address is funded, add to `.env`:
 
 ```bash
 WALLET_DRIVER=zallet
-ZALLET_TESTNET_ACK=unverified-testnet-only
+ZALLET_TESTNET_ACK=testnet-in-progress
 PRICE_SOURCE=market
 ```
 
