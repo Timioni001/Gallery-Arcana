@@ -89,7 +89,7 @@ export default function Auctions() {
         Every Arcana Fragment is on the block in rolling 12-minute rounds. Bids are sealed: other bidders see only how many there are, never who or how much.
         At close the highest bid wins and pays the <b className="font-medium text-fg">second-highest</b> price, so bidding your true maximum is safe.
       </p>
-      {import.meta.env.VITE_DEMO === '1' && <p className="mt-3 font-mono text-[11px] uppercase tracking-wider text-fg/45">Demo · rival bidders are simulated · nothing is charged</p>}
+      <p className="mt-3 inline-flex items-center gap-2 rounded-full border border-amber-600/30 bg-amber-500/10 px-3 py-1 font-mono text-[11px] uppercase tracking-wider text-fg/70">Simulation · rival bids are generated in your browser · no payment is taken</p>
 
       {results.length > 0 && (
         <section aria-labelledby="results" className="mt-8 rounded-2xl border bg-surface p-4">
