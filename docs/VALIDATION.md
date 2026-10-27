@@ -2,6 +2,24 @@
 
 Executed 2026-10-24 on Linux cloud, Node **22.23.4** and **24.19.0**, PostgreSQL **16.15**. PostgreSQL is supplied here by the optional container; scripts use PostgreSQL protocol connections and do not require Docker. Native Ubuntu/WSL instructions remain, but an actual WSL host was unavailable.
 
+## Latest run — 2026-10-27 (escrow v0.5.1, base commit `f4441f0`)
+
+Linux cloud container, Node **22.22.0**, PostgreSQL **16.15**. Settlement mode for every check below is the **mock wallet**: no blockchain transaction is involved. Regtest and public-testnet status are recorded separately in [SETTLEMENT_EVIDENCE.md](SETTLEMENT_EVIDENCE.md).
+
+| Command | Result |
+| --- | --- |
+| `npm run typecheck` | Passed (exit 0) |
+| `npm test` | 43 tests: 35 passed, 0 failed, 8 skipped (database suites, which run in the next row) |
+| `npm run test:integration` | 66 passed, 0 failed, 0 skipped, each file on an isolated, freshly migrated PostgreSQL database. Includes the escrow suite: deadline set at funding, auto-release exactly once with signed outcome `auto_release`, dispute refused after the window, disputed orders never auto-released |
+| `web: tsc -b` | Passed (exit 0) |
+| `web: oxlint src` | Passed (exit 0), 0 errors, 22 lines of pre-existing React hook warnings |
+| `web: npm run build:demo` | Passed (exit 0) |
+| `web: npm run e2e` against `npm run dev` | Passed: 25 of 25 Chromium journey steps (below) |
+
+**Browser journey 1, one complete capsule purchase:** seller creates keys and a vault backup; encrypts a file in the browser and lists it; buyer creates keys and requests it; encrypted messages both ways; seller seals the content key to the buyer's fingerprint; order funded (mock payment); buyer decrypts locally and the plaintext is byte-identical to the original; buyer accepts, order `paid`; Trade Passport and holder proof verified by an unrelated verifier.
+
+**Browser journey 2, private sale and dispute:** single-use invitation hides the listing from the public market and is redeemed once at a private price; buyer disputes and funds freeze; operator assigns an independent reviewer; buyer seals evidence to that reviewer; reviewer decrypts it locally; operator releases; a fresh browser restores the vault from backup and recovery key.
+
 ## Baseline and complete runs
 
 The unchanged v0.4 baseline at `a04aa5e` passed `npm run test:all`: 25 unit/security/RPC tests and 37 integration scenarios. Existing tests were retained; none were removed or disabled to conceal failures.

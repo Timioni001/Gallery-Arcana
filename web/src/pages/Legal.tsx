@@ -71,7 +71,7 @@ export function TermsPage() {
       <h2 id="escrow">6. Escrow</h2>
       <p>Every file purchase is held in escrow. Here is exactly what happens to your money:</p>
       <ul>
-        <li><b className="font-medium text-fg">Held.</b> Once your payment is confirmed, the order is funded and the full amount is held. The seller is not paid yet.</li>
+        <li><b className="font-medium text-fg">Held.</b> Once your payment is confirmed, the order is funded and the full amount sits in the platform's wallet. During escrow the platform controls these funds; neither buyer nor seller can move them. The seller is not paid yet.</li>
         <li><b className="font-medium text-fg">Review window: {hours} hours.</b> You download the file, your browser checks its fingerprint, and you accept. Accepting releases the payment to the seller straight away.</li>
         <li><b className="font-medium text-fg">Automatic release.</b> If the review window ends with no acceptance and no dispute, the payment releases to the seller automatically. Silence counts as acceptance, so check your purchase promptly.</li>
         <li><b className="font-medium text-fg">Dispute.</b> Opening a dispute before the window ends freezes the funds. Disputes can't be opened after the window closes.</li>
@@ -123,6 +123,7 @@ export function PrivacyPage() {
         <li><b className="font-medium text-fg">Listings:</b> title, description, price, public preview (with image metadata stripped) and the encrypted file.</li>
         <li><b className="font-medium text-fg">Orders:</b> price, status, timestamps (funded, accepted, disputed, released), the file fingerprint, and the payment address and memo for that invoice.</li>
         <li><b className="font-medium text-fg">Offers:</b> offer and counteroffer amounts. These are readable by the operator so settlement can be checked.</li>
+        <li><b className="font-medium text-fg">Escrow:</b> because the platform holds funds during escrow, the operator sees every order's amounts in ZEC and USD, the invoice address, payment confirmations, payout and refund destinations, and when each order was funded, accepted, disputed or released. Client-side encryption protects file contents and messages; it does not hide this financial metadata from the operator.</li>
         <li><b className="font-medium text-fg">Waitlist:</b> your email and whether you collect, create or both. Nothing else.</li>
         <li><b className="font-medium text-fg">Abuse protection:</b> rate-limit counters keyed by a hash of your IP address, deleted within about an hour of each window ending.</li>
       </ul>
