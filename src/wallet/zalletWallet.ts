@@ -5,6 +5,8 @@ import {log} from '../lib/log.ts';
 import {PayoutNotSubmittedError,type ReceivedNote,type SendLookup,type WalletAdapter} from './types.ts';
 import {RawNumber,ZalletRpc,ZalletRpcError,type ZalletRpcOptions} from './zalletRpc.ts';
 import {memoOrNull,parseZalletTransaction} from './zalletNotes.ts';
+// Shielded Action pools. Zallet builds with NU6.3 report Orchard-receiver Action outputs as 'ironwood'.
+const ACTION_POOLS=new Set(['orchard','ironwood']);
 import {shieldedDestination,unifiedPattern,type Network} from '../lib/network.ts';
 
 export const ZALLET_METHODS=['getwalletstatus','z_getaddressforaccount','z_listtransactions','z_viewtransaction','z_sendmany','z_getoperationstatus','z_getbalanceforaccount'] as const;
@@ -12,11 +14,12 @@ type Rpc=Pick<ZalletRpc,'call'>;
 
 const height=z.number().int().min(0).max(4_294_967_295),hash=z.string().regex(/^[a-f0-9]{64}$/);
 const tip=z.object({height,blockhash:hash});
-const walletStatus=z.object({node_tip:tip,wallet_tip:tip.optional(),fully_synced_height:height.optional(),locked:z.boolean(),sync_work_remaining:z.unknown().optional()});
+// Current Zallet builds omit `locked`; a locked wallet still rejects z_sendmany, which requeues the payout.
+const walletStatus=z.object({node_tip:tip,wallet_tip:tip.optional(),fully_synced_height:height.optional(),locked:z.boolean().optional(),sync_work_remaining:z.unknown().optional()});
 type Status=z.infer<typeof walletStatus>;
 const listed=z.array(z.object({account_uuid:z.string().uuid(),txid:hash,mined_height:height.nullable(),expired_unmined:z.boolean()}).passthrough());
 const operation=z.object({id:z.string(),status:z.enum(['queued','executing','cancelled','failed','success']),
-  result:z.object({txid:hash.optional(),txids:z.array(hash).min(1).max(16),broadcast:z.boolean()}).optional(),error:z.object({code:z.number()}).passthrough().optional()}).passthrough();
+  result:z.object({txid:hash.optional(),txids:z.array(hash).min(1).max(16),broadcast:z.boolean().optional()}).optional(),error:z.object({code:z.number()}).passthrough().optional()}).passthrough();
 const derived=z.object({address:z.string(),receiver_types:z.array(z.string())}).passthrough();
 
 export type ZalletBinding={accountId:string;fundingAddress:string;minConfirmations:number;network?:Network;reorgDepth?:number;pageSize?:number;maxTransactions?:number;sendTimeoutMs?:number};
@@ -87,7 +90,7 @@ export class ZalletWallet implements WalletAdapter{
         await c.query(`INSERT INTO zallet_transactions(txid,status,confirmations,blockhash,present,viewed_at) VALUES($1,$2,$3,$4,true,now())
           ON CONFLICT(txid) DO UPDATE SET status=EXCLUDED.status,confirmations=EXCLUDED.confirmations,blockhash=EXCLUDED.blockhash,present=true,viewed_at=now()`,
           [v.txid,v.status,v.confirmations,v.blockhash??null]);
-        const fullyOrchard=v.spends.every(s=>s.pool==='orchard')&&v.outputs.every(o=>o.pool==='orchard');
+        const fullyOrchard=v.spends.every(s=>ACTION_POOLS.has(s.pool))&&v.outputs.every(o=>ACTION_POOLS.has(o.pool));
         for(const o of v.outputs){
           if(o.account_uuid!==this.b.accountId||o.walletInternal||o.outgoing!==false||!o.address)continue;
           const index=o.action??o.output;if(index===undefined)continue;
@@ -95,7 +98,7 @@ export class ZalletWallet implements WalletAdapter{
           const row=(await c.query(`INSERT INTO zallet_observations(output_id,txid,address,memo,zat,shielded) VALUES($1,$2,$3,$4,$5,$6)
             ON CONFLICT(output_id) DO UPDATE SET observed_at=now() WHERE zallet_observations.txid=EXCLUDED.txid AND zallet_observations.address=EXCLUDED.address
               AND zallet_observations.zat=EXCLUDED.zat AND zallet_observations.memo IS NOT DISTINCT FROM EXCLUDED.memo RETURNING output_id`,
-            [outputId,v.txid,o.address,memoOrNull(o.memo),o.valueZat.toString(),fullyOrchard&&o.pool==='orchard'])).rowCount;
+            [outputId,v.txid,o.address,memoOrNull(o.memo),o.valueZat.toString(),fullyOrchard&&ACTION_POOLS.has(o.pool)])).rowCount;
           if(!row)throw new ZalletRpcError('CONTRACT');
         }
       }
@@ -122,8 +125,9 @@ export class ZalletWallet implements WalletAdapter{
 
   async balance(){
     const raw=await this.rpc.call('z_getbalanceforaccount',[this.b.accountId,this.b.minConfirmations]);
-    const parsed=z.object({pools:z.object({orchard:z.object({valueZat:z.number().int().nonnegative()}).optional()}).passthrough()}).passthrough().parse(raw);
-    return BigInt(parsed.pools.orchard?.valueZat??0);
+    const pool=z.object({valueZat:z.number().int().nonnegative()}).optional();
+    const parsed=z.object({pools:z.object({orchard:pool,ironwood:pool}).passthrough()}).passthrough().parse(raw);
+    return BigInt(parsed.pools.orchard?.valueZat??0)+BigInt(parsed.pools.ironwood?.valueZat??0);
   }
 
   async send(to:string,zat:bigint,memo?:string,key?:string){
@@ -179,12 +183,18 @@ export class ZalletWallet implements WalletAdapter{
     if(!op||op.status==='queued'||op.status==='executing')return {state:'unknown'};
     const mark=(state:string,code:string)=>pool.query('UPDATE zallet_submissions SET state=$2,error_code=$3,updated_at=now() WHERE idempotency_key=$1',[key,state,code]);
     if(op.status!=='success'||!op.result){await mark('failed',`OPERATION_${op.status.toUpperCase()}`);return {state:'unknown'};}
-    if(!op.result.broadcast){await mark('unbroadcast','NOT_BROADCAST');return {state:'unknown'};}
+    if(op.result.broadcast===false){await mark('unbroadcast','NOT_BROADCAST');return {state:'unknown'};}
     let paid=0n;
     for(const txid of op.result.txids){
-      const view=parseZalletTransaction(await this.rpc.call('z_viewtransaction',[txid]));
+      const raw=await this.rpc.call('z_viewtransaction',[txid]);
+      // Current Zallet builds omit `broadcast`; then only a mined transaction counts as sent.
+      if(op.result.broadcast===undefined&&(raw as {status?:unknown})?.status!=='mined')return {state:'unknown'};
+      const view=parseZalletTransaction(raw);
       if(view.txid!==txid)throw new ZalletRpcError('CONTRACT');
-      for(const o of view.outputs)if(o.outgoing===true&&!o.walletInternal&&o.address===row.to_address)paid+=o.valueZat;
+      // Normally an external payee shows as outgoing. If the payee is another account in this same
+      // wallet (local regtest), Zallet marks it incoming to that account instead; count it only then.
+      for(const o of view.outputs)if(!o.walletInternal&&o.address===row.to_address&&
+        (o.outgoing===true||(!!o.account_uuid&&o.account_uuid!==this.b.accountId)))paid+=o.valueZat;
     }
     if(paid!==BigInt(row.zat)){await mark('failed','VERIFY_MISMATCH');return {state:'unknown'};}
     await pool.query("UPDATE zallet_submissions SET state='sent',txids=$2,updated_at=now() WHERE idempotency_key=$1",[key,op.result.txids]);

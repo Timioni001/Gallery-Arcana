@@ -67,7 +67,7 @@ flowchart LR
 | **3. Verify** | The buyer receives a key envelope sealed to their key (HPKE), decrypts locally and checks the file's SHA-256 against the checkout snapshot. | The buyer got exactly the file that was listed. | order page, `openPurchasedCapsule` |
 | **4. Release** | A matching fingerprint completes the order: the seller payout is queued and an Ed25519 receipt is signed. A mismatch never releases. | The seller is paid only after correct delivery. | `src/services/acquisitions.ts` |
 
-Status: the full flow runs in automated browser journeys and database tests on the mock wallet ([VALIDATION.md](docs/VALIDATION.md)), and is scripted end to end for real Zebra and Zallet on local regtest ([SETTLEMENT_EVIDENCE.md](docs/SETTLEMENT_EVIDENCE.md)). Public-testnet verification is in progress.
+Status: **settled with real shielded transactions on local regtest** (real Zebra 6.2.3 and Zallet v0.1.0-beta.1, private chain, no value): buyer payment `796661ddbdcc…`, seller payout `5240770fc148…`, recorded in [settlement-regtest-2026-10-27T23-55-54-663Z.json](docs/evidence/settlement-regtest-2026-10-27T23-55-54-663Z.json). The same flow runs in automated browser journeys and database tests on the mock wallet ([VALIDATION.md](docs/VALIDATION.md)). Public-testnet verification is in progress.
 
 ## 3. Where this fits next to Zilk Road
 
@@ -262,7 +262,7 @@ We'd rather you trust this section than be surprised later. *Implemented* means 
 | --- | --- | --- | --- |
 | **Mock wallet** | Nothing on any chain. A durable database ledger stands in for the wallet. | Implemented and verified by tests. Default for local development. | Integration test suites (see [VALIDATION.md](docs/VALIDATION.md)) |
 | **Hosted demo** | Nothing. The API runs in your browser and payments auto-confirm. | Live at the demo URL. | Clearly labelled on the site |
-| **Local regtest** | Real shielded transactions between real **Zebra** and **Zallet** binaries on a private chain. Coins have no value. | Implemented: `npm run regtest -- journey` pays an invoice, waits for funding, downloads and checks the file, accepts, and confirms the seller payout. | The journey writes `docs/evidence/settlement-regtest-*.json` with txids, invoice, payout and a `verified` flag. See [SETTLEMENT_EVIDENCE.md](docs/SETTLEMENT_EVIDENCE.md). |
+| **Local regtest** | Real shielded transactions between real **Zebra** and **Zallet** binaries on a private chain. Coins have no value. | **Verified 2026-10-27.** One full purchase: shielded payment funded the invoice, the buyer verified the file, the seller payout was sent and verified on chain. | [settlement-regtest-2026-10-27T23-55-54-663Z.json](docs/evidence/settlement-regtest-2026-10-27T23-55-54-663Z.json) and [SETTLEMENT_EVIDENCE.md](docs/SETTLEMENT_EVIDENCE.md) |
 | **Public testnet** | Testnet ZEC on the public Zcash testnet. | Implemented and gated behind `ZALLET_TESTNET_ACK`. **Live verification in progress.** | Blockers recorded in [zcash-testnet-v05.json](docs/evidence/zcash-testnet-v05.json) and [ZALLET_GAP.md](docs/ZALLET_GAP.md) |
 | **Mainnet** | — | Disabled. | — |
 
@@ -273,7 +273,7 @@ We'd rather you trust this section than be surprised later. *Implemented* means 
 | Client cryptography | Chunked AES-GCM capsules, HPKE key envelopes, encrypted conversations, ECDSA identities with key pinning, browser key vault with backup and restore. |
 | Backend | Fastify API + PostgreSQL + separate settlement worker, with checksummed, transactional migrations. |
 | Settlement logic | Exact-value matching, confirmations, expiry, under/over/late payments, reorg freezes, escrow deadlines, idempotent payouts. |
-| Zallet adapter | Zallet JSON-RPC driver for testnet and regtest, exercised end to end by the regtest journey above. |
+| Zallet adapter | Zallet JSON-RPC driver for testnet and regtest. Verified on local regtest against real binaries; three response-format differences found there were fixed and covered by tests. |
 
 ### Simulated
 
@@ -370,7 +370,7 @@ Requirements: Node.js 22+, PostgreSQL 16 for the full stack, Docker Compose v2.2
 
 | Next | Why |
 | --- | --- |
-| Verified public-testnet settlement | Close the gap between the scripted regtest journey and a live chain. |
+| Verified public-testnet settlement | Repeat the verified regtest journey on the public testnet. |
 | zkSNARKs featured collection | The upcoming collection of shielded identities, sold as sealed capsules. |
 | Viewing-key disclosure | Let a buyer prove a specific payment to an auditor without revealing others. |
 | Non-custodial mode | Sellers paid directly; the platform watches with an incoming viewing key and releases the pre-sealed key on payment ([section 9](#9-custody-v1-today-non-custodial-next)). |
