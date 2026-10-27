@@ -44,7 +44,7 @@ const step = (m) => console.log('✓', m);
   if (fs.readFileSync(out, 'utf8') !== fs.readFileSync(SS + '/secret-source.txt', 'utf8')) throw new Error('plaintext mismatch');
   step('decrypted locally; plaintext identical to original (' + dl.suggestedFilename() + ')');
   await U.screenshot({ path: SS + '/capsule-order.png' });
-  await U.click('text=Accept delivery'); await U.waitForSelector('text=Paid', { timeout: 15000 }); step('buyer accepted → paid');
+  await U.waitForSelector('text=Paid', { timeout: 15000 }); step('verified delivery released instantly → paid');
   // Passport + public verification with holder proof
   await U.goto(B + '/studio?tab=proofs'); await U.selectOption('select', { index: 1 });
   await U.fill('input[placeholder^="Audience"]', 'demo-verifier'); await U.click('text=Issue passport'); await U.waitForSelector('text=Signed passport');

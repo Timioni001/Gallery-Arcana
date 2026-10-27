@@ -2,6 +2,18 @@
 
 Executed 2026-10-24 on Linux cloud, Node **22.23.4** and **24.19.0**, PostgreSQL **16.15**. PostgreSQL is supplied here by the optional container; scripts use PostgreSQL protocol connections and do not require Docker. Native Ubuntu/WSL instructions remain, but an actual WSL host was unavailable.
 
+## Latest run — 2026-10-27, later the same day (instant release on verification)
+
+Same environment and mock settlement. Change under test: the web client completes the order as soon as the downloaded file's SHA-256 matches the checkout snapshot; the server-side fallback (`ESCROW_REVIEW_HOURS`) is now 1 hour.
+
+| Command | Result |
+| --- | --- |
+| `npm run typecheck` | Passed |
+| `npm test` | 35 passed, 0 failed (8 database suites run below) |
+| `npm run test:integration` | 66 passed, 0 failed |
+| `web: tsc -b`, `oxlint src`, `npm run build:demo` | Passed |
+| `web: npm run e2e` | 25 of 25 steps passed, including "verified delivery released instantly → paid" with no Accept click |
+
 ## Latest run — 2026-10-27 (escrow v0.5.1, base commit `f4441f0`)
 
 Linux cloud container, Node **22.22.0**, PostgreSQL **16.15**. Settlement mode for every check below is the **mock wallet**: no blockchain transaction is involved. Regtest and public-testnet status are recorded separately in [SETTLEMENT_EVIDENCE.md](SETTLEMENT_EVIDENCE.md).

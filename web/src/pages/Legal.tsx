@@ -36,7 +36,7 @@ function Doc({ tag, title, intro, toc, children }: { tag: string; title: string;
 
 export function TermsPage() {
   const t = useTerms(), e = t.escrow
-  const hours = e?.reviewHours ?? 24, days = e?.disputeDecisionDays ?? 7
+  const hours = e?.reviewHours ?? 1, days = e?.disputeDecisionDays ?? 7
   const fee = t.platformFeeBps === undefined ? null : `${(t.platformFeeBps / 100).toFixed(2).replace(/\.00$/, '')}%`
   return (
     <Doc tag="Terms" title="Terms of service" intro="These terms explain how buying, selling and escrow work on Gallery Arcana. They are written to match what the software enforces."
@@ -72,12 +72,12 @@ export function TermsPage() {
       <p>Every file purchase is held in escrow. Here is exactly what happens to your money:</p>
       <ul>
         <li><b className="font-medium text-fg">Held.</b> Once your payment is confirmed, the order is funded and the full amount sits in the platform's wallet. During escrow the platform controls these funds; neither buyer nor seller can move them. The seller is not paid yet.</li>
-        <li><b className="font-medium text-fg">Review window: {hours} hours.</b> You download the file, your browser checks its fingerprint, and you accept. Accepting releases the payment to the seller straight away.</li>
-        <li><b className="font-medium text-fg">Automatic release.</b> If the review window ends with no acceptance and no dispute, the payment releases to the seller automatically. Silence counts as acceptance, so check your purchase promptly.</li>
-        <li><b className="font-medium text-fg">Dispute.</b> Opening a dispute before the window ends freezes the funds. Disputes can't be opened after the window closes.</li>
+        <li><b className="font-medium text-fg">Instant release on verification.</b> Your browser downloads (and for capsules, decrypts) the file and checks its SHA-256 fingerprint against the one recorded at checkout. A match releases the payment to the seller immediately; verifying is your acceptance.</li>
+        <li><b className="font-medium text-fg">Fallback: {hours} {hours === 1 ? 'hour' : 'hours'}.</b> If you never verify and don't dispute, the payment releases to the seller automatically {hours} {hours === 1 ? 'hour' : 'hours'} after it was confirmed. A fingerprint mismatch never releases anything.</li>
+        <li><b className="font-medium text-fg">Dispute.</b> Opening a dispute before the payment is released freezes the funds. Disputes can't be opened once it has been released.</li>
         <li><b className="font-medium text-fg">Fixed per order.</b> The window is set when your order is funded. Later changes to these terms don't shorten it.</li>
       </ul>
-      {e?.demoReviewMinutes && <p className="rounded-xl border bg-surface px-4 py-3 text-[13px]">In the public demo the review window is shortened to {e.demoReviewMinutes} minutes so you can watch an automatic release happen.</p>}
+      {e?.demoReviewMinutes && <p className="rounded-xl border bg-surface px-4 py-3 text-[13px]">In the public demo the fallback is {e.demoReviewMinutes} minutes so you can watch an automatic release happen.</p>}
 
       <h2 id="disputes">7. Disputes</h2>
       <ul>
