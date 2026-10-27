@@ -39,7 +39,7 @@ This is a product/source audit for video production, not a new security certific
 3. PostgreSQL: transactional listings/offers/reservations/orders, invoice attribution, key-envelope routing, job state, receipts, fees and administrative decisions. It stores metadata the operator needs.
 4. Worker: independent wallet adapter, readiness/heartbeat, exact output attribution, confirmations, payout queue/reconciliation, retention and optional price refresh.
 5. Storage: legacy files are operator-decryptable at rest; Capsules contain an additional client encryption layer whose content keys the real backend does not receive.
-6. Settlement: local capture should use real API/PostgreSQL/worker plus the durable mock wallet. Simulated payment is not live Zcash activity. The newer Zallet adapter is configurable only with explicit in-progress testnet acknowledgment; public testnet acceptance remains unverified. Mainnet is not an accepted network configuration.
+6. Settlement: local capture should use real API/PostgreSQL/worker plus the durable mock wallet. Simulated payment is not live Zcash activity. The newer Zallet adapter is configurable only with explicit in-progress testnet acknowledgment; public testnet acceptance is in progress. Mainnet is not an accepted network configuration.
 
 Initial fingerprints require trusted comparison. Static recipient keys do not provide Signal-style forward secrecy. A platform signature does not establish authenticity, licensing, legal ownership or satisfaction. Previously delivered files/keys cannot be revoked from a recipient.
 
