@@ -2,26 +2,39 @@
 
 # Gallery Arcana
 
-[![Verified on regtest](docs/assets/verified-regtest.svg)](docs/evidence/settlement-regtest-2026-10-27T23-55-54-663Z.json)
-
-**Real Zebra 6.2.3 + Zallet v0.1.0-beta.1 · local private chain · coins have no value.** Public testnet: in progress. Mainnet: disabled.
-
-Buyer payment: `796661ddbdcc9e30b87088ad23cf3ef2fe0c46dd29717d498988817f88e6c066`
-
-Seller payout: `5240770fc148faf7ca32a117114194e930b487ba03e09c6292c6cbc37b66df80`
-
 **A private market for digital assets. Discover, negotiate and exchange, paid in shielded Zcash.**
 
 [Live demo](https://gallery-arcana.timioni1490.workers.dev) · [ZECATHON submission](HACKATHON.md) · [How it works](#how-a-sale-works) · [Run it](#running-requirements) · [Docs](#documentation)
 
 ![Node 22+](https://img.shields.io/badge/node-22%2B-141414?style=flat-square)
 ![PostgreSQL 16](https://img.shields.io/badge/postgresql-16-141414?style=flat-square)
-![Zcash testnet](https://img.shields.io/badge/zcash-testnet%20only-F4B728?style=flat-square)
+[![Verified on regtest](docs/assets/verified-regtest.svg)](docs/evidence/settlement-regtest-2026-10-27T23-55-54-663Z.json)
 ![Version 0.5](https://img.shields.io/badge/version-0.5-e4572e?style=flat-square)
 
 ![Gallery Arcana home page](docs/assets/hero.png)
 
 </div>
+
+<details>
+<summary>Verified on local regtest · settlement evidence</summary>
+
+One complete purchase settled with **Zebra 6.2.3** and **Zallet v0.1.0-beta.1** on a private chain. Regtest coins have no value. Public testnet is in progress; mainnet is disabled.
+
+**Buyer payment**
+
+```text
+796661ddbdcc9e30b87088ad23cf3ef2fe0c46dd29717d498988817f88e6c066
+```
+
+**Seller payout**
+
+```text
+5240770fc148faf7ca32a117114194e930b487ba03e09c6292c6cbc37b66df80
+```
+
+[View the recorded settlement evidence](docs/evidence/settlement-regtest-2026-10-27T23-55-54-663Z.json)
+
+</details>
 
 Gallery Arcana lets people buy and sell digital property without exposing who they are, what they paid or what changed hands:
 

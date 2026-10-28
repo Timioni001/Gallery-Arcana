@@ -2,21 +2,36 @@
 
 # Gallery Arcana · ZECATHON submission
 
-**Private payment is only half the trade. Gallery Arcana protects the digital goods and the conversation too.**
-
-[![Verified on regtest](docs/assets/verified-regtest.svg)](docs/evidence/settlement-regtest-2026-10-27T23-55-54-663Z.json)
-
-**Real Zebra 6.2.3 + Zallet v0.1.0-beta.1 · local private chain · coins have no value.** Public testnet: in progress. Mainnet: disabled.
-
-Buyer payment: `796661ddbdcc9e30b87088ad23cf3ef2fe0c46dd29717d498988817f88e6c066`
-
-Seller payout: `5240770fc148faf7ca32a117114194e930b487ba03e09c6292c6cbc37b66df80`
+**A private market for digital goods. Discover, negotiate and exchange, paid in shielded ZEC.**
 
 `Track: Private Markets` · [Watch the 2:20 demo](video/output/Gallery-Arcana-ZECATHON-1080p.mp4) · [Live demo](https://gallery-arcana.timioni1490.workers.dev) · [Code](https://github.com/Timioni001/Gallery-Arcana) · [README](README.md)
+
+[![Verified on regtest](docs/assets/verified-regtest.svg)](docs/evidence/settlement-regtest-2026-10-27T23-55-54-663Z.json)
 
 ![Gallery Arcana home page](docs/assets/hero.png)
 
 </div>
+
+<details>
+<summary>Verified on local regtest · settlement evidence</summary>
+
+One complete purchase settled with **Zebra 6.2.3** and **Zallet v0.1.0-beta.1** on a private chain. Regtest coins have no value. Public testnet is in progress; mainnet is disabled.
+
+**Buyer payment**
+
+```text
+796661ddbdcc9e30b87088ad23cf3ef2fe0c46dd29717d498988817f88e6c066
+```
+
+**Seller payout**
+
+```text
+5240770fc148faf7ca32a117114194e930b487ba03e09c6292c6cbc37b66df80
+```
+
+[View the recorded settlement evidence](docs/evidence/settlement-regtest-2026-10-27T23-55-54-663Z.json)
+
+</details>
 
 ---
 
