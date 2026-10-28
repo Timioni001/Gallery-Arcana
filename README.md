@@ -74,7 +74,7 @@ Gallery Arcana lets people buy and sell digital property without exposing who th
 
 | Area | What you get |
 | --- | --- |
-| **Accounts** | Alias and passphrase only, with no email or ID. Passphrases are hashed. Sessions rotate and can be revoked. |
+| **Accounts** | Alias and passphrase only, with no email or ID. Generate eight random words at signup or choose your own. Passphrases are hashed. Sessions rotate and can be revoked. |
 | **Listings** | Digital goods, collectibles, onchain assets and digital property. Listings can be public or unlisted, and public previews have their metadata stripped. |
 | **Capsules** | Files are encrypted in the browser in authenticated chunks. Each buyer gets an HPKE key envelope, and the server never receives the content key. |
 | **Negotiation** | Private offers and counteroffers, plus end-to-end encrypted chat and attachments. |

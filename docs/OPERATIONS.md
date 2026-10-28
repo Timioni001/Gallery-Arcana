@@ -113,3 +113,13 @@ Assign a reviewer only on a disputed order. Participants must pin its public ide
 ## External control verifier operations
 
 DNS TXT uses the host resolver. Public GitHub challenge retrieval uses only `raw.githubusercontent.com`, fixed main-branch paths, 4 KiB responses, five-second timeout and no redirects; inherited proxy and CA settings are preserved. A restricted environment must permit that hostname through its normal approved network configuration. No private repository credentials or OAuth scopes are requested. EVM EIP-191 signature control is local cryptographic verification and does not query chain state. Observation outages fail closed and do not establish asset control. See ASSET_CONTROL.md.
+
+## Persistent accounts and cross-device testing
+
+Apply migration `016_account_vault_backups.sql` with `npm run migrate` before restarting the API. Accounts, listings, conversations and order activity already persist in PostgreSQL; both devices must use the same deployed backend and stable `PUBLIC_ORIGIN`. Preserve the database, asset storage and configured signing/encryption keys across restarts. Do not recreate disposable databases to resume a test session.
+
+In the normal web build, create an alias (optionally generate eight random words), keep the passphrase in a password manager, create encryption keys and select Studio → Keys → Save account backup. Save the separately displayed recovery key. On a second device, log into the same alias, load the account backup in Restore backup and enter that key. Save a new snapshot after adding seller capsules or changing identity keys. File download backups remain supported; neither kind backs up the login passphrase. No forgotten-passphrase reset or automatic key sync is provided.
+
+The hosted browser-only demo saves to IndexedDB per origin/browser profile and cannot share accounts across devices. Its signup explains this, and Studio → Settings can request persistent browser storage (best effort, no protection against manual clearing). Enabling shared accounts on that deployment requires routing it to the full API/PostgreSQL stack and using the normal web build; publishing static demo assets alone does not provide a shared database.
+
+Validation: `npm test --prefix web` checks generator entropy mapping/limits. With a local API and Vite proxy running, `ARCANA_WEB_URL=http://127.0.0.1:5173 npm run e2e:auth --prefix web` tests generated signup, separate-browser sign-in, encrypted account backup/restore and wrong-key rejection. `npm run test:integration` includes backup authorization, CSRF, database persistence across API restart, concurrent revisions, tampering and deletion tests.

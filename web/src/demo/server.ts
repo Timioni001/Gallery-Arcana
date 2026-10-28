@@ -37,8 +37,13 @@ function idb<T>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<
     open.onupgradeneeded = () => open.result.createObjectStore('state')
     open.onerror = () => reject(open.error)
     open.onsuccess = () => {
-      const req = fn(open.result.transaction('state', mode).objectStore('state'))
-      req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error)
+      const db = open.result
+      const tx = db.transaction('state', mode)
+      const req = fn(tx.objectStore('state'))
+      // A successful request can still be rolled back: acknowledge only commit.
+      tx.oncomplete = () => { db.close(); resolve(req.result) }
+      tx.onabort = () => { db.close(); reject(tx.error ?? new Error('Demo storage write failed')) }
+      tx.onerror = () => { /* onabort handles transaction failure */ }
     }
   })
 }
@@ -52,7 +57,20 @@ const hex = (b: Uint8Array) => [...b].map((x) => x.toString(16).padStart(2, '0')
 const code = (p: string, n = 16) => `${p}-${(hex(crypto.getRandomValues(new Uint8Array(n))).toUpperCase().match(/.{4}/g) ?? []).join('-')}`
 const zatFor = (cents: number) => (BigInt(cents) * 10n ** 12n + ZEC_USD - 1n) / ZEC_USD
 const zec = (zat: bigint) => { const w = zat / 100000000n, f = (zat % 100000000n).toString().padStart(8, '0').replace(/0+$/, ''); return f ? `${w}.${f}` : `${w}` }
-const passHash = async (salt: string, pass: string) => sdk.digest(te.encode(salt + ':' + pass))
+// Demo authentication is local; never persist readable passphrases.
+const passHash = async (salt: string, pass: string) => {
+  const key = await crypto.subtle.importKey('raw', te.encode(pass), 'PBKDF2', false, ['deriveBits'])
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: te.encode(salt), iterations: 600_000 }, key, 256)
+  return 'pbkdf2-v1$' + hex(new Uint8Array(bits))
+}
+const verifyPass = async (a: Account, pass: string) => {
+  const modern = a.pass.startsWith('pbkdf2-v1$')
+  const hash = modern ? await passHash(a.salt, pass) : await sdk.digest(te.encode(a.salt + ':' + pass))
+  if (a.pass !== hash) return false
+  // Preserve existing demo accounts, upgrading their old fast hash at login.
+  if (!modern) a.pass = await passHash(a.salt, pass)
+  return true
+}
 const account = (id: string | null) => S.accounts.find((a) => a.id === id) ?? null
 const activeIdentity = (accountId: string) => S.identities.find((i) => i.account_id === accountId && !i.revoked_at) ?? null
 const listing = (id: string) => S.listings.find((l) => l.id === id) ?? fail(404, 'Not found')
@@ -205,14 +223,14 @@ const routes: Route[] = [
   ['GET', /^\/api\/me$/, (c) => { const a = account(c.me); return { account: a ? { id: a.id, alias: a.alias, hasPayout: !!a.payout } : null } }],
   ['POST', /^\/api\/signup$/, async (c) => {
     const alias = String(b(c).alias ?? '').trim().toLowerCase(), pass = String(b(c).passphrase ?? '')
-    if (!/^[a-z][a-z0-9_-]{2,23}$/.test(alias) || pass.length < 12) fail(400, 'Invalid input')
+    if (!/^[a-z][a-z0-9_-]{2,23}$/.test(alias) || pass.length < 12 || pass.length > 200) fail(400, 'Invalid input')
     if (S.accounts.some((a) => a.alias === alias)) fail(409, 'Alias unavailable')
     const salt = uuid(), a: Account = { id: uuid(), alias, salt, pass: await passHash(salt, pass), payout: null, epoch: 0 }
     S.accounts.push(a); S.session = a.id; return { account: { id: a.id, alias } }
   }],
   ['POST', /^\/api\/login$/, async (c) => {
     const a = S.accounts.find((x) => x.alias === String(b(c).alias ?? '').toLowerCase() && !x.sim)
-    if (!a || a.pass !== await passHash(a.salt, String(b(c).passphrase ?? ''))) fail(401, 'Invalid alias or passphrase')
+    if (!a || !await verifyPass(a, String(b(c).passphrase ?? ''))) fail(401, 'Invalid alias or passphrase')
     S.session = a!.id; return { account: { id: a!.id, alias: a!.alias } }
   }],
   ['POST', /^\/api\/logout$/, () => { S.session = null; return { ok: true } }],
@@ -335,7 +353,7 @@ const routes: Route[] = [
   }],
   ['POST', /^\/api\/encryption\/reset$/, async (c) => {
     const me = need(c), a = account(me)!
-    if (a.pass !== await passHash(a.salt, String(b(c).passphrase ?? ''))) fail(401, 'unauthorized')
+    if (!await verifyPass(a, String(b(c).passphrase ?? ''))) fail(401, 'unauthorized')
     S.identities.forEach((i) => { if (i.account_id === me && !i.revoked_at) i.revoked_at = now() }); a.epoch++; return { epoch: a.epoch }
   }],
   ['POST', /^\/api\/listings\/([\w-]+)\/capsule-envelope$/, async (c, m) => {

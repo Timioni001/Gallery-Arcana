@@ -67,6 +67,9 @@ async function request<T>(method: string, path: string, body?: unknown, init: Re
 const baseApi = {
   health: () => request<{ mode: string; network: string; origin?: string; demoAutopaySeconds?: number | null }>('GET', '/api/health'),
   me: () => request<{ account: Account | null }>('GET', '/api/me'),
+  vaultBackup: () => request<{ backup: unknown | null; revision: number; updated_at: string | null }>('GET', '/api/me/vault-backup'),
+  saveVaultBackup: (backup: unknown, expectedRevision: number) => request<{ revision: number }>('PUT', '/api/me/vault-backup', { backup, expectedRevision }),
+  deleteVaultBackup: (revision: number) => request<{ ok: boolean }>('DELETE', '/api/me/vault-backup', { revision }),
   signup: (alias: string, passphrase: string) => request<{ account: Account }>('POST', '/api/signup', { alias, passphrase }),
   login: (alias: string, passphrase: string) => request<{ account: Account }>('POST', '/api/login', { alias, passphrase }),
   logout: () => request<{ ok: true }>('POST', '/api/logout', {}),
