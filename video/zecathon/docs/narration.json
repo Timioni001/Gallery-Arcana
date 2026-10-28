@@ -1,0 +1,86 @@
+[
+  {
+    "scene": 0,
+    "start": 0.5,
+    "end": 10.302083333333332,
+    "speed": 1,
+    "text": "Gallery Arcana is a private market for digital goods, powered by Zcash. This is the hosted demo: payments are simulated. Seal. Pay. Verify. Release."
+  },
+  {
+    "scene": 1,
+    "start": 12.4,
+    "end": 18.75925,
+    "speed": 1,
+    "text": "Create an alias and a passphrase. No email or ID. Your encryption keys are created in your browser."
+  },
+  {
+    "scene": 2,
+    "start": 20.4,
+    "end": 31.15791666666667,
+    "speed": 1,
+    "text": "Browse public previews and choose an Arcana Fragment. The original is an encrypted capsule, with a key sealed to its buyer. Sample sellers are automated. Payments are simulated."
+  },
+  {
+    "scene": 3,
+    "start": 32.4,
+    "end": 41.41958333333333,
+    "speed": 1,
+    "text": "Ask the seller a question through end-to-end encrypted chat. This sample seller replies automatically. The platform still processes financial offer amounts."
+  },
+  {
+    "scene": 4,
+    "start": 42.4,
+    "end": 54.60672486195873,
+    "speed": 1.0012002182214945,
+    "text": "Checkout creates an exact ZEC amount, a single-use payment address, an invoice memo, and a ZIP three twenty-one request. The demo simulates this payment. No real ZEC moves."
+  },
+  {
+    "scene": 5,
+    "start": 55.4,
+    "end": 62.61424999999999,
+    "speed": 1,
+    "text": "The order is funded. The platform holds the funds in escrow. The fallback is one hour, shortened to ten minutes in this demo."
+  },
+  {
+    "scene": 6,
+    "start": 65.4,
+    "end": 79.66971952269806,
+    "speed": 1.0972192920768873,
+    "text": "Tap Decrypt locally and verify. The browser opens the sealed key and checks the file\u2019s SHA two fifty-six. A match turns the order Paid instantly. Verifying is the acceptance. The seller\u2019s payout is authorized, and a signed receipt records the sale."
+  },
+  {
+    "scene": 7,
+    "start": 80.4,
+    "end": 91.65414130434783,
+    "speed": 1.0495543672014263,
+    "text": "If the buyer never opens the file, funds release after one hour. A fingerprint mismatch never releases. Disputes freeze funds; a reviewer decides within seven days: release or full refund."
+  },
+  {
+    "scene": 8,
+    "start": 92.4,
+    "end": 102.173,
+    "speed": 1,
+    "text": "In version one, the platform holds escrow funds and sees amounts and order metadata. Client-side encryption protects files, keys, chat and dispute evidence."
+  },
+  {
+    "scene": 9,
+    "start": 105.4,
+    "end": 124.62456568144498,
+    "speed": 1.0139438085327785,
+    "text": "Now, real settlement evidence. The same purchase flow settled with real shielded transactions on real Zebra and Zallet, on local regtest. The committed evidence records the buyer payment, the seller payout, and verified: true. This is a private chain. Its coins have no value. It is not public testnet."
+  },
+  {
+    "scene": 10,
+    "start": 125.4,
+    "end": 134.65329847408123,
+    "speed": 1.0480115690527858,
+    "text": "Regtest verified. Public testnet in progress. Mainnet disabled. Next: direct seller payments and viewing-key observation. Design only, not built."
+  },
+  {
+    "scene": 11,
+    "start": 135.3,
+    "end": 138.76095833333335,
+    "speed": 1,
+    "text": "Gallery Arcana. Built for ZECATHON. Private Markets."
+  }
+]
