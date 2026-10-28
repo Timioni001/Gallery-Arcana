@@ -27,6 +27,16 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - name: Checkout payment request contracts
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 5188 > /tmp/arcana-preview.log 2>&1 &
+          trap 'kill $!' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:5188/ > /dev/null; then break; fi
+            sleep 1
+          done
+          npm run e2e:payment
 
   docker:
     runs-on: ubuntu-24.04

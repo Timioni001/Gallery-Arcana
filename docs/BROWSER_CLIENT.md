@@ -40,3 +40,10 @@ The first time an account seals to or opens from a counterparty, the UI shows th
 - **No forward secrecy:** static recipient keys mean a later key compromise exposes past envelopes addressed to that key.
 - **Size limits:** capsules are limited to 16 MB and attachments or evidence files to 32 KB, both enforced by the SDK and the API.
 - **Interoperability:** browser interoperability has been tested in Chromium, through Playwright journeys. Firefox and Safari have not been tested yet, and an independent cryptography review is still outstanding.
+
+
+## Wallet-native payment requests
+
+Awaiting-payment orders render a QR locally from the exact server-issued ZIP-321 URI and offer **Open in wallet** on the same device. Amount, address and memo remain unchanged. No external QR service receives invoice data. The wallet must support ZIP-321 and the correct network; this change does not add wallet software or send funds itself. Demo and mock requests are labelled simulated, with wallet launch disabled. Expired requests lose both the QR and wallet link; existing text/copy controls remain available for reference.
+
+UI contract check: after `npm run build` and `npm run preview -- --host 127.0.0.1 --port 5188` in `web/`, run `npm run e2e:payment`. Chromium is required (`npx playwright install chromium` or `CHROMIUM_PATH`). Tests use explicit API fixtures and decode the rendered QR to verify the full URI; they are not real wallet or chain tests.

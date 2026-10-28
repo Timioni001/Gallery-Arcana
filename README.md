@@ -2,6 +2,14 @@
 
 # Gallery Arcana
 
+[![Verified on regtest](docs/assets/verified-regtest.svg)](docs/evidence/settlement-regtest-2026-10-27T23-55-54-663Z.json)
+
+**Real Zebra 6.2.3 + Zallet v0.1.0-beta.1 · local private chain · coins have no value.** Public testnet: in progress. Mainnet: disabled.
+
+Buyer payment: `796661ddbdcc9e30b87088ad23cf3ef2fe0c46dd29717d498988817f88e6c066`
+
+Seller payout: `5240770fc148faf7ca32a117114194e930b487ba03e09c6292c6cbc37b66df80`
+
 **A private market for digital assets. Discover, negotiate and exchange, paid in shielded Zcash.**
 
 [Live demo](https://gallery-arcana.timioni1490.workers.dev) · [ZECATHON submission](HACKATHON.md) · [How it works](#how-a-sale-works) · [Run it](#running-requirements) · [Docs](#documentation)
@@ -22,7 +30,7 @@ Gallery Arcana lets people buy and sell digital property without exposing who th
 - **Instant, verified release.** The seller's payout is held until the buyer's browser checks the file's fingerprint. A match releases it instantly; a mismatch blocks it and a dispute freezes it. If the buyer never verifies, it releases automatically after 1 hour.
 
 > [!IMPORTANT]
-> This is a testnet project. Real Zcash, mainnet and production custody are **disabled**. The hosted site is a demo that runs entirely in the visitor's browser with simulated payments.
+> Real shielded settlement is verified on a local regtest chain. Public-testnet verification is in progress; mainnet and production custody are **disabled**. The hosted site is a demo that runs entirely in the visitor's browser with simulated payments.
 
 ## Contents
 
@@ -287,4 +295,4 @@ The full list is in [CAPABILITIES.md](docs/CAPABILITIES.md) and [THREAT_MODEL.md
 | Three-party walkthrough | [DEMO.md](docs/DEMO.md) |
 | Validation results | [VALIDATION.md](docs/VALIDATION.md) |
 
-<div align="center"><sub>Lawful digital commerce only · Testnet · Not a custodian</sub></div>
+<div align="center"><sub>Lawful digital commerce only · Regtest verified · Custodial v1 escrow · Mainnet disabled</sub></div>
