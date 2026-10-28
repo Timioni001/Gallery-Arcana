@@ -4,6 +4,7 @@ Version 0.5 extends the existing private-acquisitions backend. Version 0.4 combi
 
 ## Accounts and access
 
+- Optional eight-word passphrase generation in the browser (88 bits); show/hide controls and password-manager autocomplete. Login credentials and key-recovery material remain separate.
 - Pseudonymous alias signup/login without mandatory identity verification; normalized aliases and salted scrypt passphrase hashes.
 - Random hashed sessions with idle and absolute expiration, atomic rotation, logout and account-wide revocation. Creation/rotation/revocation serialize to prevent successor-token races.
 - HttpOnly, Strict SameSite cookies; Secure on HTTPS; exact-origin/custom-header/fetch-site CSRF checks. No external CORS access.
@@ -50,7 +51,7 @@ Version 0.5 extends the existing private-acquisitions backend. Version 0.4 combi
 ## Web application (web/)
 
 - Vite + React client served same-origin with the API. Landing, market, listing, offer/counter, checkout, order, studio, observer, verify, invitation and reviewer pages.
-- Browser key vault in IndexedDB: identity generation and sealed-challenge registration, encrypted offline backup with a random 256-bit recovery key, restore on a new device, explicit reset. Private keys and capsule content keys never leave the browser.
+- Browser key vault in IndexedDB: identity generation and sealed-challenge registration, encrypted offline and optional account-stored snapshot backups with a random 256-bit recovery key, authenticated restore on a new device, explicit reset. Plaintext private keys and capsule content keys stay in the browser; only encrypted backup copies are uploaded.
 - Arcana Capsules created in the browser (chunked AES-GCM, ≤16 MB), ciphertext-only upload with digest cross-check, per-buyer HPKE key sealing by the seller after trust-on-first-use fingerprint confirmation, funded-envelope retrieval and local decryption/verification by the buyer.
 - End-to-end encrypted conversations with ≤32 KB attachments, client-side replay suppression, change warnings for counterparty keys and deletion.
 - One-time private invitations (capability carried in the URL fragment), Trade Passport issue/present/revoke, public receipt/passport verification, asset-control challenges (DNS, GitHub, EVM `personal_sign`), consent-based dispute evidence sealed to the assigned reviewer, reviewer decryption workspace.

@@ -59,3 +59,11 @@ arcana.example {
   - `iso-vault.tsx` is isometric line art of the capsule vault on a belt.
   - `connector-hero.tsx` wires the vault tile to the parties of a trade.
 - Receipt codes are bearer secrets. They are kept only in `sessionStorage` for the current tab, and the order page can issue a new one.
+
+## Accounts on another device
+
+Normal API-backed builds retain account activity in PostgreSQL. Signup can generate eight secure random words; save them in a password manager. Studio → Keys → Save account backup stores a client-encrypted key snapshot and downloads a copy. Keep its new recovery key separately. On another device, sign in, select Restore backup → Load account backup, and enter that recovery key. Reconfirm peer fingerprints independently; pins are not backed up. Backups are snapshots, so update them after creating capsules or changing keys.
+
+The public browser-only demo remains local to each browser. It saves progress automatically in IndexedDB; Studio → Settings explains the limits and offers a storage-protection request. It cannot share an account across devices or recover cleared site data. Passphrases are never stored as readable text, and cannot be retrieved if forgotten.
+
+Run `npm test` for passphrase generation checks. With the API and Vite proxy running, run `ARCANA_WEB_URL=http://127.0.0.1:5173 npm run e2e:auth` for separate-browser backup restoration.

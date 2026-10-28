@@ -1,0 +1,47 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {pool} from '../src/db.ts';
+import {buildServer} from '../src/http/server.ts';
+import * as sdk from '../packages/client-crypto/src/index.ts';
+const enabled=process.env.RUN_DB_TESTS==='1'&&process.env.ARCANA_ISOLATED_TEST_DB==='1';
+test('encrypted account backups persist across sessions with authorization and revision checks',{skip:!enabled},async t=>{
+  let app=buildServer();await app.ready();t.after(async()=>{await app.close();await pool.end();});
+  const passphrase='random words saved in a password manager';
+  const signup=async(alias:string)=>{
+    const res=await app.inject({method:'POST',url:'/api/signup',headers:{'x-arcana-action':'1'},payload:{alias,passphrase}});
+    assert.equal(res.statusCode,200,res.body);return {id:res.json().account.id,cookie:String(res.headers['set-cookie']).split(';')[0]!};
+  };
+  const owner=await signup('backupowner'),other=await signup('backupother');
+  const call=(method:any,cookie?:string,payload?:Record<string,unknown>)=>app.inject({method,url:'/api/me/vault-backup',headers:{'x-arcana-action':'1',...(cookie?{cookie}:{})},payload});
+  const identity=await sdk.generateIdentity(owner.id,'http://localhost:8080'),recovery=crypto.getRandomValues(new Uint8Array(32));
+  const key=await crypto.subtle.importKey('raw',recovery,'AES-GCM',false,['encrypt']);
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const ciphertext=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv,additionalData:sdk.encode(['arcana-vault-backup/v1',owner.id])},key,sdk.encode([])));
+  const backup={kind:'arcana-vault-backup/v1',accountId:owner.id,alias:'backupowner',createdAt:new Date().toISOString(),identity:await sdk.backupIdentity(identity,recovery),capsules:{iv:sdk.b64(iv),ciphertext:sdk.b64(ciphertext)}};
+  assert.equal((await call('GET')).statusCode,401);
+  assert.equal((await call('PUT',undefined,{backup,expectedRevision:0})).statusCode,401);
+  assert.equal((await call('PUT',other.cookie,{backup,expectedRevision:0})).statusCode,400);
+  assert.equal((await call('PUT',owner.cookie,{backup,expectedRevision:0})).statusCode,200);
+  assert.equal((await call('PUT',owner.cookie,{backup,expectedRevision:0})).statusCode,409);
+  assert.equal((await call('GET',other.cookie)).json().backup,null);
+  assert.equal((await call('PUT',owner.cookie,{backup:{...backup,recoveryKey:sdk.b64(recovery)},expectedRevision:1})).statusCode,400);
+  assert.equal((await call('PUT',owner.cookie,{backup:{...backup,identity:{...backup.identity,plaintext:'secret'}},expectedRevision:1})).statusCode,400);
+  const hostile=await app.inject({method:'PUT',url:'/api/me/vault-backup',headers:{cookie:owner.cookie,'x-arcana-action':'1',origin:'https://attacker.invalid'},payload:{backup,expectedRevision:1}});assert.equal(hostile.statusCode,403);
+  const saved=(await pool.query('SELECT backup FROM account_vault_backups WHERE account_id=$1',[owner.id])).rows[0].backup;
+  assert.equal(JSON.stringify(saved).includes(passphrase),false);assert.equal(JSON.stringify(saved).includes(sdk.b64(recovery)),false);
+  assert.equal(JSON.stringify(saved).includes('privateKey'),false);
+  await assert.rejects(()=>sdk.restoreIdentity(saved.identity,crypto.getRandomValues(new Uint8Array(32))));
+  const damaged={...saved.identity,ciphertext:(saved.identity.ciphertext[0]==='A'?'B':'A')+saved.identity.ciphertext.slice(1)};
+  await assert.rejects(()=>sdk.restoreIdentity(damaged,recovery));
+  // Restart API; another device authenticates with the same alias/passphrase.
+  await app.close();app=buildServer();await app.ready();
+  const login=await app.inject({method:'POST',url:'/api/login',headers:{'x-arcana-action':'1'},payload:{alias:'backupowner',passphrase}});assert.equal(login.statusCode,200,login.body);
+  const secondCookie=String(login.headers['set-cookie']).split(';')[0]!;
+  const read=(await call('GET',secondCookie)).json();assert.deepEqual(read.backup,backup);
+  assert.equal((await sdk.restoreIdentity(read.backup.identity,recovery)).public.fingerprint,identity.public.fingerprint);
+  const writes=await Promise.all([call('PUT',secondCookie,{backup,expectedRevision:1}),call('PUT',secondCookie,{backup,expectedRevision:1})]);assert.deepEqual(writes.map(x=>x.statusCode).sort(),[200,409]);
+  assert.equal((await call('DELETE',other.cookie,{revision:2})).statusCode,404);
+  assert.equal((await call('DELETE',secondCookie,{revision:1})).statusCode,404);
+  assert.equal((await call('DELETE',secondCookie,{revision:2})).statusCode,200);
+  assert.equal((await call('GET',secondCookie)).json().backup,null);
+});

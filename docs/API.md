@@ -4,6 +4,22 @@ JSON API, no frontend. All mutations require `X-Arcana-Action: 1`; invalid brows
 
 Errors use `{error: string}` with 400 for input errors, 401 for missing authentication, 403 for forbidden actions, 404 for unavailable/private resources, 409 for stale/conflicting state, 413 for oversized bodies, 415 for unsupported uploads, 429 for limits and 503 for unavailable payment readiness. Validation responses include only field paths/codes; internal messages, SQL details and wallet responses are not returned.
 
+## Encrypted account key backups
+
+Accounts and activity persist in PostgreSQL across device logins. Passphrases are stored as salted scrypt hashes, never retrievable plaintext. Signup offers eight uniformly random words generated locally with Web Crypto (88 bits of entropy); these are login credentials, not wallet mnemonics or decryption-key recovery material.
+
+| Route | Contract |
+| --- | --- |
+| `GET /api/me/vault-backup` | Authenticated owner's encrypted backup, `revision` and `updated_at`; `{backup:null,revision:0,updated_at:null}` when absent. No account-ID selector. |
+| `PUT /api/me/vault-backup` | `{expectedRevision,backup}`; creates only at revision 0, otherwise replaces the matching revision atomically. Returns `{revision}`; stale/concurrent writes return 409. Limited to 20 writes/account/hour. |
+| `DELETE /api/me/vault-backup` | `{revision}`; deletes only the authenticated owner's matching revision. Stale/missing versions return 404. |
+
+`backup` is the existing `arcana-vault-backup/v1` object: `accountId`, `alias`, `createdAt`, `identity:{v:1,iv,ciphertext}`, `capsules:{iv,ciphertext}`. Strict shape validation rejects extra fields; IVs/ciphertexts use base64url. The account ID must match the session. Maximum serialized backup is 512 KiB, also constrained in PostgreSQL. The API stores ciphertext; it cannot independently prove that an authorized client encrypted the right keys. The recovery key stays with the user.
+
+In Studio → Keys, **Save account backup** encrypts locally under a fresh random 256-bit recovery key, downloads a copy and uploads ciphertext. It explicitly replaces the previous snapshot; each new backup needs its own new recovery key. On another device, log in, select **Restore backup → Load account backup**, then enter that recovery key. Restoration authenticates the ciphertext, checks account/origin and active identity binding, and commits identity/capsule keys atomically. Wrong keys, tampering and stale identities fail before local writes. Peer fingerprint pins are not included: confirm them independently on a new device. This is manual snapshot recovery, not live key synchronization or forgotten-passphrase reset.
+
+The hosted `VITE_DEMO=1` simulator has browser-local IndexedDB only and does not expose shared account backups. It now uses PBKDF2-SHA-256 (600,000 iterations) for new demo passphrase hashes and upgrades older demo hashes after successful authentication. Actual cross-device access requires the same deployed API/PostgreSQL backend and public origin on both devices.
+
 ## Public discovery and health
 
 | Route | Contract |

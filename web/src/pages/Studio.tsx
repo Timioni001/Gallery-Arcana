@@ -15,6 +15,7 @@ import { usePinConfirm, useVault, VaultPanel } from '@/components/vault'
 import { Messages } from '@/components/message-thread'
 import { Proofs } from '@/components/proofs'
 import { cn } from '@/lib/utils'
+import { DemoStorage } from '@/components/demo-storage'
 
 const tabs = ['listings', 'offers', 'messages', 'purchases', 'sales', 'proofs', 'keys', 'settings'] as const
 type Tab = (typeof tabs)[number]
@@ -177,7 +178,7 @@ export default function Studio() {
         {tab === 'offers' && <Offers />}
         {tab === 'purchases' && <Orders kind="purchases" />}
         {tab === 'sales' && <Orders kind="sales" />}
-        {tab === 'settings' && <Settings />}
+        {tab === 'settings' && <><Settings />{import.meta.env.VITE_DEMO === '1' && <DemoStorage />}</>}
         {tab === 'keys' && <VaultPanel />}
         {tab === 'messages' && <Messages />}
         {tab === 'proofs' && <Proofs />}

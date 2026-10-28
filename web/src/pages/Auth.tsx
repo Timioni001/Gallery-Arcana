@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label'
 import { api } from '@/lib/api'
 import { useSession } from '@/lib/session'
 import { cn } from '@/lib/utils'
+import { generatePassphrase } from '@/lib/passphrase'
 
 export default function Auth() {
   const [params] = useSearchParams()
@@ -16,6 +17,7 @@ export default function Auth() {
   const [alias, setAlias] = useState('')
   const [pass, setPass] = useState('')
   const [busy, setBusy] = useState(false)
+  const [showPass, setShowPass] = useState(false)
   const { setAccount } = useSession()
   const nav = useNavigate()
   const next = params.get('next')?.startsWith('/') ? params.get('next')! : '/studio'
@@ -46,7 +48,8 @@ export default function Auth() {
             ))}
           </div>
           <h1 className="mt-8 text-[28px] tracking-[-0.02em] text-fg">{mode === 'login' ? 'Welcome back' : 'Claim an alias'}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{mode === 'login' ? 'Use the alias and passphrase you chose.' : 'No email or phone. Write your passphrase down, because it cannot be recovered.'}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{mode === 'login' ? 'Use the alias and passphrase you chose.' : 'No email or phone. Save your passphrase in a password manager; we cannot retrieve it for you.'}</p>
+          {import.meta.env.VITE_DEMO === '1' && <p className="mt-3 text-xs text-muted-foreground">Demo accounts and progress are saved in this browser only. Use the same browser to return; clearing site data removes them.</p>}
           <form onSubmit={submit} className="mt-8 space-y-5">
             <div className="space-y-2">
               <Label htmlFor="alias">Alias</Label>
@@ -55,13 +58,17 @@ export default function Auth() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="pass">Passphrase</Label>
-              <Input id="pass" className="h-11" type="password" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} required minLength={12} maxLength={200} value={pass} onChange={(e) => setPass(e.target.value)} />
-              {mode === 'signup' && <p className="text-xs text-muted-foreground">At least 12 characters. A few random words works well.</p>}
+              <Input id="pass" className="h-11" type={showPass ? 'text' : 'password'} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} required minLength={12} maxLength={200} value={pass} onChange={(e) => setPass(e.target.value)} />
+              <div className="flex flex-wrap gap-3 text-xs">
+                {mode === 'signup' && <button type="button" className="text-signal hover:underline" onClick={() => { try { setPass(generatePassphrase()); setShowPass(true) } catch { toast.error('Secure generation is unavailable in this browser') } }}>Generate random words</button>}
+                <button type="button" className="text-muted-foreground hover:underline" aria-pressed={showPass} onClick={() => setShowPass(!showPass)}>{showPass ? 'Hide passphrase' : 'Show passphrase'}</button>
+              </div>
+              {mode === 'signup' && <p className="text-xs text-muted-foreground">Use your own (12+ characters), or generate eight random words. Save it before creating your alias. This is not a wallet seed or a backup of your encryption keys.</p>}
             </div>
             <Button type="submit" className="h-11 w-full" disabled={busy}>{busy ? 'One moment…' : mode === 'login' ? 'Log in' : 'Create alias'}</Button>
           </form>
         </div>
-        <p className="text-center text-xs text-fg/40">Testnet preview · sessions are HttpOnly, rotating and revocable</p>
+        <p className="text-center text-xs text-fg/40">{import.meta.env.VITE_DEMO === '1' ? 'Demo · your account stays in this browser' : 'Testnet preview · sessions are HttpOnly, rotating and revocable'}</p>
       </div>
     </div>
   )

@@ -24,9 +24,11 @@ function open(): Promise<IDBDatabase> {
 async function run<T>(store: string, mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T>): Promise<T> {
   const db = await open()
   return new Promise((resolve, reject) => {
-    const r = fn(db.transaction(store, mode).objectStore(store))
-    r.onsuccess = () => resolve(r.result)
-    r.onerror = () => reject(r.error)
+    const tx = db.transaction(store, mode)
+    const r = fn(tx.objectStore(store))
+    tx.oncomplete = () => { db.close(); resolve(r.result) }
+    tx.onabort = () => { db.close(); reject(tx.error ?? new Error('Key storage write failed')) }
+    tx.onerror = () => { /* onabort handles transaction failure */ }
   })
 }
 
@@ -163,8 +165,19 @@ export async function importBackup(account: Account, text: string, recoveryKey: 
   const identity = await sdk.restoreIdentity(file.identity, recovery)
   const key = await crypto.subtle.importKey('raw', recovery.slice(), 'AES-GCM', false, ['decrypt'])
   const capsules: CapsuleKey[] = sdk.decode(new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: sdk.unb64(file.capsules.iv).slice(), additionalData: sdk.encode([BACKUP_KIND, account.id]) }, key, sdk.unb64(file.capsules.ciphertext).slice())))
-  await run('identities', 'readwrite', (s) => s.put({ accountId: account.id, identity }))
-  for (const c of capsules) await saveCapsuleKey(c)
+  // Validate decrypted contents and identity binding before changing local keys.
+  if (identity.public.accountId !== account.id || identity.public.origin !== await serverOrigin()) throw new Error('Backup identity belongs to another account or site')
+  const active = await activePeerIdentity(account.id)
+  if (!active || active.keyId !== identity.public.keyId || active.fingerprint !== identity.public.fingerprint) throw new Error('Backup keys are no longer active. Use a current backup.')
+  if (!Array.isArray(capsules) || capsules.some(c => c.ownerId !== account.id || typeof c.capsuleId !== 'string' || typeof c.contentKey !== 'string' || sdk.unb64(c.contentKey).length !== 32)) throw new Error('Invalid capsule key backup')
+  const db = await open()
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(['identities', 'capsules'], 'readwrite')
+    tx.objectStore('identities').put({ accountId: account.id, identity })
+    for (const c of capsules) tx.objectStore('capsules').put(c)
+    tx.oncomplete = () => { db.close(); resolve() }
+    tx.onabort = () => { db.close(); reject(tx.error ?? new Error('Restore failed')) }
+  })
   return { identity, capsules: capsules.length }
 }
 

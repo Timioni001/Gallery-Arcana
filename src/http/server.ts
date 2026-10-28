@@ -10,6 +10,7 @@ import {pool,setting} from '../db.ts';
 import {HttpError,unauthorized,notFound,forbidden} from '../lib/errors.ts';
 import {allow} from '../lib/ratelimit.ts';
 import * as gate from '../services/gate.ts';
+import * as vaultBackups from '../services/vaultBackups.ts';
 import * as listings from '../services/listings.ts';
 import * as offers from '../services/offers.ts';
 import * as checkout from '../services/checkout.ts';
@@ -98,7 +99,7 @@ export function buildServer(){
   app.get('/api/ready',async(_req,reply)=>{
     try{
       validateAssetKey();attestationKeys();
-      const db=await pool.query("SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version='014_waitlist.sql') AND EXISTS(SELECT 1 FROM worker_health WHERE name='payments' AND ready AND heartbeat_at>now()-interval '30 seconds') AND EXISTS(SELECT 1 FROM address_pool WHERE NOT claimed) AS ready");
+      const db=await pool.query("SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version='016_account_vault_backups.sql') AND EXISTS(SELECT 1 FROM worker_health WHERE name='payments' AND ready AND heartbeat_at>now()-interval '30 seconds') AND EXISTS(SELECT 1 FROM address_pool WHERE NOT claimed) AS ready");
       if(!db.rows[0].ready||!await issuerReady())return reply.status(503).send({ready:false});
       return {ready:true,mode:config.walletDriver,network:config.network};
     }catch{return reply.status(503).send({ready:false});}
@@ -132,6 +133,12 @@ export function buildServer(){
     reply.header('set-cookie',`${COOKIE}=; ${cookieOptions.replace(/Max-Age=\d+/,'Max-Age=0')}`);return {ok:true};
   });
   app.get('/api/me',async req=>({account:await current(req)}));
+  app.get('/api/me/vault-backup',async req=>vaultBackups.readBackup((await requireAccount(req)).id));
+  app.put('/api/me/vault-backup',async req=>{
+    const who=await requireAccount(req);await limitAccount(who.id,'vault-backup',20,60*60_000);
+    return vaultBackups.writeBackup(who.id,req.body);
+  });
+  app.delete('/api/me/vault-backup',async req=>vaultBackups.deleteBackup((await requireAccount(req)).id,z.object({revision:z.number().int().positive()}).strict().parse(req.body).revision));
   app.put('/api/me/payout',async req=>gate.updatePayout((await requireAccount(req)).id,
     z.object({address:z.string()}).parse(req.body).address));
 
