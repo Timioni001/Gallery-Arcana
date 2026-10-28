@@ -2,9 +2,17 @@
 
 # Gallery Arcana · ZECATHON submission
 
-**A private market for digital goods. Discover, negotiate and exchange, paid in shielded ZEC.**
+**Private payment is only half the trade. Gallery Arcana protects the digital goods and the conversation too.**
 
-`Track: Private Markets` · [Live demo](https://gallery-arcana.timioni1490.workers.dev) · [Code](https://github.com/Timioni001/Gallery-Arcana) · [README](README.md)
+[![Verified on regtest](docs/assets/verified-regtest.svg)](docs/evidence/settlement-regtest-2026-10-27T23-55-54-663Z.json)
+
+**Real Zebra 6.2.3 + Zallet v0.1.0-beta.1 · local private chain · coins have no value.** Public testnet: in progress. Mainnet: disabled.
+
+Buyer payment: `796661ddbdcc9e30b87088ad23cf3ef2fe0c46dd29717d498988817f88e6c066`
+
+Seller payout: `5240770fc148faf7ca32a117114194e930b487ba03e09c6292c6cbc37b66df80`
+
+`Track: Private Markets` · [Watch the 2:20 demo](video/output/Gallery-Arcana-ZECATHON-1080p.mp4) · [Live demo](https://gallery-arcana.timioni1490.workers.dev) · [Code](https://github.com/Timioni001/Gallery-Arcana) · [README](README.md)
 
 ![Gallery Arcana home page](docs/assets/hero.png)
 
@@ -36,9 +44,15 @@
 
 ## 1. The 30-second version
 
-Buying a digital good online publishes a trail: your account, your wallet, what you paid, what you bought and who from. Gallery Arcana is built around one flow that keeps that trail off the public record:
+For judges evaluating Private Markets: **can a buyer pay in shielded ZEC, receive the exact encrypted file, and authorize seller payout without making the product or conversation readable to the platform?** Gallery Arcana demonstrates that workflow with browser-side encryption, buyer-specific sealed keys and verification-triggered release. Zcash supplies the shielded settlement layer; Arcana supplies protected digital delivery.
 
-> **Seal** the file in the seller's browser → **pay** in shielded ZEC → the buyer's browser **verifies** the exact file → the seller is **paid**.
+> **Seal → pay → verify → release.** One purchase, an exact-file check, and a settlement record you can inspect.
+
+Start with the [2:20 walkthrough](video/output/Gallery-Arcana-ZECATHON-1080p.mp4), try the [browser demo](https://gallery-arcana.timioni1490.workers.dev), then inspect the [recorded local-regtest evidence](docs/evidence/settlement-regtest-2026-10-27T23-55-54-663Z.json). The browser demo uses simulated payments and automated sample sellers. The committed settlement record comes from real Zebra and Zallet binaries on a private regtest chain. Public testnet is in progress; mainnet is disabled.
+
+The v1 trade-off is explicit: escrow is custodial. The platform holds funds and sees amounts and order metadata. With trusted client code and devices, client-side encryption protects capsule contents, keys and chat; selectively disclosed dispute evidence is readable by its designated reviewer. Planned direct seller payments with viewing-key observation are a design, not a shipped feature.
+
+**How different people could use this.** An artist can sell an original illustration, music stems or an unreleased edition while publishing only a preview; a collectible owner can offer a private digital companion such as high-resolution scans, provenance documents or a collector archive; a developer, designer or researcher can sell source files, templates or a dataset. Each seller seals the downloadable product, negotiates privately and delivers a buyer-specific key after funding. The buyer verifies the file to authorize immediate release; the one-hour fallback and dispute rules still apply. Physical delivery, legal rights and transfers of domains, repositories or onchain collectibles remain separate agreements; Arcana does not automatically transfer those assets.
 
 | | |
 | --- | --- |
@@ -65,7 +79,7 @@ flowchart LR
 | **1. Seal** | The seller's browser encrypts the file in authenticated chunks and uploads ciphertext. The content key never leaves the seller's device unencrypted. | The server can't read the goods. | `packages/client-crypto`, studio upload |
 | **2. Pay** | Checkout issues an exact zatoshi amount, a single-use Orchard address and a memo (ZIP-321). The worker matches address, memo and value and waits for confirmations. | Payment is shielded and tied to exactly one invoice. | `src/services/checkout.ts`, `src/jobs/watcher.ts` |
 | **3. Verify** | The buyer receives a key envelope sealed to their key (HPKE), decrypts locally and checks the file's SHA-256 against the checkout snapshot. | The buyer got exactly the file that was listed. | order page, `openPurchasedCapsule` |
-| **4. Release** | A matching fingerprint completes the order: the seller payout is queued and an Ed25519 receipt is signed. A mismatch never releases. | The seller is paid only after correct delivery. | `src/services/acquisitions.ts` |
+| **4. Release** | A matching fingerprint completes the order: the seller payout is queued and an Ed25519 receipt is signed. A mismatch never releases. | Immediate release is tied to the checkout fingerprint; fallback and dispute rules also apply. | `src/services/acquisitions.ts` |
 
 Status: **settled with real shielded transactions on local regtest** (real Zebra 6.2.3 and Zallet v0.1.0-beta.1, private chain, no value): buyer payment `796661ddbdcc…`, seller payout `5240770fc148…`, recorded in [settlement-regtest-2026-10-27T23-55-54-663Z.json](docs/evidence/settlement-regtest-2026-10-27T23-55-54-663Z.json). The same flow runs in automated browser journeys and database tests on the mock wallet ([VALIDATION.md](docs/VALIDATION.md)). Public-testnet verification is in progress.
 

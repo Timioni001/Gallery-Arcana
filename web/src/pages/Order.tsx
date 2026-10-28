@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils'
 import { openPurchasedCapsule } from '@/lib/vault'
 import { Fingerprint, useVault, VaultGate } from '@/components/vault'
 import { EvidencePanel } from '@/components/evidence'
+import { PaymentRequest } from '@/components/payment-request'
 
 const stages = ['awaiting_payment', 'funded', 'verified', 'paid'] as const
 
@@ -168,9 +169,10 @@ export default function Order() {
                 {(mode === 'mock' || mode === 'demo') && <span className="rounded-full bg-signal/10 px-2.5 py-0.5 font-mono text-[10.5px] text-signal">MOCK · no blockchain transaction</span>}
               </div>
               <p className="mt-1 text-[13px] text-muted-foreground">Send exactly this amount, with the memo, from a testnet shielded wallet. This page updates by itself.</p>
+              <PaymentRequest uri={payment.uri} expiresAt={payment.expiresAt ?? order.expires_at} mode={mode} />
               <div className="mt-5 space-y-2">
                 <Copyable label="Amount" value={`${payment.amountZec} ZEC`} />
-                <Copyable label="Address (single-use, mock)" value={payment.address} />
+                <Copyable label={mode === 'mock' || mode === 'demo' ? 'Address (single-use, mock)' : 'Address (single-use)'} value={payment.address} />
                 <Copyable label="Memo" value={payment.memo} />
                 <Copyable label="ZIP-321 URI" value={payment.uri} />
               </div>
