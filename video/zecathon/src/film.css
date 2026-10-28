@@ -1,0 +1,2 @@
+* {box-sizing:border-box} body {margin:0} .vault svg {width:100%;height:auto} h1,h2,p{margin:0} .dot{font-family:Doto;font-weight:800;letter-spacing:.015em;text-transform:uppercase;line-height:1.06}.chip{border:1px solid #bbb9b0;border-radius:30px;padding:12px 20px;font:16px 'Geist Mono';letter-spacing:.6px}
+:root{--signal:oklch(.645 .19 38);--surface:oklch(.988 .003 85)}

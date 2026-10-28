@@ -1,0 +1,135 @@
+1
+00:00:00,500 --> 00:00:05,016
+Gallery Arcana is a private market for digital goods, powered by Zcash.
+
+2
+00:00:05,176 --> 00:00:08,118
+This is the hosted demo: payments are simulated.
+
+3
+00:00:08,278 --> 00:00:10,302
+Seal. Pay. Verify. Release.
+
+4
+00:00:12,400 --> 00:00:14,276
+Create an alias and a passphrase.
+
+5
+00:00:14,436 --> 00:00:15,850
+No email or ID.
+
+6
+00:00:16,010 --> 00:00:18,759
+Your encryption keys are created in your browser.
+
+7
+00:00:20,400 --> 00:00:23,531
+Browse public previews and choose an Arcana Fragment.
+
+8
+00:00:23,691 --> 00:00:27,695
+The original is an encrypted capsule, with a key sealed to its buyer.
+
+9
+00:00:27,855 --> 00:00:31,158
+Sample sellers are automated. Payments are simulated.
+
+10
+00:00:32,400 --> 00:00:35,824
+Ask the seller a question through end-to-end encrypted chat.
+
+11
+00:00:35,984 --> 00:00:38,361
+This sample seller replies automatically.
+
+12
+00:00:38,521 --> 00:00:41,420
+The platform still processes financial offer amounts.
+
+13
+00:00:42,400 --> 00:00:50,825
+Checkout creates an exact ZEC amount, a single-use payment address, an invoice memo, and a ZIP three twenty-one request.
+
+14
+00:00:50,985 --> 00:00:54,607
+The demo simulates this payment. No real ZEC moves.
+
+15
+00:00:55,400 --> 00:00:58,960
+The order is funded. The platform holds the funds in escrow.
+
+16
+00:00:59,120 --> 00:01:02,614
+The fallback is one hour, shortened to ten minutes in this demo.
+
+17
+00:01:05,400 --> 00:01:07,187
+Tap Decrypt locally and verify.
+
+18
+00:01:07,333 --> 00:01:11,621
+The browser opens the sealed key and checks the file’s SHA two fifty-six.
+
+19
+00:01:11,767 --> 00:01:13,706
+A match turns the order Paid instantly.
+
+20
+00:01:13,852 --> 00:01:19,670
+Verifying is the acceptance. The seller’s payout is authorized, and a signed receipt records the sale.
+
+21
+00:01:20,400 --> 00:01:24,031
+If the buyer never opens the file, funds release after one hour.
+
+22
+00:01:24,183 --> 00:01:26,312
+A fingerprint mismatch never releases.
+
+23
+00:01:26,465 --> 00:01:31,654
+Disputes freeze funds; a reviewer decides within seven days: release or full refund.
+
+24
+00:01:32,400 --> 00:01:37,517
+In version one, the platform holds escrow funds and sees amounts and order metadata.
+
+25
+00:01:37,677 --> 00:01:42,173
+Client-side encryption protects files, keys, chat and dispute evidence.
+
+26
+00:01:45,400 --> 00:01:47,298
+Now, real settlement evidence.
+
+27
+00:01:47,456 --> 00:01:54,418
+The same purchase flow settled with real shielded transactions on real Zebra and Zallet, on local regtest.
+
+28
+00:01:54,576 --> 00:01:59,651
+The committed evidence records the buyer payment, the seller payout, and verified: true.
+
+29
+00:01:59,809 --> 00:02:04,625
+This is a private chain. Its coins have no value. It is not public testnet.
+
+30
+00:02:05,400 --> 00:02:09,542
+Regtest verified. Public testnet in progress. Mainnet disabled.
+
+31
+00:02:09,695 --> 00:02:12,863
+Next: direct seller payments and viewing-key observation.
+
+32
+00:02:13,016 --> 00:02:14,653
+Design only, not built.
+
+33
+00:02:15,300 --> 00:02:16,396
+Gallery Arcana.
+
+34
+00:02:16,556 --> 00:02:18,761
+Built for ZECATHON. Private Markets.

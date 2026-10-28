@@ -1,0 +1,240 @@
+[
+  {
+    "text": "Gallery Arcana is a private market for digital goods, powered by Zcash.",
+    "startMs": 500,
+    "endMs": 5016,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "This is the hosted demo: payments are simulated.",
+    "startMs": 5176,
+    "endMs": 8118,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "Seal. Pay. Verify. Release.",
+    "startMs": 8278,
+    "endMs": 10302,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "Create an alias and a passphrase.",
+    "startMs": 12400,
+    "endMs": 14276,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "No email or ID.",
+    "startMs": 14436,
+    "endMs": 15850,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "Your encryption keys are created in your browser.",
+    "startMs": 16010,
+    "endMs": 18759,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "Browse public previews and choose an Arcana Fragment.",
+    "startMs": 20400,
+    "endMs": 23531,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "The original is an encrypted capsule, with a key sealed to its buyer.",
+    "startMs": 23691,
+    "endMs": 27695,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "Sample sellers are automated. Payments are simulated.",
+    "startMs": 27855,
+    "endMs": 31158,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "Ask the seller a question through end-to-end encrypted chat.",
+    "startMs": 32400,
+    "endMs": 35824,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "This sample seller replies automatically.",
+    "startMs": 35984,
+    "endMs": 38361,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "The platform still processes financial offer amounts.",
+    "startMs": 38521,
+    "endMs": 41420,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "Checkout creates an exact ZEC amount, a single-use payment address, an invoice memo, and a ZIP three twenty-one request.",
+    "startMs": 42400,
+    "endMs": 50825,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "The demo simulates this payment. No real ZEC moves.",
+    "startMs": 50985,
+    "endMs": 54607,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "The order is funded. The platform holds the funds in escrow.",
+    "startMs": 55400,
+    "endMs": 58960,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "The fallback is one hour, shortened to ten minutes in this demo.",
+    "startMs": 59120,
+    "endMs": 62614,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "Tap Decrypt locally and verify.",
+    "startMs": 65400,
+    "endMs": 67187,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "The browser opens the sealed key and checks the file\u2019s SHA two fifty-six.",
+    "startMs": 67333,
+    "endMs": 71621,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "A match turns the order Paid instantly.",
+    "startMs": 71767,
+    "endMs": 73706,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "Verifying is the acceptance. The seller\u2019s payout is authorized, and a signed receipt records the sale.",
+    "startMs": 73852,
+    "endMs": 79670,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "If the buyer never opens the file, funds release after one hour.",
+    "startMs": 80400,
+    "endMs": 84031,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "A fingerprint mismatch never releases.",
+    "startMs": 84183,
+    "endMs": 86312,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "Disputes freeze funds; a reviewer decides within seven days: release or full refund.",
+    "startMs": 86465,
+    "endMs": 91654,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "In version one, the platform holds escrow funds and sees amounts and order metadata.",
+    "startMs": 92400,
+    "endMs": 97517,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "Client-side encryption protects files, keys, chat and dispute evidence.",
+    "startMs": 97677,
+    "endMs": 102173,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "Now, real settlement evidence.",
+    "startMs": 105400,
+    "endMs": 107298,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "The same purchase flow settled with real shielded transactions on real Zebra and Zallet, on local regtest.",
+    "startMs": 107456,
+    "endMs": 114418,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "The committed evidence records the buyer payment, the seller payout, and verified: true.",
+    "startMs": 114576,
+    "endMs": 119651,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "This is a private chain. Its coins have no value. It is not public testnet.",
+    "startMs": 119809,
+    "endMs": 124625,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "Regtest verified. Public testnet in progress. Mainnet disabled.",
+    "startMs": 125400,
+    "endMs": 129542,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "Next: direct seller payments and viewing-key observation.",
+    "startMs": 129695,
+    "endMs": 132863,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "Design only, not built.",
+    "startMs": 133016,
+    "endMs": 134653,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "Gallery Arcana.",
+    "startMs": 135300,
+    "endMs": 136396,
+    "timestampMs": null,
+    "confidence": null
+  },
+  {
+    "text": "Built for ZECATHON. Private Markets.",
+    "startMs": 136556,
+    "endMs": 138761,
+    "timestampMs": null,
+    "confidence": null
+  }
+]

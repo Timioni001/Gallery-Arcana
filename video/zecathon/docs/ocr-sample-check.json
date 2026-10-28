@@ -1,0 +1,117 @@
+{
+  "sampling": "Every 5 seconds; supplementary to visual inspection and capture masking",
+  "samples": [
+    {
+      "frame": "frame-018.jpg",
+      "findings": []
+    },
+    {
+      "frame": "frame-026.jpg",
+      "findings": []
+    },
+    {
+      "frame": "frame-003.jpg",
+      "findings": []
+    },
+    {
+      "frame": "frame-022.jpg",
+      "findings": []
+    },
+    {
+      "frame": "frame-001.jpg",
+      "findings": []
+    },
+    {
+      "frame": "frame-012.jpg",
+      "findings": []
+    },
+    {
+      "frame": "frame-002.jpg",
+      "findings": []
+    },
+    {
+      "frame": "frame-023.jpg",
+      "findings": []
+    },
+    {
+      "frame": "frame-016.jpg",
+      "findings": []
+    },
+    {
+      "frame": "frame-017.jpg",
+      "findings": []
+    },
+    {
+      "frame": "frame-028.jpg",
+      "findings": []
+    },
+    {
+      "frame": "frame-013.jpg",
+      "findings": []
+    },
+    {
+      "frame": "frame-006.jpg",
+      "findings": []
+    },
+    {
+      "frame": "frame-020.jpg",
+      "findings": []
+    },
+    {
+      "frame": "frame-007.jpg",
+      "findings": []
+    },
+    {
+      "frame": "frame-008.jpg",
+      "findings": []
+    },
+    {
+      "frame": "frame-027.jpg",
+      "findings": []
+    },
+    {
+      "frame": "frame-011.jpg",
+      "findings": []
+    },
+    {
+      "frame": "frame-010.jpg",
+      "findings": []
+    },
+    {
+      "frame": "frame-009.jpg",
+      "findings": []
+    },
+    {
+      "frame": "frame-014.jpg",
+      "findings": []
+    },
+    {
+      "frame": "frame-019.jpg",
+      "findings": []
+    },
+    {
+      "frame": "frame-015.jpg",
+      "findings": []
+    },
+    {
+      "frame": "frame-024.jpg",
+      "findings": []
+    },
+    {
+      "frame": "frame-005.jpg",
+      "findings": []
+    },
+    {
+      "frame": "frame-021.jpg",
+      "findings": []
+    },
+    {
+      "frame": "frame-025.jpg",
+      "findings": []
+    },
+    {
+      "frame": "frame-004.jpg",
+      "findings": []
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "duration": 140.01,
+  "width": 1920,
+  "height": 1080,
+  "playing": true,
+  "seeks": [
+    {
+      "requested": 60,
+      "actual": 60
+    },
+    {
+      "requested": 74,
+      "actual": 74
+    },
+    {
+      "requested": 114,
+      "actual": 114
+    },
+    {
+      "requested": 137,
+      "actual": 137
+    }
+  ],
+  "error": null
+}

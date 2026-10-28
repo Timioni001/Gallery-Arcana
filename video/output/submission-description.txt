@@ -1,0 +1,1 @@
+Gallery Arcana demonstrates a private digital purchase—seal, pay, verify, release—with encrypted delivery and recorded real shielded settlement on local Zcash regtest, clearly distinguished from its simulated browser demo.

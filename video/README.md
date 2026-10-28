@@ -1,3 +1,5 @@
+> Latest ZECATHON cut: [2:20 video project](zecathon/README.md). Browser simulation and recorded real local-regtest evidence are explicitly distinguished.
+
 # Gallery Arcana — 90-second product film
 
 Independent Remotion production. Application source is untouched in the original checkout. Current recording source: `Timioni001/Gallery-Arcana` revision `728f3ce` (README re-read, including 72-hour review/automatic release). Film: 1920×1080,30fps,2700 frames.

@@ -1,0 +1,69 @@
+{
+  "sourceCommit": "502ece5",
+  "mode": "browser-demo",
+  "localBuild": true,
+  "simulatedSeller": true,
+  "simulatedPayment": true,
+  "liveZcashVerified": false,
+  "downloadSha256": "1c721c4c97bc0dafc527427f8db583e8ad6ab6d699556dca781135f3ee44bbd4",
+  "checksumMatchedInUI": true,
+  "demoReceiptSignatureVerified": true,
+  "pageErrors": [],
+  "scenes": [
+    {
+      "name": "home",
+      "start": 0.013,
+      "end": 8.524
+    },
+    {
+      "name": "alias",
+      "start": 8.525,
+      "end": 13.454
+    },
+    {
+      "name": "market",
+      "start": 15.904,
+      "end": 25.22
+    },
+    {
+      "name": "listing",
+      "start": 25.22,
+      "end": 28.902
+    },
+    {
+      "name": "message",
+      "start": 28.902,
+      "end": 41.727
+    },
+    {
+      "name": "invoice",
+      "start": 44.42,
+      "end": 53.104
+    },
+    {
+      "name": "funded",
+      "start": 53.104,
+      "end": 57.44
+    },
+    {
+      "name": "decrypt",
+      "start": 57.441,
+      "end": 63.616
+    },
+    {
+      "name": "accept",
+      "start": 63.616,
+      "end": 69.524
+    },
+    {
+      "name": "terms",
+      "start": 69.524,
+      "end": 74.253
+    },
+    {
+      "name": "privacy",
+      "start": 74.253,
+      "end": 79.086
+    }
+  ]
+}
