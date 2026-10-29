@@ -2,7 +2,7 @@
 
 # Gallery Arcana
 
-**A private market for digital assets. Discover, negotiate and exchange, paid in shielded Zcash.**
+**Shielded unlockables for digital work: the file stays sealed until a buyer pays in shielded ZEC and verifies it.**
 
 [Live demo](https://gallery-arcana.timioni1490.workers.dev) · [ZECATHON submission](HACKATHON.md) · [How it works](#how-a-sale-works) · [Run it](#running-requirements) · [Docs](#documentation)
 
