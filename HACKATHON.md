@@ -2,7 +2,7 @@
 
 # Gallery Arcana · ZECATHON submission
 
-**A private market for digital goods. Discover, negotiate and exchange, paid in shielded ZEC.**
+**Shielded unlockables for digital work: the file stays sealed until a buyer pays in shielded ZEC and verifies it.**
 
 `Track: Private Markets` · [Watch the 2:20 demo](video/output/Gallery-Arcana-ZECATHON-1080p.mp4) · [Live demo](https://gallery-arcana.timioni1490.workers.dev) · [Code](https://github.com/Timioni001/Gallery-Arcana) · [README](README.md)
 
@@ -39,7 +39,7 @@ One complete purchase settled with **Zebra 6.2.3** and **Zallet v0.1.0-beta.1** 
 
 1. [The 30-second version](#1-the-30-second-version)
 2. [One flow, end to end](#2-one-flow-end-to-end)
-3. [Where this fits next to Zilk Road](#3-where-this-fits-next-to-zilk-road)
+3. [Shielded unlockables for collections like zkSNARKs](#3-shielded-unlockables-for-collections-like-zksnarks)
 4. [The problem](#4-the-problem)
 5. [What we built](#5-what-we-built)
 6. [What stays private, and from whom](#6-what-stays-private-and-from-whom)
@@ -98,17 +98,24 @@ flowchart LR
 
 Status: **settled with real shielded transactions on local regtest** (real Zebra 6.2.3 and Zallet v0.1.0-beta.1, private chain, no value): buyer payment `796661ddbdcc…`, seller payout `5240770fc148…`, recorded in [settlement-regtest-2026-10-27T23-55-54-663Z.json](docs/evidence/settlement-regtest-2026-10-27T23-55-54-663Z.json). The same flow runs in automated browser journeys and database tests on the mock wallet ([VALIDATION.md](docs/VALIDATION.md)). Public-testnet verification is in progress.
 
-## 3. Where this fits next to Zilk Road
+## 3. Shielded unlockables for collections like zkSNARKs
 
-zkSNARKs runs [Zilk Road](https://zilkroad.com), the official marketplace for the zkSNARKs collection of shielded identities on Zcash, with listings, offers and shielded bidder identities. Gallery Arcana is aimed at a different kind of good: **files whose contents must stay private until a buyer pays**, such as source code, datasets, design files and unreleased work.
+zkSNARKs runs [Zilk Road](https://zilkroad.com), the official marketplace for the zkSNARKs collection of shielded identities on Zcash, with listings, offers and shielded bidder identities, and works hands-on with a limited number of artists on launches. Its public pages don't describe a way to deliver private files to buyers. That's the gap Gallery Arcana fills: **an unlockable that stays sealed until the right buyer pays and verifies it.**
 
-| | Zilk Road | Gallery Arcana |
+| | Zilk Road (public pages) | Gallery Arcana |
 | --- | --- | --- |
-| Primary good | The zkSNARKs collection | Encrypted digital files |
-| Core question answered | Who owns which identity | Did the buyer receive exactly the file they paid for, without the platform seeing it |
-| Distinctive mechanism | Shielded bidding and sales of a collection | Browser-side encryption, buyer-sealed keys, verification-gated release |
+| Primary good | The zkSNARKs collection | Sealed digital files |
+| Core question answered | Who holds which identity, traded with shielded bids | Did the buyer receive exactly the file they paid for, without the platform seeing it |
+| Distinctive mechanism | Shielded bidding and collection sales | Browser-side encryption, buyer-sealed keys, release on verified delivery |
 
-The two are complementary: encrypted delivery and verified release are building blocks a collection marketplace could use for unlockable content.
+### How a collection artist could use this
+
+1. **Seal the unlockable.** The artist encrypts the high-resolution master, source file or bonus work in their own browser. Only a preview is public.
+2. **Sell with shielded ZEC.** The buyer pays a single-use shielded invoice; the amount and parties stay off the public chain.
+3. **Deliver to one buyer.** The content key is sealed to that buyer's key. Nobody else, including the platform, can open it.
+4. **Release on proof.** The buyer's browser checks the file's fingerprint; a match pays the artist instantly and signs a receipt.
+
+These are building blocks, not an integration: Gallery Arcana is not connected to Zilk Road today. A collection marketplace could adopt the same capsule format and release rule for holder-only content.
 
 ## 4. The problem
 
