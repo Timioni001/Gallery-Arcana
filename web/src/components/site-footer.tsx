@@ -19,7 +19,7 @@ export function SiteFooter() {
       <div className="mx-auto grid max-w-6xl gap-10 px-4 pt-14 sm:px-6 grid-cols-2 md:grid-cols-[1.4fr_repeat(4,1fr)]">
         <div className="col-span-2 max-w-xs md:col-span-1">
           <Logo />
-          <p className="mt-4 text-sm text-muted-foreground">A private market for digital assets. Discover, negotiate and exchange privately. Lawful digital commerce only.</p>
+          <p className="mt-4 text-sm text-muted-foreground">Shielded unlockables for digital work. Sealed files, shielded payments, release on verified delivery. Lawful digital commerce only.</p>
         </div>
         {cols.map((c) => (
           <div key={c.title}>
